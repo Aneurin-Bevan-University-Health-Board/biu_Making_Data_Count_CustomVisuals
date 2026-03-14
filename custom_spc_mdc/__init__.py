@@ -29,7 +29,7 @@ from .spc import (
     determine_point_colours,
 )
 from .plot import plot_spc_chart, plot_run_chart
-from .utils import validate_data
+from .utils import validate_data, add_logo
 
 __all__ = [
     "calculate_control_limits",
@@ -40,6 +40,7 @@ __all__ = [
     "plot_spc_chart",
     "plot_run_chart",
     "validate_data",
+    "add_logo",
 ]
 
 __version__ = "0.1.0"

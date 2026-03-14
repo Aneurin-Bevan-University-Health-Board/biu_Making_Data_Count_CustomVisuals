@@ -190,14 +190,18 @@ def add_nhs_logo(
     position: str = "lower right",
     zoom: float = 0.12,
 ) -> None:
-    """Overlay the NHS logo on *ax* at the requested position.
+    """Overlay an image inside the axes at a cardinal corner position.
+
+    .. note::
+        To place a logo at the **top-right in line with the chart title**
+        (the typical branding position), use :func:`add_logo` instead.
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
         The axes on which to place the logo.
     logo_path : str
-        Absolute or relative path to the NHS logo image file (PNG recommended).
+        Absolute or relative path to the logo image file (PNG recommended).
     position : str, optional
         One of ``"upper left"``, ``"upper right"``, ``"lower left"``,
         ``"lower right"`` (default ``"lower right"``).
@@ -240,6 +244,82 @@ def add_nhs_logo(
         box_alignment=(1, 0) if "right" in position else (0, 0),
     )
     ax.add_artist(ab)
+
+
+def add_logo(
+    fig,
+    ax,
+    logo_path: str,
+    zoom: float = 0.07,
+    padding: float = 0.005,
+) -> None:
+    """Place a logo at the top-right of the figure, level with the chart title.
+
+    The logo is rendered as a new inset axes positioned in **figure-fraction**
+    coordinates so that it sits in the margin above the main axes — visually
+    aligned with the chart title.  This function must be called **after**
+    ``fig.tight_layout()`` so that the axes position is finalised.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure containing the chart.
+    ax : matplotlib.axes.Axes
+        The primary chart axes (used to determine right-edge alignment and
+        the vertical position above the axes top).
+    logo_path : str
+        Path to the logo image file (PNG, JPEG, etc.).
+    zoom : float, optional
+        Logo height as a fraction of the figure height (default ``0.07``,
+        i.e. 7 %).  Increase to make the logo larger; decrease to make it
+        smaller.
+    padding : float, optional
+        Vertical gap between the top of the plot area and the bottom of the
+        logo, as a fraction of figure height (default ``0.005``).
+
+    Raises
+    ------
+    FileNotFoundError
+        If *logo_path* does not point to an existing file.
+
+    Examples
+    --------
+    >>> fig, ax = plot_spc_chart(data, chart_type="XmR", logo_path="logo.png")
+
+    Or call directly after tight_layout:
+
+    >>> from custom_spc_mdc.utils import add_logo
+    >>> fig.tight_layout()
+    >>> add_logo(fig, ax, "logo.png", zoom=0.08)
+    """
+    import os
+    import matplotlib.image as mpimg
+
+    if not os.path.isfile(logo_path):
+        raise FileNotFoundError(f"Logo not found at: {logo_path}")
+
+    logo_img = mpimg.imread(logo_path)
+    img_h, img_w = logo_img.shape[:2]
+    aspect = img_w / float(img_h)
+
+    # Axes bounding box in figure fraction (finalised after tight_layout)
+    ax_pos = ax.get_position()
+
+    # Figure dimensions – needed to preserve the logo's pixel aspect ratio
+    fig_w, fig_h = fig.get_size_inches()
+
+    # Convert to figure-fraction dimensions
+    logo_h = zoom                            # height fraction of figure
+    logo_w = logo_h * aspect * (fig_h / fig_w)  # width fraction
+
+    # Right-align logo with the right edge of the axes;
+    # bottom edge sits just above the axes top (in the title margin)
+    left   = ax_pos.x1 - logo_w
+    bottom = ax_pos.y1 + padding
+
+    logo_ax = fig.add_axes([left, bottom, logo_w, logo_h])
+    logo_ax.imshow(logo_img)
+    logo_ax.axis("off")
 
 
 def add_shading(

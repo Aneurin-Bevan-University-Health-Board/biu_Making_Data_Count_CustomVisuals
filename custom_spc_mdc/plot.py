@@ -40,7 +40,7 @@ from .spc import (
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
 )
-from .utils import add_target_line, add_nhs_logo, add_shading, add_change_line
+from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line
 
 # ---------------------------------------------------------------------------
 # Date-axis helpers
@@ -143,6 +143,8 @@ def plot_spc_chart(
     change_points: list[dict] | None = None,
     auto_rebase: bool = False,
     date_format: str | None = None,
+    logo_path: str | None = None,
+    logo_zoom: float = 0.07,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC SPC or run chart.
 
@@ -189,8 +191,9 @@ def plot_spc_chart(
     shade_color : str, optional
         Colour for the tolerance-band shading (default NHS Light Blue).
     nhs_logo_path : str or None, optional
-        Path to an NHS logo image file.  When provided the logo is overlaid in
-        the lower-right corner.
+        Path to an image file overlaid **inside** the axes at the lower-right
+        corner (legacy parameter).  For a logo placed at the top-right
+        *in line with the chart title*, use *logo_path* instead.
     ax : matplotlib.axes.Axes or None, optional
         Axes on which to draw the chart.  A new figure / axes is created when
         ``None`` (default).
@@ -223,6 +226,13 @@ def plot_spc_chart(
         values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
         matplotlib's ``ConciseDateFormatter`` chooses a format automatically
         (default ``None``).
+    logo_path : str or None, optional
+        Path to a logo image file (PNG, JPEG, etc.).  When supplied, the logo
+        is placed at the **top-right of the figure, in line with the chart
+        title**.  Use *logo_zoom* to control the size.
+    logo_zoom : float, optional
+        Logo height as a fraction of the figure height (default ``0.07``).
+        Increase for a larger logo; decrease for a smaller one.
 
     Returns
     -------
@@ -249,6 +259,8 @@ def plot_spc_chart(
             show_legend=show_legend,
             change_points=change_points,
             date_format=date_format,
+            logo_path=logo_path,
+            logo_zoom=logo_zoom,
         )
 
     # --- Calculate limits ---------------------------------------------------
@@ -381,6 +393,13 @@ def plot_spc_chart(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
+
+    # --- Logo (after tight_layout so ax.get_position() is finalised) --------
+    if logo_path is not None:
+        add_logo(fig, ax, logo_path, zoom=logo_zoom)
+    if nhs_logo_path is not None:
+        add_nhs_logo(ax, nhs_logo_path, position="lower right")
+
     return fig, ax
 
 
@@ -400,6 +419,8 @@ def plot_run_chart(
     show_legend: bool = True,
     change_points: list[dict] | None = None,
     date_format: str | None = None,
+    logo_path: str | None = None,
+    logo_zoom: float = 0.07,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC run chart with median centre line.
 
@@ -448,6 +469,12 @@ def plot_run_chart(
         A ``strftime``-style format string applied to the x-axis when datetime
         values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
         matplotlib's ``ConciseDateFormatter`` is used automatically.
+    logo_path : str or None, optional
+        Path to a logo image file (PNG, JPEG, etc.).  When supplied, the logo
+        is placed at the **top-right of the figure, in line with the chart
+        title**.  Use *logo_zoom* to control the size.
+    logo_zoom : float, optional
+        Logo height as a fraction of the figure height (default ``0.07``).
 
     Returns
     -------
@@ -507,10 +534,6 @@ def plot_run_chart(
         for cp in change_points:
             add_change_line(ax, x=cp["x"], label=cp.get("label"))
 
-    # --- Optional NHS logo --------------------------------------------------
-    if nhs_logo_path is not None:
-        add_nhs_logo(ax, nhs_logo_path, position="lower right")
-
     # --- Labels & title -----------------------------------------------------
     ax.set_title(title if title is not None else "Run Chart",
                  fontsize=13, fontweight="bold")
@@ -538,4 +561,11 @@ def plot_run_chart(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
+
+    # --- Logo (after tight_layout so ax.get_position() is finalised) --------
+    if logo_path is not None:
+        add_logo(fig, ax, logo_path, zoom=logo_zoom)
+    if nhs_logo_path is not None:
+        add_nhs_logo(ax, nhs_logo_path, position="lower right")
+
     return fig, ax

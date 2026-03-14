@@ -252,6 +252,51 @@ class TestPlotRunChart:
 
 
 # ---------------------------------------------------------------------------
+# logo_path parameter (top-right, title-aligned logo)
+# ---------------------------------------------------------------------------
+
+
+class TestLogoPath:
+    def test_spc_chart_logo_adds_inset_axes(self, xmr_data, logo_file):
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR", logo_path=logo_file)
+        # The logo is added as an extra axes after tight_layout
+        assert len(fig.axes) == 2  # main axes + logo inset
+
+    def test_run_chart_logo_adds_inset_axes(self, xmr_data, logo_file):
+        fig, ax = plot_run_chart(xmr_data, logo_path=logo_file)
+        assert len(fig.axes) == 2
+
+    def test_no_logo_no_extra_axes(self, xmr_data):
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR")
+        assert len(fig.axes) == 1
+
+    def test_logo_missing_file_raises(self, xmr_data, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            plot_spc_chart(
+                xmr_data, chart_type="XmR",
+                logo_path=str(tmp_path / "nope.png"),
+            )
+
+    def test_logo_zoom_respected(self, xmr_data, logo_file):
+        fig_small, _ = plot_spc_chart(
+            xmr_data, chart_type="XmR", logo_path=logo_file, logo_zoom=0.04
+        )
+        fig_large, _ = plot_spc_chart(
+            xmr_data, chart_type="XmR", logo_path=logo_file, logo_zoom=0.12
+        )
+        h_small = fig_small.axes[-1].get_position().height
+        h_large = fig_large.axes[-1].get_position().height
+        assert h_large > h_small
+
+    def test_run_chart_dispatches_logo(self, xmr_data, logo_file):
+        """chart_type='run' should also carry logo_path through dispatch."""
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="run", logo_path=logo_file
+        )
+        assert len(fig.axes) == 2
+
+
+# ---------------------------------------------------------------------------
 # Date-axis support
 # ---------------------------------------------------------------------------
 

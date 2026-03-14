@@ -17,6 +17,7 @@ charts following the NHS [Making Data Count](https://www.england.nhs.uk/publicat
   - [c Chart](#c-chart)
   - [Run Chart](#run-chart)
 - [Special-Cause Rules](#special-cause-rules)
+- [Logo Placement](#logo-placement)
 - [Date Axis](#date-axis)
 - [Change-Point Annotations](#change-point-annotations)
 - [Auto-Rebase on Sustained Improvement](#auto-rebase-on-sustained-improvement)
@@ -179,6 +180,44 @@ delegate to `plot_run_chart`:
 ```python
 fig, ax = plot_spc_chart(data, chart_type="run")
 ```
+
+---
+
+## Logo Placement
+
+Pass any image (PNG, JPEG, etc.) via `logo_path` to display your organisation's
+logo at the **top-right of the chart, level with the title**.  This works on
+all five chart types.
+
+```python
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="XmR",
+    title="A&E 4-Hour Waits – Aneurin Bevan UHB",
+    logo_path="path/to/logo.png",   # ← any image file
+    logo_zoom=0.08,                  # ← height as fraction of figure (default 0.07)
+)
+```
+
+![Chart with Logo](docs/images/chart_with_logo.png)
+
+The logo is right-aligned with the plot area and bottom-aligned with the top
+edge of the axes, so it sits naturally beside the title text.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `logo_path` | `str \| None` | `None` | Path to logo image file |
+| `logo_zoom` | `float` | `0.07` | Logo height as fraction of figure height |
+
+The same parameters work on `plot_run_chart`:
+
+```python
+fig, ax = plot_run_chart(data, logo_path="logo.png", logo_zoom=0.09)
+```
+
+> **Note:** `logo_path` places the logo **in the title margin** (top-right).
+> The existing `nhs_logo_path` parameter is still supported and places an image
+> *inside* the plot area at the lower-right corner.
 
 ---
 
@@ -408,6 +447,8 @@ plot_spc_chart(
     change_points=None,   # [{"x": ..., "label": "..."}, ...]
     auto_rebase=False,
     date_format=None,     # strftime string, e.g. "%b %Y"
+    logo_path=None,       # top-right logo aligned with title
+    logo_zoom=0.07,       # logo height as fraction of figure height
 )
 ```
 
@@ -430,6 +471,8 @@ plot_run_chart(
     show_legend=True,
     change_points=None,   # [{"x": ..., "label": "..."}, ...]
     date_format=None,     # strftime string, e.g. "%b %Y"
+    logo_path=None,       # top-right logo aligned with title
+    logo_zoom=0.07,       # logo height as fraction of figure height
 )
 ```
 
