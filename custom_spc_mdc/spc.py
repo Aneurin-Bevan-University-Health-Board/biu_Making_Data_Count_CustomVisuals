@@ -2,7 +2,8 @@
 spc.py
 ======
 Core Statistical Process Control calculations following the NHS Making Data
-Count (MDC) methodology.
+Count (MDC) methodology.  Rules are aligned with the NHSRplotthedots R
+package (https://github.com/nhs-r-community/NHSRplotthedots).
 
 Supported chart types
 ---------------------
@@ -10,15 +11,24 @@ Supported chart types
 * ``"p"``    – Proportion chart  (requires ``subgroup_sizes`` column)
 * ``"u"``    – Counts-per-unit chart (requires ``subgroup_sizes`` column)
 * ``"c"``    – Counts in a fixed population
+* ``"run"``  – Basic run chart (median centre line, no control limits)
 
-NHS MDC Special-Cause rules implemented
-----------------------------------------
+NHS MDC Special-Cause rules implemented (SPC charts)
+------------------------------------------------------
 1. **Rule 1 – Astronomical point**: a single value outside the 3-sigma
    process control limits (UCL / LCL).
-2. **Rule 2 – Shift**: six or more consecutive points all above *or* all
-   below the centre line (mean).
-3. **Rule 3 – Trend**: five or more consecutive points all going up *or*
+2. **Rule 2 – Shift**: **seven** or more consecutive points all above *or*
+   all below the centre line (mean) — aligned with NHS MDC / NHSRplotthedots.
+3. **Rule 3 – Trend**: **seven** or more consecutive points all going up *or*
    all going down.
+4. **Rule 4 – Two-in-three**: two out of three consecutive points in the
+   warning zone (between 2-sigma and 3-sigma limits) on the same side.
+
+Run-chart signals (run chart only)
+-----------------------------------
+* **Shift**: seven or more consecutive points on the same side of the median.
+* **Trend**: seven or more consecutive points all increasing *or* all
+  decreasing.
 
 NHS Colour scheme
 -----------------
@@ -78,14 +88,14 @@ def calculate_control_limits(
         ``"p"`` charts where ``value`` is the raw numerator count rather than
         the pre-computed proportion.
     chart_type : str
-        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``.
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``.
     value_col : str, optional
         Name of the column containing the measured values (default
         ``"value"``).
     subgroup_col : str or None, optional
         Name of the column containing subgroup / denominator sizes.  Required
         for ``"p"`` and ``"u"`` charts.  Defaults to ``"subgroup_size"``
-        (ignored for ``"XmR"`` and ``"c"``).
+        (ignored for ``"XmR"``, ``"c"``, and ``"run"``).
     numerator_col : str or None, optional
         When provided for ``"p"`` charts, *value_col* is treated as the
         denominator and *numerator_col* as the count of events.  The
@@ -97,9 +107,11 @@ def calculate_control_limits(
         A copy of *data* with additional columns:
 
         * ``mean``  – centre line (constant or per-point where varying
-          subgroup sizes are used)
-        * ``ucl``   – upper control limit
-        * ``lcl``   – lower control limit
+          subgroup sizes are used); for ``"run"`` charts this is the median.
+        * ``ucl``   – upper control limit (absent for ``"run"`` charts)
+        * ``lcl``   – lower control limit (absent for ``"run"`` charts)
+        * ``uwl``   – upper warning limit at 2-sigma (absent for ``"run"``)
+        * ``lwl``   – lower warning limit at 2-sigma (absent for ``"run"``)
 
     Raises
     ------
@@ -107,7 +119,7 @@ def calculate_control_limits(
         If *chart_type* is not one of the supported types.
     """
     chart_type = chart_type.strip().lower() if chart_type else chart_type
-    _SUPPORTED = {"xmr", "p", "u", "c"}
+    _SUPPORTED = {"xmr", "p", "u", "c", "run"}
     if chart_type not in _SUPPORTED:
         raise ValueError(
             f"Unsupported chart_type '{chart_type}'. "
@@ -116,7 +128,9 @@ def calculate_control_limits(
 
     # When numerator_col is provided for a p-chart, value_col is the denominator
     # (subgroup size), so validate it as the subgroup column.
-    if chart_type == "p" and numerator_col is not None:
+    if chart_type == "run":
+        validate_data(data, "xmr", value_col=value_col, subgroup_col=None)
+    elif chart_type == "p" and numerator_col is not None:
         validate_data(
             data,
             chart_type,
@@ -136,10 +150,13 @@ def calculate_control_limits(
         result = _calc_u(result, value_col, subgroup_col)
     elif chart_type == "c":
         result = _calc_c(result, value_col)
+    elif chart_type == "run":
+        result = _calc_run(result, value_col)
 
     # Ensure LCL is non-negative for count / proportion charts
     if chart_type in {"p", "u", "c"}:
         result["lcl"] = result["lcl"].clip(lower=0)
+        result["lwl"] = result["lwl"].clip(lower=0)
 
     return result
 
@@ -150,15 +167,20 @@ def detect_special_causes(
     mean_col: str = "mean",
     ucl_col: str = "ucl",
     lcl_col: str = "lcl",
+    uwl_col: str = "uwl",
+    lwl_col: str = "lwl",
 ) -> pd.DataFrame:
     """Detect special-cause variation using NHS MDC rules.
 
-    Three rules are applied:
+    Four rules are applied (aligned with NHSRplotthedots / NHS MDC):
 
-    * **Rule 1** – astronomical point: value outside control limits.
-    * **Rule 2** – shift: ≥ 6 consecutive points on the same side of the mean.
-    * **Rule 3** – trend: ≥ 5 consecutive points all increasing *or* all
+    * **Rule 1** – astronomical point: value outside 3-sigma control limits.
+    * **Rule 2** – shift: ≥ 7 consecutive points on the same side of the mean.
+    * **Rule 3** – trend: ≥ 7 consecutive points all increasing *or* all
       decreasing.
+    * **Rule 4** – two-in-three: two out of three consecutive points in the
+      warning zone (between 2-sigma and 3-sigma), on the same side of the mean.
+      Only applied when *uwl_col* / *lwl_col* are present in *result*.
 
     Parameters
     ----------
@@ -173,6 +195,12 @@ def detect_special_causes(
         Name of the UCL column (default ``"ucl"``).
     lcl_col : str, optional
         Name of the LCL column (default ``"lcl"``).
+    uwl_col : str, optional
+        Name of the upper warning-limit column (default ``"uwl"``).  Rule 4
+        is skipped when this column is absent.
+    lwl_col : str, optional
+        Name of the lower warning-limit column (default ``"lwl"``).  Rule 4
+        is skipped when this column is absent.
 
     Returns
     -------
@@ -182,6 +210,8 @@ def detect_special_causes(
         * ``rule1`` – point is outside control limits
         * ``rule2`` – point is part of a run on one side of the mean
         * ``rule3`` – point is part of a run trend (up or down)
+        * ``rule4`` – point is part of a 2-in-3 warning-zone cluster
+          (only set when warning limits are present)
         * ``special_cause`` – True if **any** rule is triggered
     """
     df = result.copy()
@@ -190,16 +220,23 @@ def detect_special_causes(
     ucl = df[ucl_col].to_numpy(dtype=float)
     lcl = df[lcl_col].to_numpy(dtype=float)
 
-    n = len(values)
-
     rule1 = _rule1_astronomical(values, ucl, lcl)
-    rule2 = _rule2_shift(values, mean, run_length=6)
-    rule3 = _rule3_trend(values, run_length=5)
+    rule2 = _rule2_shift(values, mean, run_length=7)
+    rule3 = _rule3_trend(values, run_length=7)
 
     df["rule1"] = rule1
     df["rule2"] = rule2
     df["rule3"] = rule3
-    df["special_cause"] = rule1 | rule2 | rule3
+
+    has_warning_limits = uwl_col in df.columns and lwl_col in df.columns
+    if has_warning_limits:
+        uwl = df[uwl_col].to_numpy(dtype=float)
+        lwl = df[lwl_col].to_numpy(dtype=float)
+        rule4 = _rule4_two_in_three(values, mean, ucl, lcl, uwl, lwl)
+        df["rule4"] = rule4
+        df["special_cause"] = rule1 | rule2 | rule3 | rule4
+    else:
+        df["special_cause"] = rule1 | rule2 | rule3
 
     return df
 
@@ -304,6 +341,9 @@ def _calc_xmr(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     Uses the debiasing constant ``d2 = 1.128`` for subgroup size of 2.
     ``UCL = mean + 3 / d2 * mean_mr``  which simplifies to
     ``mean ± 2.66 * mean_mr``.
+
+    Warning limits (2-sigma) use ``limitclose = 2/3 * 2.66 ≈ 1.77``,
+    consistent with NHSRplotthedots.
     """
     values = df[value_col].to_numpy(dtype=float)
     mean_val = np.nanmean(values)
@@ -312,11 +352,14 @@ def _calc_xmr(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
 
     # 3 / d2 ≈ 2.659, rounded to 2.66 in NHS MDC guidance
     d2 = 1.128
-    sigma_multiplier = 3.0 / d2
+    sigma_multiplier = 3.0 / d2          # ≈ 2.66
+    warn_multiplier = 2.0 * sigma_multiplier / 3.0  # ≈ 1.77
 
     df["mean"] = mean_val
     df["ucl"] = mean_val + sigma_multiplier * mean_mr
     df["lcl"] = mean_val - sigma_multiplier * mean_mr
+    df["uwl"] = mean_val + warn_multiplier * mean_mr
+    df["lwl"] = mean_val - warn_multiplier * mean_mr
     return df
 
 
@@ -344,6 +387,8 @@ def _calc_p(
     df["mean"] = p_bar
     df["ucl"] = p_bar + 3 * sigma_i
     df["lcl"] = p_bar - 3 * sigma_i
+    df["uwl"] = p_bar + 2 * sigma_i
+    df["lwl"] = p_bar - 2 * sigma_i
 
     # Update value_col if numerator was provided (use proportion)
     if numerator_col is not None:
@@ -367,6 +412,8 @@ def _calc_u(
     df["mean"] = u_bar
     df["ucl"] = u_bar + 3 * sigma_i
     df["lcl"] = u_bar - 3 * sigma_i
+    df["uwl"] = u_bar + 2 * sigma_i
+    df["lwl"] = u_bar - 2 * sigma_i
     return df
 
 
@@ -379,6 +426,16 @@ def _calc_c(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     df["mean"] = c_bar
     df["ucl"] = c_bar + 3 * sigma
     df["lcl"] = c_bar - 3 * sigma
+    df["uwl"] = c_bar + 2 * sigma
+    df["lwl"] = c_bar - 2 * sigma
+    return df
+
+
+def _calc_run(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """Run chart calculations – median centre line only, no control limits."""
+    values = df[value_col].to_numpy(dtype=float)
+    median_val = float(np.nanmedian(values))
+    df["mean"] = median_val
     return df
 
 
@@ -399,9 +456,12 @@ def _rule1_astronomical(
 def _rule2_shift(
     values: np.ndarray,
     mean: np.ndarray,
-    run_length: int = 6,
+    run_length: int = 7,
 ) -> np.ndarray:
-    """Rule 2 – run of *run_length* or more points on the same side of mean."""
+    """Rule 2 – run of *run_length* (≥7) points on the same side of mean.
+
+    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
+    """
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     above = values > mean
@@ -417,8 +477,11 @@ def _rule2_shift(
     return flags
 
 
-def _rule3_trend(values: np.ndarray, run_length: int = 5) -> np.ndarray:
-    """Rule 3 – run of *run_length* or more consecutively increasing/decreasing."""
+def _rule3_trend(values: np.ndarray, run_length: int = 7) -> np.ndarray:
+    """Rule 3 – run of *run_length* (≥7) consecutively increasing/decreasing.
+
+    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
+    """
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     diffs = np.diff(values)  # length n-1
@@ -428,6 +491,50 @@ def _rule3_trend(values: np.ndarray, run_length: int = 5) -> np.ndarray:
         seg = diffs[start : start + run_length - 1]
         if (seg > 0).all() or (seg < 0).all():
             flags[start : start + run_length] = True
+
+    return flags
+
+
+def _rule4_two_in_three(
+    values: np.ndarray,
+    mean: np.ndarray,
+    ucl: np.ndarray,
+    lcl: np.ndarray,
+    uwl: np.ndarray,
+    lwl: np.ndarray,
+) -> np.ndarray:
+    """Rule 4 – 2 out of 3 consecutive points in the warning zone on same side.
+
+    The warning zone is the region between the 2-sigma warning limits
+    (``uwl``/``lwl``) and the 3-sigma control limits (``ucl``/``lcl``).
+    Both qualifying points must be on the same side of the centre line.
+
+    Aligned with ``ptd_two_in_three`` from NHSRplotthedots.
+    """
+    n = len(values)
+    flags = np.zeros(n, dtype=bool)
+
+    # close_to_limits: 1 if in warning zone (above uwl or below lwl) and not outside limits
+    outside = (values > ucl) | (values < lcl)
+    close = ~outside & ((values > uwl) | (values < lwl))
+
+    # relative_to_mean: +1 if above mean, -1 if below, 0 if equal
+    rtm = np.sign(values - mean).astype(int)
+
+    # Slide a window of 3 and check if ≥2 are close AND all 3 on same side
+    for i in range(n):
+        for window_start in (i - 2, i - 1, i):
+            ws = window_start
+            we = window_start + 3
+            if ws < 0 or we > n:
+                continue
+            seg_close = close[ws:we]
+            seg_rtm = rtm[ws:we]
+            if seg_close.sum() >= 2 and abs(seg_rtm.sum()) == 3:
+                # Point i is only flagged if it is itself close to limits
+                if close[i]:
+                    flags[i] = True
+                    break
 
     return flags
 
