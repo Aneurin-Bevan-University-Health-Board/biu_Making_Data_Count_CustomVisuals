@@ -375,6 +375,125 @@ def detect_run_chart_signals(
     return df
 
 
+def rebase_control_limits(
+    data: pd.DataFrame,
+    chart_type: str,
+    improvement_direction: str = "high",
+    value_col: str = "value",
+    subgroup_col: str | None = "subgroup_size",
+    numerator_col: str | None = None,
+    min_phase_length: int = 7,
+) -> pd.DataFrame:
+    """Calculate control limits with automatic phase rebasing on improvement.
+
+    When a sustained improvement shift (≥ *min_phase_length* consecutive
+    points in the *improvement_direction* relative to the current mean) is
+    detected, control limits are recalculated from the start of that shift
+    forward.  The process repeats iteratively so that multiple successive
+    phases of improvement are all captured.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input data — same requirements as :func:`calculate_control_limits`.
+    chart_type : str
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"`` (case-insensitive).
+        ``"run"`` is not supported.
+    improvement_direction : str, optional
+        ``"high"`` (default) or ``"low"`` — direction in which improvement
+        lies.
+    value_col : str, optional
+        Column containing measured values (default ``"value"``).
+    subgroup_col : str or None, optional
+        Column containing subgroup sizes (required for ``"p"`` and ``"u"``).
+    numerator_col : str or None, optional
+        For ``"p"`` charts: column with event counts when *value_col* is the
+        denominator.
+    min_phase_length : int, optional
+        Minimum consecutive points in the improvement direction required to
+        trigger a rebase (default ``7``, aligned with NHS MDC Rule 2 / shift).
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *data* with the usual ``mean``, ``ucl``, ``lcl``,
+        ``uwl``, ``lwl`` columns (recalculated per phase) plus:
+
+        * ``rebase_phase`` – integer phase index (0 = baseline, 1 = first
+          improvement phase, 2 = second, etc.)
+
+    Raises
+    ------
+    ValueError
+        If *chart_type* is ``"run"`` or *improvement_direction* is invalid.
+    """
+    chart_type_key = chart_type.strip().lower() if chart_type else chart_type
+    if chart_type_key == "run":
+        raise ValueError(
+            "Auto-rebasing is not supported for run charts.  "
+            "Use chart_type one of 'xmr', 'p', 'u', 'c'."
+        )
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    # Baseline limits over the full dataset
+    result = calculate_control_limits(
+        data,
+        chart_type=chart_type,
+        value_col=value_col,
+        subgroup_col=subgroup_col,
+        numerator_col=numerator_col,
+    )
+    result["rebase_phase"] = 0
+
+    phase = 0
+    phase_start = 0  # absolute row index where the current phase begins
+
+    while True:
+        phase_slice = result.iloc[phase_start:]
+        values = phase_slice[value_col].to_numpy(dtype=float)
+        mean_arr = phase_slice["mean"].to_numpy(dtype=float)
+
+        rel_idx = _find_improvement_shift_start(
+            values, mean_arr, improvement_direction, min_phase_length
+        )
+        if rel_idx is None:
+            break  # No further improvement detected in this phase
+
+        abs_rebase = phase_start + rel_idx
+        remaining = len(data) - abs_rebase
+        if remaining < min_phase_length:
+            break  # Not enough data for a meaningful new phase
+
+        # Recalculate limits for the new phase using the original raw data
+        new_phase_raw = data.iloc[abs_rebase:].reset_index(drop=True)
+        new_phase_result = calculate_control_limits(
+            new_phase_raw,
+            chart_type=chart_type,
+            value_col=value_col,
+            subgroup_col=subgroup_col,
+            numerator_col=numerator_col,
+        )
+
+        phase += 1
+        # Write the new phase's limits back into the full result DataFrame
+        for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
+            if col in new_phase_result.columns:
+                result.iloc[
+                    abs_rebase:, result.columns.get_loc(col)
+                ] = new_phase_result[col].to_numpy()
+        result.iloc[
+            abs_rebase:, result.columns.get_loc("rebase_phase")
+        ] = phase
+
+        phase_start = abs_rebase
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Chart-specific helpers
 # ---------------------------------------------------------------------------
@@ -610,3 +729,23 @@ def _is_high_signal(
 def _towards_target(value: float, mean: float, target: float) -> bool:
     """Return True if *value* is closer to *target* than the mean is."""
     return abs(value - target) < abs(mean - target)
+
+
+def _find_improvement_shift_start(
+    values: np.ndarray,
+    mean: np.ndarray,
+    improvement_direction: str,
+    run_length: int = 7,
+) -> int | None:
+    """Return the index of the first point in an improvement shift, or ``None``.
+
+    An improvement shift is *run_length* or more consecutive points in the
+    *improvement_direction* relative to *mean*.
+    """
+    n = len(values)
+    in_direction = (values > mean) if improvement_direction == "high" else (values < mean)
+
+    for start in range(n - run_length + 1):
+        if in_direction[start : start + run_length].all():
+            return start
+    return None

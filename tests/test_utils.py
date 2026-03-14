@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from custom_spc_mdc.utils import validate_data, add_target_line, add_shading
+from custom_spc_mdc.utils import validate_data, add_target_line, add_shading, add_change_line
 
 
 # ---------------------------------------------------------------------------
@@ -95,4 +95,38 @@ class TestAddShading:
         initial_collections = len(ax.collections)
         add_shading(ax, x, lower, upper)
         assert len(ax.collections) > initial_collections
+        plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# add_change_line
+# ---------------------------------------------------------------------------
+
+
+class TestAddChangeLine:
+    def test_adds_a_vertical_line(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_lines = len(ax.lines)
+        add_change_line(ax, x=5)
+        assert len(ax.lines) > initial_lines
+        plt.close(fig)
+
+    def test_adds_text_label_when_provided(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_change_line(ax, x=5, label="New protocol")
+        assert len(ax.texts) > initial_texts
+        plt.close(fig)
+
+    def test_no_text_when_label_is_none(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_change_line(ax, x=5, label=None)
+        assert len(ax.texts) == initial_texts
         plt.close(fig)

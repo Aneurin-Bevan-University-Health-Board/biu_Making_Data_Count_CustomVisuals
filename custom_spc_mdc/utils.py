@@ -122,6 +122,68 @@ def add_target_line(
     )
 
 
+def add_change_line(
+    ax,
+    x,
+    label: str | None = None,
+    color: str = "#425563",
+    linestyle: str = ":",
+    linewidth: float = 1.5,
+    fontsize: int = 8,
+    label_rotation: int = 90,
+    label_offset: float = 0.01,
+) -> None:
+    """Draw a vertical change-point line with an optional text annotation.
+
+    Use this to annotate the chart with dates or events where a known process
+    change occurred (e.g. a new protocol, staff change, or system upgrade).
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axes to annotate.
+    x : scalar
+        The x-axis position for the vertical line (index, numeric value, or
+        date, matching the x-axis type of the chart).
+    label : str or None, optional
+        Text label to display alongside the line.  When ``None`` no text is
+        added (default ``None``).
+    color : str, optional
+        Line and text colour (default NHS Neutral Grey ``"#425563"``).
+    linestyle : str, optional
+        Matplotlib line-style string (default ``":"``).
+    linewidth : float, optional
+        Line width in points (default ``1.5``).
+    fontsize : int, optional
+        Font size for the label text (default ``8``).
+    label_rotation : int, optional
+        Rotation of the label text in degrees (default ``90``).
+    label_offset : float, optional
+        Horizontal offset of the text label as a fraction of the axes width
+        (default ``0.01``).
+    """
+    ax.axvline(
+        x=x,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        zorder=5,
+    )
+    if label is not None:
+        y_top = ax.get_ylim()[1]
+        ax.text(
+            x,
+            y_top,
+            f"  {label}",
+            rotation=label_rotation,
+            verticalalignment="top",
+            horizontalalignment="left",
+            fontsize=fontsize,
+            color=color,
+            zorder=6,
+        )
+
+
 def add_nhs_logo(
     ax,
     logo_path: str,

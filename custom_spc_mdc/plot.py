@@ -26,6 +26,7 @@ from .spc import (
     calculate_control_limits,
     detect_special_causes,
     detect_run_chart_signals,
+    rebase_control_limits,
     determine_point_colours,
     NHS_BLUE,
     NHS_DARK_BLUE,
@@ -38,7 +39,7 @@ from .spc import (
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
 )
-from .utils import add_target_line, add_nhs_logo, add_shading
+from .utils import add_target_line, add_nhs_logo, add_shading, add_change_line
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -72,6 +73,8 @@ def plot_spc_chart(
     ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
+    change_points: list[dict] | None = None,
+    auto_rebase: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC SPC or run chart.
 
@@ -125,6 +128,26 @@ def plot_spc_chart(
         Figure size in inches ``(width, height)`` (default ``(12, 5)``).
     show_legend : bool, optional
         Add a legend to the chart (default ``True``).
+    change_points : list of dict or None, optional
+        Vertical annotation lines marking known process changes.  Each dict
+        must contain:
+
+        * ``"x"`` – x-axis position of the change (index, numeric, or date).
+        * ``"label"`` – text label to display beside the line.
+
+        Example::
+
+            change_points=[
+                {"x": 6,  "label": "New protocol"},
+                {"x": 14, "label": "Staff training"},
+            ]
+    auto_rebase : bool, optional
+        When ``True``, automatically detect sustained improvement shifts
+        (≥ 7 consecutive points in *improvement_direction*) and recalculate
+        the mean and control limits for each new phase.  A dashed vertical
+        line is drawn at each detected rebase boundary.  Default ``False``.
+        Not supported for ``chart_type="run"``; pass ``"run"`` data to
+        :func:`plot_run_chart` instead.
 
     Returns
     -------
@@ -149,16 +172,28 @@ def plot_spc_chart(
             ax=ax,
             figsize=figsize,
             show_legend=show_legend,
+            change_points=change_points,
         )
 
-    # --- Calculate limits and detect special causes -------------------------
-    result = calculate_control_limits(
-        data,
-        chart_type=chart_type,
-        value_col=value_col,
-        subgroup_col=subgroup_col,
-        numerator_col=numerator_col,
-    )
+    # --- Calculate limits ---------------------------------------------------
+    if auto_rebase:
+        result = rebase_control_limits(
+            data,
+            chart_type=chart_type,
+            improvement_direction=improvement_direction,
+            value_col=value_col,
+            subgroup_col=subgroup_col,
+            numerator_col=numerator_col,
+        )
+    else:
+        result = calculate_control_limits(
+            data,
+            chart_type=chart_type,
+            value_col=value_col,
+            subgroup_col=subgroup_col,
+            numerator_col=numerator_col,
+        )
+
     result = detect_special_causes(result, value_col=value_col)
     colours = determine_point_colours(
         result,
@@ -206,9 +241,39 @@ def plot_spc_chart(
     for xi, yi, colour in zip(x, values, colours):
         ax.plot(xi, yi, "o", color=colour, markersize=6, zorder=4)
 
+    # --- Auto-rebase phase boundaries --------------------------------------
+    if auto_rebase and "rebase_phase" in result.columns:
+        phases = result["rebase_phase"].to_numpy()
+        for i in range(1, len(phases)):
+            if phases[i] != phases[i - 1]:
+                ax.axvline(
+                    x=x[i],
+                    color=NHS_DARK_BLUE,
+                    linestyle="-.",
+                    linewidth=1.0,
+                    alpha=0.6,
+                    zorder=5,
+                )
+                ax.text(
+                    x[i], ax.get_ylim()[1],
+                    f"  Phase {phases[i]}",
+                    rotation=90,
+                    verticalalignment="top",
+                    horizontalalignment="left",
+                    fontsize=7,
+                    color=NHS_DARK_BLUE,
+                    alpha=0.8,
+                    zorder=6,
+                )
+
     # --- Optional target line -----------------------------------------------
     if show_target and target is not None:
         add_target_line(ax, target, color=NHS_WARM_YELLOW)
+
+    # --- Change-point annotations ------------------------------------------
+    if change_points:
+        for cp in change_points:
+            add_change_line(ax, x=cp["x"], label=cp.get("label"))
 
     # --- Optional NHS logo --------------------------------------------------
     if nhs_logo_path is not None:
@@ -257,6 +322,7 @@ def plot_run_chart(
     ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
+    change_points: list[dict] | None = None,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC run chart with median centre line.
 
@@ -298,6 +364,9 @@ def plot_run_chart(
         Figure size in inches (default ``(12, 5)``).
     show_legend : bool, optional
         Add a legend (default ``True``).
+    change_points : list of dict or None, optional
+        Vertical annotation lines marking known process changes.  Each dict
+        must contain ``"x"`` (position) and ``"label"`` (text).
 
     Returns
     -------
@@ -353,6 +422,11 @@ def plot_run_chart(
     # --- Optional target line -----------------------------------------------
     if show_target and target is not None:
         add_target_line(ax, target, color=NHS_WARM_YELLOW)
+
+    # --- Change-point annotations ------------------------------------------
+    if change_points:
+        for cp in change_points:
+            add_change_line(ax, x=cp["x"], label=cp.get("label"))
 
     # --- Optional NHS logo --------------------------------------------------
     if nhs_logo_path is not None:

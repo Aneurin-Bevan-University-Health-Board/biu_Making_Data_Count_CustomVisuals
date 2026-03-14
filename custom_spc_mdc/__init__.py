@@ -25,6 +25,7 @@ from .spc import (
     calculate_control_limits,
     detect_special_causes,
     detect_run_chart_signals,
+    rebase_control_limits,
     determine_point_colours,
 )
 from .plot import plot_spc_chart, plot_run_chart
@@ -34,6 +35,7 @@ __all__ = [
     "calculate_control_limits",
     "detect_special_causes",
     "detect_run_chart_signals",
+    "rebase_control_limits",
     "determine_point_colours",
     "plot_spc_chart",
     "plot_run_chart",
