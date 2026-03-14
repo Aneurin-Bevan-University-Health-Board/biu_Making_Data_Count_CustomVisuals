@@ -17,6 +17,7 @@ All charts use the NHS colour scheme:
 from __future__ import annotations
 
 import matplotlib
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
@@ -40,6 +41,72 @@ from .spc import (
     COLOUR_CONCERN,
 )
 from .utils import add_target_line, add_nhs_logo, add_shading, add_change_line
+
+# ---------------------------------------------------------------------------
+# Date-axis helpers
+# ---------------------------------------------------------------------------
+
+
+def _is_datetime_like(arr) -> bool:
+    """Return ``True`` when *arr* contains datetime / date values."""
+    if hasattr(arr, "dtype"):
+        return pd.api.types.is_datetime64_any_dtype(arr)
+    # Numpy object arrays or plain Python sequences
+    if len(arr) > 0:
+        import datetime
+        first = arr[0]
+        return isinstance(first, (pd.Timestamp, datetime.date, np.datetime64))
+    return False
+
+
+def _apply_date_formatting(
+    ax: matplotlib.axes.Axes,
+    x,
+    date_format: str | None = None,
+) -> None:
+    """Apply date locator/formatter to *ax* when *x* contains datetime values.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axes to format.
+    x : array-like
+        The x-axis values used for plotting.
+    date_format : str or None, optional
+        A ``strftime``-style format string (e.g. ``"%b %Y"``).  When ``None``
+        matplotlib's ``ConciseDateFormatter`` is used to pick a smart format
+        automatically (default ``None``).
+    """
+    if not _is_datetime_like(x):
+        return
+
+    if date_format is not None:
+        locator = mdates.AutoDateLocator(minticks=4, maxticks=12)
+        formatter = mdates.DateFormatter(date_format)
+    else:
+        locator = mdates.AutoDateLocator(minticks=4, maxticks=12)
+        formatter = mdates.ConciseDateFormatter(locator)
+
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(formatter)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha="right")
+
+
+def _extract_x(result: pd.DataFrame, x_col: str | None) -> np.ndarray:
+    """Return the x-axis array for *result*.
+
+    Priority order:
+
+    1. ``x_col`` column (if supplied and present in *result*)
+    2. ``DatetimeIndex`` of *result* (auto-detected)
+    3. Integer sequence ``0, 1, 2, …``
+    """
+    if x_col is not None and x_col in result.columns:
+        return result[x_col].to_numpy()
+    if isinstance(result.index, pd.DatetimeIndex):
+        return result.index.to_numpy()
+    return np.arange(len(result))
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -75,6 +142,7 @@ def plot_spc_chart(
     show_legend: bool = True,
     change_points: list[dict] | None = None,
     auto_rebase: bool = False,
+    date_format: str | None = None,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC SPC or run chart.
 
@@ -99,7 +167,9 @@ def plot_spc_chart(
         For ``"p"`` charts: column containing event counts when *value_col*
         holds denominator sizes.
     x_col : str or None, optional
-        Column to use as the x-axis.  Defaults to the DataFrame index.
+        Column to use as the x-axis.  When ``None`` the function checks whether
+        the DataFrame has a :class:`pandas.DatetimeIndex` and uses it
+        automatically; otherwise integer positions are used.
     title : str or None, optional
         Chart title.  If omitted, a default title is generated from
         *chart_type*.
@@ -148,6 +218,11 @@ def plot_spc_chart(
         line is drawn at each detected rebase boundary.  Default ``False``.
         Not supported for ``chart_type="run"``; pass ``"run"`` data to
         :func:`plot_run_chart` instead.
+    date_format : str or None, optional
+        A ``strftime``-style format string applied to the x-axis when datetime
+        values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
+        matplotlib's ``ConciseDateFormatter`` chooses a format automatically
+        (default ``None``).
 
     Returns
     -------
@@ -173,6 +248,7 @@ def plot_spc_chart(
             figsize=figsize,
             show_legend=show_legend,
             change_points=change_points,
+            date_format=date_format,
         )
 
     # --- Calculate limits ---------------------------------------------------
@@ -208,11 +284,8 @@ def plot_spc_chart(
     else:
         fig = ax.get_figure()
 
-    # x-axis values
-    if x_col is not None and x_col in result.columns:
-        x = result[x_col].to_numpy()
-    else:
-        x = np.arange(len(result))
+    # x-axis values (date column → DatetimeIndex → integer fallback)
+    x = _extract_x(result, x_col)
 
     values = result[value_col].to_numpy(dtype=float)
     mean = result["mean"].to_numpy(dtype=float)
@@ -286,6 +359,9 @@ def plot_spc_chart(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
+    # --- Date-axis formatting (no-op for numeric/integer x) -----------------
+    _apply_date_formatting(ax, x, date_format=date_format)
+
     # --- Legend -------------------------------------------------------------
     if show_legend:
         legend_handles = [
@@ -323,6 +399,7 @@ def plot_run_chart(
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
     change_points: list[dict] | None = None,
+    date_format: str | None = None,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC run chart with median centre line.
 
@@ -367,6 +444,10 @@ def plot_run_chart(
     change_points : list of dict or None, optional
         Vertical annotation lines marking known process changes.  Each dict
         must contain ``"x"`` (position) and ``"label"`` (text).
+    date_format : str or None, optional
+        A ``strftime``-style format string applied to the x-axis when datetime
+        values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
+        matplotlib's ``ConciseDateFormatter`` is used automatically.
 
     Returns
     -------
@@ -389,10 +470,8 @@ def plot_run_chart(
     else:
         fig = ax.get_figure()
 
-    if x_col is not None and x_col in result.columns:
-        x = result[x_col].to_numpy()
-    else:
-        x = np.arange(len(result))
+    # x-axis values (date column → DatetimeIndex → integer fallback)
+    x = _extract_x(result, x_col)
 
     values = result[value_col].to_numpy(dtype=float)
     median = result["mean"].to_numpy(dtype=float)
@@ -437,6 +516,9 @@ def plot_run_chart(
                  fontsize=13, fontweight="bold")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+
+    # --- Date-axis formatting (no-op for numeric/integer x) -----------------
+    _apply_date_formatting(ax, x, date_format=date_format)
 
     # --- Legend -------------------------------------------------------------
     if show_legend:

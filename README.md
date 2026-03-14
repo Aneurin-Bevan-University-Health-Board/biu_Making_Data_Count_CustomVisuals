@@ -17,6 +17,7 @@ charts following the NHS [Making Data Count](https://www.england.nhs.uk/publicat
   - [c Chart](#c-chart)
   - [Run Chart](#run-chart)
 - [Special-Cause Rules](#special-cause-rules)
+- [Date Axis](#date-axis)
 - [Change-Point Annotations](#change-point-annotations)
 - [Auto-Rebase on Sustained Improvement](#auto-rebase-on-sustained-improvement)
 - [NHS Colour Scheme](#nhs-colour-scheme)
@@ -181,6 +182,79 @@ fig, ax = plot_spc_chart(data, chart_type="run")
 
 ---
 
+## Date Axis
+
+All chart functions automatically detect datetime data on the x-axis and apply
+smart date tick formatting.  No extra steps are needed — just pass a DataFrame
+with a `DatetimeIndex` or an explicit date column.
+
+### Option 1 – `DatetimeIndex` (auto-detected)
+
+```python
+import pandas as pd
+import numpy as np
+from custom_spc_mdc import plot_spc_chart
+
+dates = pd.date_range("2022-01-01", periods=30, freq="MS")  # monthly
+data  = pd.DataFrame({"value": np.random.normal(75, 6, 30)}, index=dates)
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="XmR",
+    title="XmR Chart – Monthly Date Axis",
+    xlabel="Month",
+    ylabel="Value",
+    change_points=[
+        {"x": pd.Timestamp("2023-06-01"), "label": "New process"},
+    ],
+)
+```
+
+![Date Axis XmR](docs/images/chart_date_axis.png)
+
+> The tick labels are automatically rotated 45° and formatted by
+> matplotlib's `ConciseDateFormatter` (e.g. *Jan 2022*, *2023*).
+
+### Option 2 – Explicit date column (`x_col`)
+
+```python
+dates = pd.date_range("2021-04-01", periods=24, freq="MS")
+data  = pd.DataFrame({"period": dates, "value": np.random.normal(50, 4, 24)})
+
+fig, ax = plot_run_chart(
+    data,
+    x_col="period",           # ← name of the date column
+    title="Run Chart – Date Column",
+    xlabel="Month",
+    ylabel="Value",
+    date_format="%b %Y",      # ← optional manual format
+)
+```
+
+![Run Chart Date Column](docs/images/chart_run_dates.png)
+
+### `date_format` parameter
+
+Override the automatic format with any `strftime`-style string:
+
+| `date_format` | Example output |
+|---------------|----------------|
+| `"%b %Y"` | Jan 2024 |
+| `"%Y-%m"` | 2024-01 |
+| `"%d/%m/%Y"` | 01/01/2024 |
+| `None` *(default)* | Auto (ConciseDateFormatter) |
+
+`change_points` work seamlessly with date axes — pass a `pd.Timestamp` (or any
+value accepted by `axvline`) as the `"x"` key:
+
+```python
+change_points=[
+    {"x": pd.Timestamp("2023-06-01"), "label": "New protocol"},
+]
+```
+
+---
+
 ## Special-Cause Rules
 
 The package implements four NHS MDC rules (aligned with NHSRplotthedots):
@@ -318,7 +392,7 @@ plot_spc_chart(
     value_col="value",
     subgroup_col="subgroup_size",
     numerator_col=None,
-    x_col=None,
+    x_col=None,           # date column name; DatetimeIndex auto-detected
     title=None,
     xlabel="Observation",
     ylabel="Value",
@@ -333,6 +407,7 @@ plot_spc_chart(
     show_legend=True,
     change_points=None,   # [{"x": ..., "label": "..."}, ...]
     auto_rebase=False,
+    date_format=None,     # strftime string, e.g. "%b %Y"
 )
 ```
 
@@ -342,7 +417,7 @@ plot_spc_chart(
 plot_run_chart(
     data,
     value_col="value",
-    x_col=None,
+    x_col=None,           # date column name; DatetimeIndex auto-detected
     title=None,
     xlabel="Observation",
     ylabel="Value",
@@ -354,6 +429,7 @@ plot_run_chart(
     figsize=(12, 5),
     show_legend=True,
     change_points=None,   # [{"x": ..., "label": "..."}, ...]
+    date_format=None,     # strftime string, e.g. "%b %Y"
 )
 ```
 

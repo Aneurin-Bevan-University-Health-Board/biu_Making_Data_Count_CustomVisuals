@@ -249,3 +249,94 @@ class TestPlotRunChart:
     def test_invalid_improvement_direction(self, xmr_data):
         with pytest.raises(ValueError, match="improvement_direction"):
             plot_run_chart(xmr_data, improvement_direction="sideways")
+
+
+# ---------------------------------------------------------------------------
+# Date-axis support
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def date_index_data():
+    """XmR data with a monthly DatetimeIndex (no separate date column)."""
+    dates = pd.date_range("2023-01-01", periods=24, freq="MS")
+    return pd.DataFrame({"value": list(range(10, 34))}, index=dates)
+
+
+@pytest.fixture
+def date_col_data():
+    """XmR data with an explicit 'period' date column."""
+    dates = pd.date_range("2022-01-01", periods=18, freq="MS")
+    return pd.DataFrame(
+        {"period": dates, "value": list(range(20, 38))}
+    )
+
+
+class TestDateAxis:
+    """Tests for date-axis auto-detection and formatting."""
+
+    def test_datetime_index_used_as_x(self, date_index_data):
+        """When the DataFrame has a DatetimeIndex it should be used automatically."""
+        fig, ax = plot_spc_chart(date_index_data, chart_type="XmR")
+        # x-axis should be in date mode — formatter is a ConciseDateFormatter
+        import matplotlib.dates as mdates
+        assert isinstance(
+            ax.xaxis.get_major_formatter(),
+            (mdates.ConciseDateFormatter, mdates.DateFormatter),
+        )
+
+    def test_date_col_used_when_x_col_set(self, date_col_data):
+        """Passing x_col pointing to a datetime column formats the axis."""
+        fig, ax = plot_spc_chart(
+            date_col_data, chart_type="XmR", x_col="period"
+        )
+        import matplotlib.dates as mdates
+        assert isinstance(
+            ax.xaxis.get_major_formatter(),
+            (mdates.ConciseDateFormatter, mdates.DateFormatter),
+        )
+
+    def test_date_format_override(self, date_index_data):
+        """date_format='%Y-%m' should produce a DateFormatter (not Concise)."""
+        fig, ax = plot_spc_chart(
+            date_index_data, chart_type="XmR", date_format="%Y-%m"
+        )
+        import matplotlib.dates as mdates
+        assert isinstance(ax.xaxis.get_major_formatter(), mdates.DateFormatter)
+
+    def test_integer_index_unchanged(self, xmr_data):
+        """Plain integer data should not trigger date formatting."""
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR")
+        import matplotlib.dates as mdates
+        assert not isinstance(
+            ax.xaxis.get_major_formatter(),
+            (mdates.ConciseDateFormatter, mdates.DateFormatter),
+        )
+
+    def test_run_chart_date_index(self, date_index_data):
+        """plot_run_chart should also pick up a DatetimeIndex."""
+        fig, ax = plot_run_chart(date_index_data)
+        import matplotlib.dates as mdates
+        assert isinstance(
+            ax.xaxis.get_major_formatter(),
+            (mdates.ConciseDateFormatter, mdates.DateFormatter),
+        )
+
+    def test_change_points_with_dates(self, date_index_data):
+        """change_points with Timestamp x values should not raise."""
+        change_points = [
+            {"x": pd.Timestamp("2023-07-01"), "label": "Intervention"}
+        ]
+        fig, ax = plot_spc_chart(
+            date_index_data,
+            chart_type="XmR",
+            change_points=change_points,
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+    def test_tick_labels_rotated_for_dates(self, date_index_data):
+        """Tick labels should be rotated 45° when the x-axis shows dates."""
+        fig, ax = plot_spc_chart(date_index_data, chart_type="XmR")
+        rotations = [t.get_rotation() for t in ax.xaxis.get_majorticklabels()]
+        # After tight_layout the labels should be at 45°
+        assert all(r == pytest.approx(45.0) for r in rotations if r != 0.0)
