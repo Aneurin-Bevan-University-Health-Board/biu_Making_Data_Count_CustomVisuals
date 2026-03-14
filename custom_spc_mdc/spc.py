@@ -330,6 +330,51 @@ def determine_point_colours(
     return colours
 
 
+def detect_run_chart_signals(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    median_col: str = "mean",
+) -> pd.DataFrame:
+    """Detect signals in a run chart using NHS MDC run-chart rules.
+
+    Two rules are applied against the **median** centre line:
+
+    * **Run shift**: ≥ 7 consecutive points on the same side of the median.
+    * **Run trend**: ≥ 7 consecutive points all increasing *or* all decreasing.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`calculate_control_limits` with ``chart_type="run"``.
+        Must contain *value_col* and *median_col* (default ``"mean"``).
+    value_col : str, optional
+        Name of the values column (default ``"value"``).
+    median_col : str, optional
+        Name of the median / centre-line column (default ``"mean"``).
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *result* with additional boolean columns:
+
+        * ``run_shift``  – point is part of a 7+ run on one side of the median
+        * ``run_trend``  – point is part of a 7+ consecutive up/down trend
+        * ``run_signal`` – True if **either** rule is triggered
+    """
+    df = result.copy()
+    values = df[value_col].to_numpy(dtype=float)
+    median = df[median_col].to_numpy(dtype=float)
+
+    run_shift = _rule2_shift(values, median, run_length=7)
+    run_trend = _rule3_trend(values, run_length=7)
+
+    df["run_shift"] = run_shift
+    df["run_trend"] = run_trend
+    df["run_signal"] = run_shift | run_trend
+
+    return df
+
+
 # ---------------------------------------------------------------------------
 # Chart-specific helpers
 # ---------------------------------------------------------------------------

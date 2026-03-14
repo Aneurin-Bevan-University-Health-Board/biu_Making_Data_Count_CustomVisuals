@@ -25,6 +25,7 @@ import pandas as pd
 from .spc import (
     calculate_control_limits,
     detect_special_causes,
+    detect_run_chart_signals,
     determine_point_colours,
     NHS_BLUE,
     NHS_DARK_BLUE,
@@ -48,6 +49,7 @@ _CHART_TYPE_LABELS: dict[str, str] = {
     "p": "p Chart (Proportion)",
     "u": "u Chart (Counts per Unit)",
     "c": "c Chart (Counts)",
+    "run": "Run Chart",
 }
 
 
@@ -71,7 +73,10 @@ def plot_spc_chart(
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
-    """Create an NHS MDC SPC chart.
+    """Create an NHS MDC SPC or run chart.
+
+    When ``chart_type="run"`` this function delegates to
+    :func:`plot_run_chart` automatically.
 
     Parameters
     ----------
@@ -80,7 +85,8 @@ def plot_spc_chart(
         *value_col*.  For ``"p"`` and ``"u"`` charts it must also contain the
         subgroup-size column.
     chart_type : str
-        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"`` (case-insensitive).
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``
+        (case-insensitive).
     value_col : str, optional
         Name of the column containing measured values (default ``"value"``).
     subgroup_col : str or None, optional
@@ -126,6 +132,24 @@ def plot_spc_chart(
     ax  : matplotlib.axes.Axes
     """
     chart_type_key = chart_type.strip().lower()
+
+    # Delegate run charts to the dedicated function
+    if chart_type_key == "run":
+        return plot_run_chart(
+            data,
+            value_col=value_col,
+            x_col=x_col,
+            title=title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            improvement_direction=improvement_direction,
+            target=target,
+            show_target=show_target,
+            nhs_logo_path=nhs_logo_path,
+            ax=ax,
+            figsize=figsize,
+            show_legend=show_legend,
+        )
 
     # --- Calculate limits and detect special causes -------------------------
     result = calculate_control_limits(
@@ -205,6 +229,148 @@ def plot_spc_chart(
             mpatches.Patch(color=COLOUR_COMMON_CAUSE, label="Common cause"),
             mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement"),
             mpatches.Patch(color=COLOUR_CONCERN, label="Concern"),
+        ]
+        if show_target and target is not None:
+            legend_handles.append(
+                mpatches.Patch(color=NHS_WARM_YELLOW, label="Target")
+            )
+        ax.legend(handles=legend_handles, loc="upper right", fontsize=8)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def plot_run_chart(
+    data: pd.DataFrame,
+    value_col: str = "value",
+    x_col: str | None = None,
+    title: str | None = None,
+    xlabel: str = "Observation",
+    ylabel: str = "Value",
+    improvement_direction: str = "high",
+    target: float | None = None,
+    show_target: bool = False,
+    nhs_logo_path: str | None = None,
+    ax: matplotlib.axes.Axes | None = None,
+    figsize: tuple[float, float] = (12, 5),
+    show_legend: bool = True,
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Create an NHS MDC run chart with median centre line.
+
+    Signals are detected using run-chart rules:
+
+    * **Shift** – ≥ 7 consecutive points on the same side of the median.
+    * **Trend** – ≥ 7 consecutive points all increasing *or* all decreasing.
+
+    Signal points are coloured NHS Orange (concern) or NHS Blue (improvement)
+    according to *improvement_direction*.  Common-cause points are grey.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input data containing at least *value_col*.
+    value_col : str, optional
+        Name of the column containing measured values (default ``"value"``).
+    x_col : str or None, optional
+        Column to use as the x-axis.  Defaults to the DataFrame index.
+    title : str or None, optional
+        Chart title.  Defaults to ``"Run Chart"``.
+    xlabel : str, optional
+        x-axis label (default ``"Observation"``).
+    ylabel : str, optional
+        y-axis label (default ``"Value"``).
+    improvement_direction : str, optional
+        ``"high"`` (default) or ``"low"`` – whether higher values represent
+        improvement.
+    target : float or None, optional
+        Optional target value.  When provided with *show_target*, a dashed
+        line is drawn.
+    show_target : bool, optional
+        Draw a dashed target line when ``True`` (default ``False``).
+    nhs_logo_path : str or None, optional
+        Path to an NHS logo image file.
+    ax : matplotlib.axes.Axes or None, optional
+        Axes on which to draw.  A new figure / axes is created when ``None``.
+    figsize : tuple of float, optional
+        Figure size in inches (default ``(12, 5)``).
+    show_legend : bool, optional
+        Add a legend (default ``True``).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+    ax  : matplotlib.axes.Axes
+    """
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    # --- Compute median and detect signals ----------------------------------
+    result = calculate_control_limits(data, chart_type="run", value_col=value_col)
+    result = detect_run_chart_signals(result, value_col=value_col)
+
+    # --- Axes setup ---------------------------------------------------------
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.get_figure()
+
+    if x_col is not None and x_col in result.columns:
+        x = result[x_col].to_numpy()
+    else:
+        x = np.arange(len(result))
+
+    values = result[value_col].to_numpy(dtype=float)
+    median = result["mean"].to_numpy(dtype=float)
+    run_signal = result["run_signal"].to_numpy(dtype=bool)
+    run_shift = result["run_shift"].to_numpy(dtype=bool)
+
+    # --- Median line --------------------------------------------------------
+    ax.plot(x, median, color=NHS_BLUE, linewidth=1.8, linestyle="-",
+            label="Median", zorder=3)
+
+    # --- Data line (thin grey connector) ------------------------------------
+    ax.plot(x, values, color=NHS_GREY, linewidth=0.8, linestyle="-",
+            alpha=0.6, zorder=2)
+
+    # --- Data points --------------------------------------------------------
+    for i, (xi, yi) in enumerate(zip(x, values)):
+        if not run_signal[i]:
+            colour = COLOUR_COMMON_CAUSE
+        else:
+            is_high = yi > median[i]
+            if improvement_direction == "high":
+                colour = COLOUR_IMPROVEMENT if is_high else COLOUR_CONCERN
+            else:
+                colour = COLOUR_CONCERN if is_high else COLOUR_IMPROVEMENT
+        ax.plot(xi, yi, "o", color=colour, markersize=6, zorder=4)
+
+    # --- Optional target line -----------------------------------------------
+    if show_target and target is not None:
+        add_target_line(ax, target, color=NHS_WARM_YELLOW)
+
+    # --- Optional NHS logo --------------------------------------------------
+    if nhs_logo_path is not None:
+        add_nhs_logo(ax, nhs_logo_path, position="lower right")
+
+    # --- Labels & title -----------------------------------------------------
+    ax.set_title(title if title is not None else "Run Chart",
+                 fontsize=13, fontweight="bold")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    # --- Legend -------------------------------------------------------------
+    if show_legend:
+        legend_handles = [
+            mpatches.Patch(color=NHS_BLUE, label="Median"),
+            mpatches.Patch(color=COLOUR_COMMON_CAUSE, label="Common cause"),
+            mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement signal"),
+            mpatches.Patch(color=COLOUR_CONCERN, label="Concern signal"),
         ]
         if show_target and target is not None:
             legend_handles.append(
