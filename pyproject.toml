@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "abspc"
+version = "0.1.2"
+description = "SPC chart visuals using the NHS Making Data Count methodology — Python, Looker & Looker Studio"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Aneurin Bevan University Health Board"},
+]
+keywords = ["spc", "statistical process control", "nhs", "making data count", "quality improvement", "looker", "looker studio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "matplotlib>=3.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "build>=1.0",
+    "twine>=5.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals#readme"
+Issues = "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/issues"
+Homepage = "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals"
+Repository = "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["abspc*"]
+
+[tool.setuptools.package-data]
+abspc = ["icons/*.png"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
