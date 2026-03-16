@@ -707,3 +707,212 @@ def plot_run_chart(
         _add_mdc_icons(fig, ax, variation, "no_target", icon_zoom=icon_zoom)
 
     return fig, ax
+
+
+# ---------------------------------------------------------------------------
+# MDC Summary Table
+# ---------------------------------------------------------------------------
+
+_VARIATION_LABELS = {
+    "improvement_high": "Special-cause improvement (high)",
+    "improvement_low": "Special-cause improvement (low)",
+    "common_cause": "Common-cause variation",
+    "concern_high": "Special-cause concern (high)",
+    "concern_low": "Special-cause concern (low)",
+}
+
+_ASSURANCE_LABELS = {
+    "pass": "Consistently meeting target",
+    "hit_or_miss": "Hit or miss – may or may not meet target",
+    "fail": "Consistently failing to meet target",
+    "no_target": "No target set",
+}
+
+
+def plot_mdc_summary_table(
+    rows: list[dict],
+    *,
+    title: str | None = "MDC Summary",
+    figsize: tuple[float, float] | None = None,
+    icon_zoom: float = 0.04,
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Render an NHS MDC-style summary table with variation & assurance icons.
+
+    Each item in *rows* describes one measure.  Required keys:
+
+    * ``"data"``   – ``pd.DataFrame`` containing the measure's time-series.
+    * ``"chart_type"`` – ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, or ``"run"``.
+
+    Optional keys (all have sensible defaults):
+
+    * ``"measure"`` – display name (default ``"Measure"``).
+    * ``"description"`` – free-text description (default ``""``).
+    * ``"value_col"`` – column with values (default ``"value"``).
+    * ``"improvement_direction"`` – ``"high"`` or ``"low"`` (default ``"high"``).
+    * ``"target"`` – numeric target, or ``None``.
+    * ``"subgroup_col"`` – subgroup column for ``"p"``/``"u"`` charts.
+
+    Parameters
+    ----------
+    rows : list[dict]
+        One dict per measure (see above).
+    title : str | None
+        Title rendered above the table.
+    figsize : tuple | None
+        ``(width, height)`` in inches.  Auto-calculated when ``None``.
+    icon_zoom : float
+        Icon height as a fraction of figure height.
+
+    Returns
+    -------
+    fig, ax : matplotlib objects
+    """
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+    import matplotlib.image as mpimg
+
+    n = len(rows)
+    if n == 0:
+        raise ValueError("rows must contain at least one measure dict")
+
+    col_labels = ["Measure", "Description", "Variation", "Assurance", "Latest Value"]
+    n_cols = len(col_labels)
+
+    if figsize is None:
+        figsize = (14, 1.2 + n * 0.9)
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_axis_off()
+
+    # ---- build cell text and compute variation / assurance ------------------
+    cell_text: list[list[str]] = []
+    icon_cells: list[tuple[int, int, str]] = []  # (row_idx, col_idx, icon_path)
+
+    for i, row in enumerate(rows):
+        data = row["data"]
+        chart_type = row.get("chart_type", "XmR")
+        measure = row.get("measure", "Measure")
+        description = row.get("description", "")
+        value_col = row.get("value_col", "value")
+        improvement_direction = row.get("improvement_direction", "high")
+        target = row.get("target", None)
+        subgroup_col = row.get("subgroup_col", "subgroup_size")
+
+        is_run = chart_type.lower() == "run"
+
+        # Calculate limits and detect signals
+        if is_run:
+            result = calculate_control_limits(data, chart_type="run", value_col=value_col)
+            result = detect_run_chart_signals(result, value_col=value_col)
+        else:
+            result = calculate_control_limits(
+                data, chart_type=chart_type, value_col=value_col,
+                subgroup_col=subgroup_col if chart_type.lower() in ("p", "u") else None,
+            )
+            result = detect_special_causes(result, value_col=value_col)
+
+        # Variation
+        if is_run:
+            run_signal = result["run_signal"].to_numpy(dtype=bool)
+            if not run_signal.any():
+                variation = "common_cause"
+            else:
+                values_arr = result[value_col].to_numpy(dtype=float)
+                median_arr = result["mean"].to_numpy(dtype=float)
+                last_sig = int(np.where(run_signal)[0][-1])
+                val_is_high = values_arr[last_sig] > median_arr[last_sig]
+                if improvement_direction == "high":
+                    variation = "improvement_high" if val_is_high else "concern_low"
+                else:
+                    variation = "concern_high" if val_is_high else "improvement_low"
+        else:
+            variation = determine_variation_type(
+                result, value_col=value_col, improvement_direction=improvement_direction,
+            )
+
+        # Assurance
+        if is_run or target is None:
+            assurance = "no_target"
+        else:
+            assurance = determine_assurance_type(
+                result, target=target, improvement_direction=improvement_direction,
+            )
+
+        latest_val = result[value_col].iloc[-1]
+        latest_str = f"{latest_val:.4g}"
+
+        variation_label = _VARIATION_LABELS.get(variation, variation)
+        assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
+
+        cell_text.append([measure, description, variation_label, assurance_label, latest_str])
+
+        # Queue icon overlays for variation (col 2) and assurance (col 3)
+        var_path = _VARIATION_ICON_MAP.get(variation)
+        if var_path and var_path.exists():
+            icon_cells.append((i, 2, str(var_path)))
+
+        ass_path = _ASSURANCE_ICON_MAP.get(assurance)
+        if ass_path and ass_path.exists():
+            icon_cells.append((i, 3, str(ass_path)))
+
+    # ---- draw table ---------------------------------------------------------
+    table = ax.table(
+        cellText=cell_text,
+        colLabels=col_labels,
+        loc="center",
+        cellLoc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1.0, 2.2)
+
+    # Style header row
+    for j in range(n_cols):
+        cell = table[0, j]
+        cell.set_facecolor(NHS_DARK_BLUE)
+        cell.set_text_props(color="white", fontweight="bold")
+
+    # Alternate row colours
+    for i in range(n):
+        for j in range(n_cols):
+            cell = table[i + 1, j]
+            cell.set_facecolor("#F0F4F5" if i % 2 == 0 else "white")
+            cell.set_edgecolor("#D8DDE0")
+
+    # Widen description column, give icon columns more space
+    table.auto_set_column_width(list(range(n_cols)))
+
+    # ---- overlay icons on top of variation/assurance cells -------------------
+    fig.canvas.draw()  # needed so table cell positions are resolved
+    fig_h = fig.get_size_inches()[1] * fig.dpi
+
+    for row_idx, col_idx, icon_path_str in icon_cells:
+        cell = table[row_idx + 1, col_idx]  # +1 for header offset
+        bbox = cell.get_window_extent(fig.canvas.get_renderer())
+        # Convert to figure fraction
+        bbox_fig = bbox.transformed(fig.transFigure.inverted())
+        cx = bbox_fig.x0 + bbox_fig.width * 0.12  # left side of cell
+        cy = bbox_fig.y0 + bbox_fig.height * 0.5
+
+        img = mpimg.imread(icon_path_str)
+        target_h = icon_zoom * fig_h
+        zoom = target_h / img.shape[0] if img.shape[0] > 0 else 0.1
+
+        imagebox = OffsetImage(img, zoom=zoom)
+        ab = AnnotationBbox(
+            imagebox,
+            (cx, cy),
+            xycoords="figure fraction",
+            frameon=False,
+            pad=0,
+        )
+        fig.add_artist(ab)
+
+        # Indent cell text so it doesn't overlap the icon
+        existing = cell.get_text().get_text()
+        cell.get_text().set_text(f"   {existing}")
+
+    if title:
+        fig.suptitle(title, fontsize=13, fontweight="bold", y=0.98)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.95] if title else [0, 0, 1, 1])
+    return fig, ax

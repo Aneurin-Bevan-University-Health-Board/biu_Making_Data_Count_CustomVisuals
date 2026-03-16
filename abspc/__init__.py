@@ -30,7 +30,7 @@ from .spc import (
     determine_variation_type,
     determine_assurance_type,
 )
-from .plot import plot_spc_chart, plot_run_chart
+from .plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
 from .utils import validate_data, add_logo
 
 __all__ = [
@@ -43,6 +43,7 @@ __all__ = [
     "determine_assurance_type",
     "plot_spc_chart",
     "plot_run_chart",
+    "plot_mdc_summary_table",
     "validate_data",
     "add_logo",
 ]

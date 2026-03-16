@@ -37,6 +37,7 @@ affiliated with or endorsed by NHS England.
 - [Change-Point Annotations](#change-point-annotations)
 - [Auto-Rebase on Sustained Improvement](#auto-rebase-on-sustained-improvement)
 - [MDC Variation & Assurance Icons](#mdc-variation--assurance-icons)
+  - [MDC Summary Table](#mdc-summary-table)
 - [NHS Colour Scheme](#nhs-colour-scheme)
 - [API Reference](#api-reference)
 
@@ -532,6 +533,63 @@ print(f"Assurance: {assurance}")   # e.g. "pass"
 |-----------|------|---------|-------------|
 | `show_icons` | `bool` | `False` | Display MDC variation & assurance icons at the top-left of the chart. |
 | `icon_zoom` | `float` | `0.06` | Icon height as a fraction of figure height. Increase for larger icons. |
+
+### MDC Summary Table
+
+`plot_mdc_summary_table` renders an NHS MDC-style summary table showing
+multiple measures at a glance — with variation and assurance icons, measure
+name, description, and the latest value.
+
+```python
+from abspc import plot_mdc_summary_table
+
+fig, ax = plot_mdc_summary_table(
+    [
+        {
+            "data": df,
+            "chart_type": "XmR",
+            "measure": "A&E 4-Hour Waits",
+            "description": "% patients seen within 4 hours",
+            "value_col": "value",
+            "improvement_direction": "high",
+            "target": 95,
+        },
+        {
+            "data": df_infections,
+            "chart_type": "p",
+            "measure": "Infection Rate",
+            "description": "Proportion of infections per month",
+            "value_col": "value",
+            "improvement_direction": "low",
+            "target": 0.05,
+            "subgroup_col": "subgroup_size",
+        },
+    ],
+    title="MDC Summary — Board Report",
+)
+```
+
+Each dict in the list describes one measure:
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `data` | `pd.DataFrame` | Yes | Time-series DataFrame for this measure |
+| `chart_type` | `str` | Yes | `"XmR"`, `"p"`, `"u"`, `"c"`, or `"run"` |
+| `measure` | `str` | No | Display name (default `"Measure"`) |
+| `description` | `str` | No | Free-text description |
+| `value_col` | `str` | No | Column with values (default `"value"`) |
+| `improvement_direction` | `str` | No | `"high"` or `"low"` (default `"high"`) |
+| `target` | `float \| None` | No | Numeric target for assurance calculation |
+| `subgroup_col` | `str` | No | Subgroup column for `"p"`/`"u"` charts |
+
+Function-level parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `rows` | `list[dict]` | *(required)* | One dict per measure (see above) |
+| `title` | `str \| None` | `"MDC Summary"` | Title above the table |
+| `figsize` | `tuple \| None` | Auto | Figure size in inches; auto-calculated when `None` |
+| `icon_zoom` | `float` | `0.04` | Icon height as a fraction of figure height |
 
 ---
 
