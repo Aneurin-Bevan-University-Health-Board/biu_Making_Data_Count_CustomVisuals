@@ -76,32 +76,156 @@
   }
 
   // Rule 4 – Two-in-three in warning zone
+  // Rule 4 – Two-in-three: aligned with NHSRplotthedots ptd_two_in_three
+  // Only flags points that are themselves in the warning zone, and requires
+  // all 3 in the window on the same side of the centre line.
   function rule4(vals, centre, ucl, lcl, uwl, lwl) {
-    var flags = new Array(vals.length);
-    for (var i = 0; i < flags.length; i++) flags[i] = false;
-    for (var i = 0; i <= vals.length - 3; i++) {
-      var uCount = 0, lCount = 0;
-      for (var j = i; j < i + 3; j++) {
-        if (vals[j] > uwl[j] && vals[j] <= ucl[j] && vals[j] > centre[j]) uCount++;
-        if (vals[j] < lwl[j] && vals[j] >= lcl[j] && vals[j] < centre[j]) lCount++;
+    var n = vals.length;
+    var flags = new Array(n);
+    for (var i = 0; i < n; i++) flags[i] = false;
+    var close = new Array(n);
+    var rtm = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var outside = vals[i] > ucl[i] || vals[i] < lcl[i];
+      close[i] = !outside && (vals[i] > uwl[i] || vals[i] < lwl[i]);
+      rtm[i] = vals[i] > centre[i] ? 1 : (vals[i] < centre[i] ? -1 : 0);
+    }
+    for (var i = 0; i < n; i++) {
+      if (!close[i]) continue;
+      var windows = [i - 2, i - 1, i];
+      for (var wi = 0; wi < 3; wi++) {
+        var ws = windows[wi], we = ws + 3;
+        if (ws < 0 || we > n) continue;
+        var cc = 0, rs = 0;
+        for (var j = ws; j < we; j++) { if (close[j]) cc++; rs += rtm[j]; }
+        if (cc >= 2 && Math.abs(rs) === 3) { flags[i] = true; break; }
       }
-      if (uCount >= 2 || lCount >= 2)
-        for (var j = i; j < i + 3; j++) flags[j] = true;
     }
     return flags;
   }
 
-  function pointColours(vals, centre, sc, direction, target) {
+  // Point colours: aligned with Python _is_high_signal / _towards_target
+  function pointColours(vals, centre, ucl, lcl, r1, sc, direction, target) {
     return vals.map(function(v, i) {
       if (!sc[i]) return COLOUR_COMMON;
+      var isHigh = r1[i] ? v > ucl[i] : v > centre[i];
       var isImp;
       if (target !== null && target !== undefined) {
-        isImp = direction === 'high' ? v >= target : v <= target;
+        isImp = Math.abs(v - target) < Math.abs(centre[i] - target);
       } else {
-        isImp = direction === 'high' ? v > centre[i] : v < centre[i];
+        isImp = direction === 'high' ? isHigh : !isHigh;
       }
       return isImp ? COLOUR_IMPROVE : COLOUR_CONCERN;
     });
+  }
+
+  // ──────────────────────────── VARIATION & ASSURANCE ───────────────────
+  // Aligned with Python determine_variation_type / determine_assurance_type
+
+  function determineVariation(vals, centre, sc, direction) {
+    // Find the most recent special-cause point
+    var lastSC = -1;
+    for (var i = vals.length - 1; i >= 0; i--) { if (sc[i]) { lastSC = i; break; } }
+    if (lastSC === -1) return 'common_cause';
+    var isHigh = vals[lastSC] > centre[lastSC];
+    if (direction === 'high') return isHigh ? 'improvement_high' : 'concern_low';
+    return isHigh ? 'concern_high' : 'improvement_low';
+  }
+
+  function determineAssurance(target, ucl, lcl, direction) {
+    if (target === null || target === undefined) return 'no_target';
+    // Use last values of UCL/LCL (most recent phase)
+    var u = ucl[ucl.length - 1], l = lcl[lcl.length - 1];
+    if (direction === 'high') {
+      if (target <= l) return 'pass';
+      if (target >= u) return 'fail';
+      return 'hit_or_miss';
+    } else {
+      if (target >= u) return 'pass';
+      if (target <= l) return 'fail';
+      return 'hit_or_miss';
+    }
+  }
+
+  // SVG icons rendered inline (no image files needed)
+  function drawVariationIcon(svg, ns, x, y, type) {
+    var g = document.createElementNS(ns, 'g');
+    g.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+    var map = {
+      'improvement_high': { arrow: 'up',   colour: '#005EB8', label: 'Improvement ▲' },
+      'improvement_low':  { arrow: 'down', colour: '#005EB8', label: 'Improvement ▼' },
+      'concern_high':     { arrow: 'up',   colour: '#ED8B00', label: 'Concern ▲' },
+      'concern_low':      { arrow: 'down', colour: '#ED8B00', label: 'Concern ▼' },
+      'common_cause':     { arrow: 'none', colour: '#768692', label: 'Common Cause' }
+    };
+    var m = map[type] || map['common_cause'];
+
+    // Icon background circle
+    var bg = document.createElementNS(ns, 'circle');
+    bg.setAttribute('cx', '10'); bg.setAttribute('cy', '10'); bg.setAttribute('r', '10');
+    bg.setAttribute('fill', m.colour); bg.setAttribute('opacity', '0.15');
+    g.appendChild(bg);
+
+    // Arrow or dash
+    if (m.arrow === 'up') {
+      var p = document.createElementNS(ns, 'polygon');
+      p.setAttribute('points', '10,3 16,14 4,14');
+      p.setAttribute('fill', m.colour);
+      g.appendChild(p);
+    } else if (m.arrow === 'down') {
+      var p = document.createElementNS(ns, 'polygon');
+      p.setAttribute('points', '10,17 16,6 4,6');
+      p.setAttribute('fill', m.colour);
+      g.appendChild(p);
+    } else {
+      var r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', '4'); r.setAttribute('y', '8');
+      r.setAttribute('width', '12'); r.setAttribute('height', '4');
+      r.setAttribute('rx', '2'); r.setAttribute('fill', m.colour);
+      g.appendChild(r);
+    }
+
+    // Label text
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', '24'); t.setAttribute('y', '14');
+    t.setAttribute('font-size', '10'); t.setAttribute('fill', m.colour);
+    t.setAttribute('font-weight', 'bold');
+    t.textContent = m.label;
+    g.appendChild(t);
+
+    svg.appendChild(g);
+  }
+
+  function drawAssuranceIcon(svg, ns, x, y, type) {
+    var g = document.createElementNS(ns, 'g');
+    g.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+    var map = {
+      'pass':        { symbol: '✓', colour: '#005EB8', label: 'Will meet target' },
+      'hit_or_miss': { symbol: '?', colour: '#ED8B00', label: 'May meet target' },
+      'fail':        { symbol: '✗', colour: '#DA291C', label: 'Won\'t meet target' },
+      'no_target':   { symbol: '–', colour: '#768692', label: 'No target set' }
+    };
+    var m = map[type] || map['no_target'];
+
+    var bg = document.createElementNS(ns, 'circle');
+    bg.setAttribute('cx', '10'); bg.setAttribute('cy', '10'); bg.setAttribute('r', '10');
+    bg.setAttribute('fill', m.colour); bg.setAttribute('opacity', '0.15');
+    g.appendChild(bg);
+
+    var s = document.createElementNS(ns, 'text');
+    s.setAttribute('x', '10'); s.setAttribute('y', '15');
+    s.setAttribute('text-anchor', 'middle'); s.setAttribute('font-size', '14');
+    s.setAttribute('font-weight', 'bold'); s.setAttribute('fill', m.colour);
+    s.textContent = m.symbol;
+    g.appendChild(s);
+
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', '24'); t.setAttribute('y', '14');
+    t.setAttribute('font-size', '10'); t.setAttribute('fill', m.colour);
+    t.textContent = m.label;
+    g.appendChild(t);
+
+    svg.appendChild(g);
   }
 
   // ──────────────────────────── LOOKER VIS ─────────────────────────────
@@ -118,7 +242,8 @@
       target_value:       { type: 'number',  label: 'Target Value (optional)',  section: 'Analysis', order: 2 },
       show_target_line:   { type: 'boolean', label: 'Show Target Line',        default: false, section: 'Display', order: 1 },
       show_control_limits:{ type: 'boolean', label: 'Show Control Limits',     default: true,  section: 'Display', order: 2 },
-      show_center_line:   { type: 'boolean', label: 'Show Centre Line (Mean)', default: true,  section: 'Display', order: 3 }
+      show_center_line:   { type: 'boolean', label: 'Show Centre Line (Mean)', default: true,  section: 'Display', order: 3 },
+      show_icons:         { type: 'boolean', label: 'Show Variation & Assurance Icons', default: true, section: 'Display', order: 4 }
     },
 
     create: function(element, config) {
@@ -178,7 +303,7 @@
 
       var direction = config.improvement_direction || 'high';
       var target    = config.target_value != null ? Number(config.target_value) : null;
-      var colours   = pointColours(vals, centreArr, sc, direction, target);
+      var colours   = pointColours(vals, centreArr, uclArr, lclArr, r1, sc, direction, target);
 
       // ── Build SVG ──
       var rect = this._container.getBoundingClientRect();
@@ -310,6 +435,14 @@
       info.setAttribute('font-size','10'); info.setAttribute('fill','#888');
       info.textContent = 'Mean: '+xBar.toFixed(2)+' | UCL: '+uclVal.toFixed(2)+' | LCL: '+lclVal.toFixed(2);
       svg.appendChild(info);
+
+      // Variation & Assurance icons
+      if (config.show_icons !== false) {
+        var variation = determineVariation(vals, centreArr, sc, direction);
+        var assurance = determineAssurance(target, uclArr, lclArr, direction);
+        drawVariationIcon(svg, ns, margin.l + 4, margin.t + 6, variation);
+        drawAssuranceIcon(svg, ns, margin.l + 4, margin.t + 28, assurance);
+      }
 
       this._container.appendChild(svg);
 

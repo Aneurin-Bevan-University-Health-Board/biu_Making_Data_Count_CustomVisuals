@@ -47,23 +47,31 @@
     } return f;
   }
   function rule4(vals,centre,ucl,lcl,uwl,lwl){
-    var f=new Array(vals.length);for(var i=0;i<f.length;i++)f[i]=false;
-    for(var i=0;i<=vals.length-3;i++){
-      var uC=0,lC=0;
-      for(var j=i;j<i+3;j++){
-        if(vals[j]>uwl[j]&&vals[j]<=ucl[j]&&vals[j]>centre[j])uC++;
-        if(vals[j]<lwl[j]&&vals[j]>=lcl[j]&&vals[j]<centre[j])lC++;
-      }
-      if(uC>=2||lC>=2)for(var j=i;j<i+3;j++)f[j]=true;
-    } return f;
+    var n=vals.length,f=new Array(n);
+    for(var i=0;i<n;i++)f[i]=false;
+    var close=new Array(n),rtm=new Array(n);
+    for(var i=0;i<n;i++){
+      var outside=vals[i]>ucl[i]||vals[i]<lcl[i];
+      close[i]=!outside&&(vals[i]>uwl[i]||vals[i]<lwl[i]);
+      rtm[i]=vals[i]>centre[i]?1:(vals[i]<centre[i]?-1:0);
+    }
+    for(var i=0;i<n;i++){
+      if(!close[i])continue;
+      var ws=[i-2,i-1,i];
+      for(var wi=0;wi<3;wi++){var s=ws[wi],e=s+3;if(s<0||e>n)continue;
+        var cc=0,rs=0;for(var j=s;j<e;j++){if(close[j])cc++;rs+=rtm[j];}
+        if(cc>=2&&Math.abs(rs)===3){f[i]=true;break;}}
+    }
+    return f;
   }
 
-  function pointColours(vals,centre,sc,dir,target){
+  function pointColours(vals,centre,ucl,lcl,r1,sc,dir,target){
     return vals.map(function(v,i){
       if(!sc[i])return COLOUR_COMMON;
+      var isHigh=r1[i]?v>ucl[i]:v>centre[i];
       var imp;
-      if(target!==null&&target!==undefined){imp=dir==='high'?v>=target:v<=target;}
-      else{imp=dir==='high'?v>centre[i]:v<centre[i];}
+      if(target!==null&&target!==undefined){imp=Math.abs(v-target)<Math.abs(centre[i]-target);}
+      else{imp=dir==='high'?isHigh:!isHigh;}
       return imp?COLOUR_IMPROVE:COLOUR_CONCERN;
     });
   }
@@ -143,7 +151,7 @@
 
       var dir    = config.improvement_direction || 'low';
       var target = config.target_value != null ? Number(config.target_value) : null;
-      var colours= pointColours(props, centreArr, sc, dir, target);
+      var colours= pointColours(props, centreArr, uclArr, lclArr, r1, sc, dir, target);
 
       // Optionally scale for display
       var mult = isPct ? 100 : 1;

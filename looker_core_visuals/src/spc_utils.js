@@ -150,7 +150,9 @@ export function rule3Trend(values, runLength = 7) {
 
 /**
  * NHS MDC Special Cause Rule 4: Two-in-Three
- * Two out of three consecutive points in warning zone (2-sigma) on same side
+ * Aligned with NHSRplotthedots ptd_two_in_three.
+ * Only flags points that are themselves in the warning zone, and requires
+ * all 3 consecutive points in the window to be on the same side of the centre line.
  * @param {number[]} values - Data values
  * @param {number[]} centerLine - Center line values
  * @param {number[]} ucl - Upper control limits (3-sigma)
@@ -160,75 +162,80 @@ export function rule3Trend(values, runLength = 7) {
  * @returns {boolean[]} - Array indicating rule violations
  */
 export function rule4TwoInThree(values, centerLine, ucl, lcl, uwl, lwl) {
-  const violations = new Array(values.length).fill(false);
-  
-  for (let i = 0; i <= values.length - 3; i++) {
-    let upperWarningCount = 0;
-    let lowerWarningCount = 0;
-    
-    for (let j = i; j < i + 3; j++) {
-      // Check if point is in upper warning zone
-      if (values[j] > uwl[j] && values[j] <= ucl[j] && values[j] > centerLine[j]) {
-        upperWarningCount++;
+  const n = values.length;
+  const violations = new Array(n).fill(false);
+
+  // close: in warning zone (beyond uwl/lwl but NOT outside ucl/lcl)
+  const close = new Array(n);
+  // rtm: relative-to-mean sign (+1 above, -1 below, 0 equal)
+  const rtm = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const outside = values[i] > ucl[i] || values[i] < lcl[i];
+    close[i] = !outside && (values[i] > uwl[i] || values[i] < lwl[i]);
+    rtm[i] = values[i] > centerLine[i] ? 1 : (values[i] < centerLine[i] ? -1 : 0);
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (!close[i]) continue; // only flag points themselves in the warning zone
+    // Check all windows of 3 that contain point i
+    const windowStarts = [i - 2, i - 1, i];
+    for (const ws of windowStarts) {
+      const we = ws + 3;
+      if (ws < 0 || we > n) continue;
+      let closeCount = 0;
+      let rtmSum = 0;
+      for (let j = ws; j < we; j++) {
+        if (close[j]) closeCount++;
+        rtmSum += rtm[j];
       }
-      // Check if point is in lower warning zone
-      if (values[j] < lwl[j] && values[j] >= lcl[j] && values[j] < centerLine[j]) {
-        lowerWarningCount++;
-      }
-    }
-    
-    if (upperWarningCount >= 2 || lowerWarningCount >= 2) {
-      for (let j = i; j < i + 3; j++) {
-        violations[j] = true;
+      if (closeCount >= 2 && Math.abs(rtmSum) === 3) {
+        violations[i] = true;
+        break;
       }
     }
   }
-  
+
   return violations;
 }
 
 /**
- * Determine point colors based on special cause rules and improvement direction
+ * Determine point colors based on special cause rules and improvement direction.
+ * Aligned with Python _is_high_signal / _towards_target logic.
  * @param {number[]} values - Data values
  * @param {number[]} centerLine - Center line values
+ * @param {number[]} ucl - Upper control limits
+ * @param {number[]} lcl - Lower control limits
  * @param {Object} ruleViolations - Object containing rule violation arrays
  * @param {string} improvementDirection - 'high' or 'low'
  * @param {number|null} target - Optional target value for improvement assessment
  * @returns {string[]} - Array of color codes for each point
  */
-export function determinePointColors(values, centerLine, ruleViolations, improvementDirection = 'high', target = null) {
+export function determinePointColors(values, centerLine, ucl, lcl, ruleViolations, improvementDirection = 'high', target = null) {
   const colors = [];
   const { rule1, rule2, rule3, rule4, specialCause } = ruleViolations;
   
   for (let i = 0; i < values.length; i++) {
     if (!specialCause[i]) {
-      // Common cause variation
       colors.push(POINT_COLORS.COMMON_CAUSE);
-    } else {
-      // Special cause - determine if improvement or concern
-      const value = values[i];
-      const center = centerLine[i];
-      
-      let isImprovement = false;
-      
-      if (target !== null) {
-        // Use target to determine improvement
-        if (improvementDirection === 'high') {
-          isImprovement = value >= target;
-        } else {
-          isImprovement = value <= target;
-        }
-      } else {
-        // Use center line to determine improvement
-        if (improvementDirection === 'high') {
-          isImprovement = value > center;
-        } else {
-          isImprovement = value < center;
-        }
-      }
-      
-      colors.push(isImprovement ? POINT_COLORS.IMPROVEMENT : POINT_COLORS.CONCERN);
+      continue;
     }
+
+    // Determine if special cause is in the high direction
+    // Rule 1: check if value is above UCL (high) or below LCL (low)
+    // Other rules: check if value is above or below centre
+    const isHigh = rule1[i] ? values[i] > ucl[i] : values[i] > centerLine[i];
+    
+    let isImprovement;
+    if (target !== null) {
+      // Aligned with Python _towards_target: closer to target than mean
+      isImprovement = Math.abs(values[i] - target) < Math.abs(centerLine[i] - target);
+    } else if (improvementDirection === 'high') {
+      isImprovement = isHigh;
+    } else {
+      isImprovement = !isHigh;
+    }
+    
+    colors.push(isImprovement ? POINT_COLORS.IMPROVEMENT : POINT_COLORS.CONCERN);
   }
   
   return colors;
