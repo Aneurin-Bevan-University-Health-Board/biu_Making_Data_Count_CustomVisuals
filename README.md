@@ -425,7 +425,7 @@ All charts use the NHS identity palette:
 ### `plot_spc_chart`
 
 ```python
-plot_spc_chart(
+fig, ax = plot_spc_chart(
     data,
     chart_type,           # "XmR" | "p" | "u" | "c" | "run"
     value_col="value",
@@ -452,10 +452,42 @@ plot_spc_chart(
 )
 ```
 
+#### `plot_spc_chart` — Parameter Reference
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `data` | `pd.DataFrame` | *(required)* | Input DataFrame. Must contain at least the column named by `value_col`. For `"p"` and `"u"` charts it must also contain the `subgroup_col` column. |
+| `chart_type` | `str` | *(required)* | Chart type: `"XmR"`, `"p"`, `"u"`, `"c"`, or `"run"` (case-insensitive). `"run"` delegates to `plot_run_chart`. |
+| `value_col` | `str` | `"value"` | Name of the column containing the measured values. |
+| `subgroup_col` | `str \| None` | `"subgroup_size"` | Column with subgroup / denominator sizes. Required for `"p"` and `"u"` charts; ignored for others. |
+| `numerator_col` | `str \| None` | `None` | For `"p"` charts: column with event counts when `value_col` holds the denominator. The proportion is computed as `numerator / value`. |
+| `x_col` | `str \| None` | `None` | Column to use as the x-axis. When `None`, uses the DataFrame's `DatetimeIndex` if present, otherwise integer positions `0, 1, 2, …`. |
+| `title` | `str \| None` | `None` | Chart title. Auto-generated from `chart_type` if omitted (e.g. *"XmR Chart"*). |
+| `xlabel` | `str` | `"Observation"` | Label for the x-axis. |
+| `ylabel` | `str` | `"Value"` | Label for the y-axis. |
+| `improvement_direction` | `str` | `"high"` | `"high"` or `"low"` — whether higher values represent improvement. Controls point colouring (blue = improvement, orange = concern). |
+| `target` | `float \| None` | `None` | Optional target value. When set with `show_target=True`, a dashed target line is drawn. Also influences improvement colouring. |
+| `show_target` | `bool` | `False` | Draw a dashed NHS Warm Yellow target line at `target`. Requires `target` to be set. |
+| `shade_band` | `bool` | `False` | Fill the region between UCL and LCL with a translucent band. |
+| `shade_color` | `str` | `"#41B6E6"` | Colour for the tolerance-band shading (default NHS Light Blue). |
+| `nhs_logo_path` | `str \| None` | `None` | Path to an image overlaid **inside** the axes at the lower-right corner (legacy). Use `logo_path` for title-aligned placement instead. |
+| `ax` | `matplotlib.axes.Axes \| None` | `None` | Axes to draw on. A new figure and axes are created when `None`. Pass an existing `Axes` to embed the chart in a subplot grid. |
+| `figsize` | `tuple[float, float]` | `(12, 5)` | Figure size in inches `(width, height)`. Ignored when `ax` is provided. |
+| `show_legend` | `bool` | `True` | Add a colour legend to the chart. |
+| `change_points` | `list[dict] \| None` | `None` | Vertical annotation lines marking process changes. Each dict needs `"x"` (position) and `"label"` (text). Example: `[{"x": 10, "label": "New protocol"}]`. |
+| `auto_rebase` | `bool` | `False` | Auto-detect sustained improvement shifts (≥ 7 consecutive points) and recalculate limits for each new phase. Draws a dashed vertical line at each phase boundary. Not supported for `"run"`. |
+| `date_format` | `str \| None` | `None` | `strftime`-style format for the x-axis when datetime values are detected (e.g. `"%b %Y"`). `None` uses matplotlib's `ConciseDateFormatter`. |
+| `logo_path` | `str \| None` | `None` | Path to a logo image (PNG, JPEG, etc.) placed at the **top-right of the figure, in line with the title**. |
+| `logo_zoom` | `float` | `0.07` | Logo height as a fraction of figure height. Increase for a larger logo. |
+
+**Returns:** `(fig, ax)` — a `matplotlib.figure.Figure` and `matplotlib.axes.Axes`.
+
+---
+
 ### `plot_run_chart`
 
 ```python
-plot_run_chart(
+fig, ax = plot_run_chart(
     data,
     value_col="value",
     x_col=None,           # date column name; DatetimeIndex auto-detected
@@ -475,6 +507,30 @@ plot_run_chart(
     logo_zoom=0.07,       # logo height as fraction of figure height
 )
 ```
+
+#### `plot_run_chart` — Parameter Reference
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `data` | `pd.DataFrame` | *(required)* | Input DataFrame containing at least the `value_col` column. |
+| `value_col` | `str` | `"value"` | Name of the column containing the measured values. |
+| `x_col` | `str \| None` | `None` | Column to use as the x-axis. Auto-detects `DatetimeIndex`; falls back to integer positions. |
+| `title` | `str \| None` | `None` | Chart title. Defaults to `"Run Chart"` if omitted. |
+| `xlabel` | `str` | `"Observation"` | Label for the x-axis. |
+| `ylabel` | `str` | `"Value"` | Label for the y-axis. |
+| `improvement_direction` | `str` | `"high"` | `"high"` or `"low"` — controls point colouring for detected signals. |
+| `target` | `float \| None` | `None` | Optional target value. Drawn as a dashed line when `show_target=True`. |
+| `show_target` | `bool` | `False` | Draw a dashed target line at `target`. |
+| `nhs_logo_path` | `str \| None` | `None` | Path to a logo image overlaid inside the axes (legacy). |
+| `ax` | `matplotlib.axes.Axes \| None` | `None` | Axes to draw on. A new figure / axes is created when `None`. |
+| `figsize` | `tuple[float, float]` | `(12, 5)` | Figure size in inches `(width, height)`. |
+| `show_legend` | `bool` | `True` | Add a colour legend to the chart. |
+| `change_points` | `list[dict] \| None` | `None` | Vertical annotation lines. Each dict needs `"x"` and `"label"`. |
+| `date_format` | `str \| None` | `None` | `strftime`-style format for datetime x-axis (e.g. `"%b %Y"`). |
+| `logo_path` | `str \| None` | `None` | Logo image placed at the top-right of the figure. |
+| `logo_zoom` | `float` | `0.07` | Logo height as a fraction of figure height. |
+
+**Returns:** `(fig, ax)` — a `matplotlib.figure.Figure` and `matplotlib.axes.Axes`.
 
 ### `calculate_control_limits`
 
