@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NHS Making Data Count — SPC Chart Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f0f2f5; color: #333; padding: 24px; }
+  h1 { text-align: center; margin-bottom: 8px; color: #003087; }
+  .subtitle { text-align: center; margin-bottom: 28px; color: #768692; font-size: 14px; }
+  .chart-card {
+    background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    margin-bottom: 28px; overflow: hidden;
+  }
+  .chart-header {
+    padding: 14px 20px; border-bottom: 2px solid #005EB8;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .chart-header h2 { font-size: 16px; color: #003087; }
+  .chart-header span { font-size: 12px; color: #768692; }
+  .chart-body { width: 100%; height: 380px; position: relative; }
+  .nhs-mdc-tooltip {
+    position: absolute; padding: 6px 10px; background: #333; color: #fff;
+    border-radius: 4px; font: 12px Arial, sans-serif; pointer-events: none;
+    z-index: 100; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<h1>NHS Making Data Count — SPC Chart Preview</h1>
+<p class="subtitle">All charts auto-calculated from sample healthcare data using the 4 NHS special cause rules</p>
+
+<div class="chart-card">
+  <div class="chart-header"><h2>1. XmR Chart</h2><span>A&amp;E Mean Wait Time (hours) — Lower is better</span></div>
+  <div class="chart-body" id="chart-xmr"></div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-header"><h2>2. p Chart (Proportions)</h2><span>Surgical Site Infection Rate — Lower is better</span></div>
+  <div class="chart-body" id="chart-p"></div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-header"><h2>3. c Chart (Counts)</h2><span>Monthly Medication Errors — Lower is better</span></div>
+  <div class="chart-body" id="chart-c"></div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-header"><h2>4. u Chart (Rates)</h2><span>Pressure Ulcers per 1 000 Patient-Days — Lower is better</span></div>
+  <div class="chart-body" id="chart-u"></div>
+</div>
+
+<div class="chart-card">
+  <div class="chart-header"><h2>5. Run Chart</h2><span>Patient Satisfaction Score — Higher is better</span></div>
+  <div class="chart-body" id="chart-run"></div>
+</div>
+
+<script>
+// ===================================================================
+//  Shared SPC maths (same logic as the dist/ visualisations)
+// ===================================================================
+var NHS_BLUE='#005EB8', NHS_DARK_BLUE='#003087', NHS_ORANGE='#ED8B00',
+    NHS_GREY='#768692', NHS_WARM_YELLOW='#FFB81C';
+var D2 = 1.128;
+
+function mean(a){if(!a.length)return 0;var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s/a.length;}
+function median(a){var s=a.slice().sort(function(x,y){return x-y});var m=Math.floor(s.length/2);return s.length%2===0?(s[m-1]+s[m])/2:s[m];}
+function movingRange(v){var m=[];for(var i=1;i<v.length;i++)m.push(Math.abs(v[i]-v[i-1]));return m;}
+
+function rule1(v,ucl,lcl){return v.map(function(x,i){return x>ucl[i]||x<lcl[i];});}
+function rule2(v,c,r){r=r||7;var f=[];for(var i=0;i<v.length;i++)f.push(false);
+  for(var i=0;i<=v.length-r;i++){var a=0,b=0;for(var j=i;j<i+r;j++){if(v[j]>c[j])a++;else if(v[j]<c[j])b++;}
+    if(a===r||b===r)for(var j=i;j<i+r;j++)f[j]=true;}return f;}
+function rule3(v,r){r=r||7;var f=[];for(var i=0;i<v.length;i++)f.push(false);
+  for(var i=0;i<=v.length-r;i++){var u=true,d=true;for(var j=i+1;j<i+r;j++){if(v[j]<=v[j-1])u=false;if(v[j]>=v[j-1])d=false;}
+    if(u||d)for(var j=i;j<i+r;j++)f[j]=true;}return f;}
+function rule4(v,c,ucl,lcl,uwl,lwl){var n=v.length,f=[];for(var i=0;i<n;i++)f.push(false);
+  var close=[],rtm=[];for(var i=0;i<n;i++){var out=v[i]>ucl[i]||v[i]<lcl[i];
+    close.push(!out&&(v[i]>uwl[i]||v[i]<lwl[i]));rtm.push(v[i]>c[i]?1:(v[i]<c[i]?-1:0));}
+  for(var i=0;i<n;i++){if(!close[i])continue;
+    var ws=[i-2,i-1,i];for(var wi=0;wi<3;wi++){var s=ws[wi],e=s+3;if(s<0||e>n)continue;
+      var cc=0,rs=0;for(var j=s;j<e;j++){if(close[j])cc++;rs+=rtm[j];}
+      if(cc>=2&&Math.abs(rs)===3){f[i]=true;break;}}}
+  return f;}
+
+function colours(v,c,ucl,lcl,r1,sc,dir){return v.map(function(x,i){if(!sc[i])return NHS_GREY;
+  var isHigh=r1[i]?x>ucl[i]:x>c[i];
+  var imp=dir==='high'?isHigh:!isHigh;return imp?NHS_BLUE:NHS_ORANGE;});}
+
+// ===================================================================
+//  Generic SVG Chart Renderer
+// ===================================================================
+function renderSPC(el, labels, vals, opts) {
+  // opts: { title, centre[], ucl[], lcl[], uwl[], lwl[], direction, r1[], r2[], r3[], r4[], colours[], isRun }
+  el.innerHTML = '';
+  var W = el.offsetWidth, H = el.offsetHeight;
+  var mg = {t:40, r:30, b:70, l:65};
+  var w = W - mg.l - mg.r, h = H - mg.t - mg.b;
+  var n = vals.length;
+
+  var allY = vals.slice();
+  if (opts.ucl) allY = allY.concat(opts.ucl);
+  if (opts.lcl) allY = allY.concat(opts.lcl);
+  allY.push.apply(allY, opts.centre);
+  var yMin = Math.min.apply(null, allY), yMax = Math.max.apply(null, allY);
+  var pad = (yMax - yMin) * 0.1 || 1; yMin -= pad; yMax += pad;
+
+  function sx(i){return mg.l + (i/(n-1))*w;}
+  function sy(v){return mg.t + (1-(v-yMin)/(yMax-yMin))*h;}
+
+  var ns = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(ns,'svg');
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.style.fontFamily = 'Arial, sans-serif';
+
+  // helper
+  function line(x1,y1,x2,y2,c,sw,dash){
+    var l=document.createElementNS(ns,'line');
+    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+    l.setAttribute('stroke',c);l.setAttribute('stroke-width',sw);
+    if(dash)l.setAttribute('stroke-dasharray',dash);svg.appendChild(l);
+  }
+  function txt(x,y,t,sz,clr,anchor,bold){
+    var e=document.createElementNS(ns,'text');e.setAttribute('x',x);e.setAttribute('y',y);
+    e.setAttribute('text-anchor',anchor||'start');e.setAttribute('font-size',sz||12);
+    e.setAttribute('fill',clr||'#555');if(bold)e.setAttribute('font-weight','bold');
+    e.textContent=t;svg.appendChild(e);return e;
+  }
+
+  // Title
+  txt(W/2, 24, opts.title, 14, '#003087', 'middle', true);
+
+  // ─── Limit lines ───
+  if (opts.ucl) {
+    // variable limits → draw path
+    var uclPts = [], lclPts = [];
+    for (var i = 0; i < n; i++) { uclPts.push(sx(i)+','+sy(opts.ucl[i])); lclPts.push(sx(i)+','+sy(opts.lcl[i])); }
+    var uPath = document.createElementNS(ns,'polyline');
+    uPath.setAttribute('points', uclPts.join(' ')); uPath.setAttribute('fill','none');
+    uPath.setAttribute('stroke', NHS_DARK_BLUE); uPath.setAttribute('stroke-width','1.2');
+    uPath.setAttribute('stroke-dasharray','6,4'); svg.appendChild(uPath);
+    var lPath = document.createElementNS(ns,'polyline');
+    lPath.setAttribute('points', lclPts.join(' ')); lPath.setAttribute('fill','none');
+    lPath.setAttribute('stroke', NHS_DARK_BLUE); lPath.setAttribute('stroke-width','1.2');
+    lPath.setAttribute('stroke-dasharray','6,4'); svg.appendChild(lPath);
+
+    // Labels
+    txt(mg.l+w+4, sy(opts.ucl[n-1])+4, 'UCL', 10, NHS_DARK_BLUE);
+    txt(mg.l+w+4, sy(opts.lcl[n-1])+4, 'LCL', 10, NHS_DARK_BLUE);
+  }
+
+  // Centre line
+  if (opts.centre[0] === opts.centre[opts.centre.length-1]) {
+    // constant → single line
+    line(mg.l, sy(opts.centre[0]), mg.l+w, sy(opts.centre[0]), NHS_BLUE, 2, null);
+  } else {
+    var cPts=[];for(var i=0;i<n;i++)cPts.push(sx(i)+','+sy(opts.centre[i]));
+    var cp=document.createElementNS(ns,'polyline');cp.setAttribute('points',cPts.join(' '));
+    cp.setAttribute('fill','none');cp.setAttribute('stroke',NHS_BLUE);cp.setAttribute('stroke-width','2');
+    svg.appendChild(cp);
+  }
+  txt(mg.l+w+4, sy(opts.centre[n-1])+4, opts.isRun?'Median':'Mean', 10, NHS_BLUE);
+
+  // Data line
+  var pts=[];for(var i=0;i<n;i++)pts.push(sx(i)+','+sy(vals[i]));
+  var pl=document.createElementNS(ns,'polyline');pl.setAttribute('points',pts.join(' '));
+  pl.setAttribute('fill','none');pl.setAttribute('stroke','#ccc');pl.setAttribute('stroke-width','1.2');
+  svg.appendChild(pl);
+
+  // Points
+  for(var i=0;i<n;i++){
+    var ci=document.createElementNS(ns,'circle');
+    ci.setAttribute('cx',sx(i));ci.setAttribute('cy',sy(vals[i]));
+    ci.setAttribute('r','5');ci.setAttribute('fill',opts.colours[i]);
+    ci.setAttribute('stroke','#fff');ci.setAttribute('stroke-width','1.5');
+    ci.setAttribute('data-idx',i);ci.style.cursor='pointer';
+    svg.appendChild(ci);
+  }
+
+  // Axes
+  line(mg.l, mg.t, mg.l, mg.t+h, '#666', 1);
+  line(mg.l, mg.t+h, mg.l+w, mg.t+h, '#666', 1);
+
+  // Y ticks
+  var yt=6;for(var t=0;t<=yt;t++){
+    var yv=yMin+(yMax-yMin)*(t/yt);
+    txt(mg.l-8, sy(yv)+4, (opts.yFmt?opts.yFmt(yv):yv.toFixed(2)), 10, '#777', 'end');
+    line(mg.l-3,sy(yv),mg.l,sy(yv),'#ccc',0.5);
+  }
+
+  // X labels
+  var step=Math.max(1,Math.ceil(n/14));
+  for(var i=0;i<n;i+=step){
+    var xt=document.createElementNS(ns,'text');
+    xt.setAttribute('x',sx(i));xt.setAttribute('y',mg.t+h+16);
+    xt.setAttribute('text-anchor','end');xt.setAttribute('font-size','10');xt.setAttribute('fill','#777');
+    xt.setAttribute('transform','rotate(-40 '+sx(i)+' '+(mg.t+h+16)+')');
+    xt.textContent=String(labels[i]).substring(0,10);svg.appendChild(xt);
+  }
+
+  // Legend
+  var leg=[{c:NHS_GREY,t:'Common Cause'},{c:NHS_BLUE,t:'Special — Improvement'},{c:NHS_ORANGE,t:'Special — Concern'}];
+  for(var li=0;li<leg.length;li++){
+    var lx=mg.l+10, ly=mg.t+12+li*16;
+    var lc=document.createElementNS(ns,'circle');lc.setAttribute('cx',lx);lc.setAttribute('cy',ly);
+    lc.setAttribute('r','4');lc.setAttribute('fill',leg[li].c);svg.appendChild(lc);
+    txt(lx+10, ly+4, leg[li].t, 10, '#555');
+  }
+
+  // Info bar
+  var info = [];
+  info.push((opts.isRun?'Median':'Mean')+': '+opts.centre[0].toFixed(3));
+  if(opts.ucl){
+    if(opts.ucl[0]===opts.ucl[n-1]) info.push('UCL: '+opts.ucl[0].toFixed(3)+'  LCL: '+opts.lcl[0].toFixed(3));
+    else info.push('UCL: variable  LCL: variable');
+  }
+  var special=0;for(var i=0;i<n;i++)if(opts.colours[i]!==NHS_GREY)special++;
+  info.push('Special causes: '+special+'/'+n);
+  txt(mg.l, H-8, info.join('   |   '), 10, '#888');
+
+  // Tooltip
+  var tip = document.createElement('div');
+  tip.className='nhs-mdc-tooltip'; tip.style.display='none'; el.appendChild(tip);
+  svg.addEventListener('mouseover',function(e){
+    var idx=e.target.getAttribute('data-idx');if(idx===null)return;idx=+idx;
+    var p=['<b>'+labels[idx]+'</b>','Value: '+(opts.yFmt?opts.yFmt(vals[idx]):vals[idx].toFixed(3))];
+    if(opts.r1[idx])p.push('<span style="color:#ED8B00">&#9888; Astronomical</span>');
+    if(opts.r2[idx])p.push('<span style="color:#ED8B00">&#9888; Shift (7+ same side)</span>');
+    if(opts.r3[idx])p.push('<span style="color:#ED8B00">&#9888; Trend (7+ ascending/descending)</span>');
+    if(opts.r4&&opts.r4[idx])p.push('<span style="color:#ED8B00">&#9888; 2-in-3 in warning zone</span>');
+    tip.innerHTML=p.join('<br>');tip.style.display='block';
+  });
+  svg.addEventListener('mousemove',function(e){var r=el.getBoundingClientRect();
+    tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top-14)+'px';});
+  svg.addEventListener('mouseout',function(e){if(e.target.getAttribute('data-idx')!==null)tip.style.display='none';});
+
+  el.appendChild(svg);
+}
+
+// ===================================================================
+//  1. XmR Chart — A&E Wait Times
+// ===================================================================
+(function(){
+  var vals = [3.2,4.1,2.8,3.5,3.9,4.3,3.7,3.1,2.9,3.6,4.0,3.8,3.3,3.4,3.2,4.5,5.1,5.3,5.6,5.8,6.1,6.4,6.2,6.5];
+  var labels = []; for(var i=0;i<vals.length;i++) labels.push(monthLabel(i,'Jan 2024'));
+  var mr = movingRange(vals), xBar = mean(vals), mrBar = mean(mr), sigma = mrBar/D2;
+  var ucl=xBar+3*sigma, lcl=xBar-3*sigma, uwl=xBar+2*sigma, lwl=xBar-2*sigma;
+  var n=vals.length, cA=[],uA=[],lA=[],uwA=[],lwA=[];
+  for(var i=0;i<n;i++){cA.push(xBar);uA.push(ucl);lA.push(lcl);uwA.push(uwl);lwA.push(lwl);}
+  var r1=rule1(vals,uA,lA),r2=rule2(vals,cA),r3=rule3(vals),r4f=rule4(vals,cA,uA,lA,uwA,lwA);
+  var sc=vals.map(function(_,i){return r1[i]||r2[i]||r3[i]||r4f[i];});
+  var col=colours(vals,cA,uA,lA,r1,sc,'low');
+  renderSPC(document.getElementById('chart-xmr'), labels, vals, {
+    title:'XmR Chart — A&E Mean Wait Time (hours)', centre:cA, ucl:uA, lcl:lA,
+    r1:r1, r2:r2, r3:r3, r4:r4f, colours:col, direction:'low'
+  });
+})();
+
+// ===================================================================
+//  2. p Chart — Infection Rate
+// ===================================================================
+(function(){
+  var props = [0.05,0.03,0.04,0.06,0.02,0.04,0.03,0.05,0.04,0.03,0.02,0.03,0.01,0.02,0.01,0.02,0.01,0.01,0.02,0.01];
+  var subs = []; for(var i=0;i<props.length;i++) subs.push(200);
+  var labels = []; for(var i=0;i<props.length;i++) labels.push(monthLabel(i,'Jan 2024'));
+  var tN=0,tD=0; for(var i=0;i<props.length;i++){tN+=props[i]*subs[i];tD+=subs[i];}
+  var pBar=tN/tD;
+  var cA=[],uA=[],lA=[],uwA=[],lwA=[];
+  for(var i=0;i<props.length;i++){
+    var se=Math.sqrt(pBar*(1-pBar)/subs[i]);
+    cA.push(pBar);uA.push(Math.min(pBar+3*se,1));lA.push(Math.max(pBar-3*se,0));
+    uwA.push(Math.min(pBar+2*se,1));lwA.push(Math.max(pBar-2*se,0));
+  }
+  var r1=rule1(props,uA,lA),r2=rule2(props,cA),r3=rule3(props),r4f=rule4(props,cA,uA,lA,uwA,lwA);
+  var sc=props.map(function(_,i){return r1[i]||r2[i]||r3[i]||r4f[i];});
+  var col=colours(props,cA,uA,lA,r1,sc,'low');
+  renderSPC(document.getElementById('chart-p'), labels, props, {
+    title:'p Chart — Surgical Site Infection Rate', centre:cA, ucl:uA, lcl:lA,
+    r1:r1, r2:r2, r3:r3, r4:r4f, colours:col, direction:'low',
+    yFmt:function(v){return (v*100).toFixed(1)+'%';}
+  });
+})();
+
+// ===================================================================
+//  3. c Chart — Medication Errors
+// ===================================================================
+(function(){
+  var vals = [3,5,2,4,6,3,2,4,5,3,2,1,2,1,0,1,0,1,0,1];
+  var labels = []; for(var i=0;i<vals.length;i++) labels.push(monthLabel(i,'Jan 2024'));
+  var cBar=mean(vals), se=Math.sqrt(cBar);
+  var ucl=cBar+3*se, lcl=Math.max(cBar-3*se,0), uwl=cBar+2*se, lwl=Math.max(cBar-2*se,0);
+  var n=vals.length,cA=[],uA=[],lA=[],uwA=[],lwA=[];
+  for(var i=0;i<n;i++){cA.push(cBar);uA.push(ucl);lA.push(lcl);uwA.push(uwl);lwA.push(lwl);}
+  var r1=rule1(vals,uA,lA),r2=rule2(vals,cA),r3=rule3(vals),r4f=rule4(vals,cA,uA,lA,uwA,lwA);
+  var sc=vals.map(function(_,i){return r1[i]||r2[i]||r3[i]||r4f[i];});
+  var col=colours(vals,cA,uA,lA,r1,sc,'low');
+  renderSPC(document.getElementById('chart-c'), labels, vals, {
+    title:'c Chart — Monthly Medication Errors', centre:cA, ucl:uA, lcl:lA,
+    r1:r1, r2:r2, r3:r3, r4:r4f, colours:col, direction:'low',
+    yFmt:function(v){return v.toFixed(0);}
+  });
+})();
+
+// ===================================================================
+//  4. u Chart — Pressure Ulcers
+// ===================================================================
+(function(){
+  var counts = [12,8,15,10,7,11,9,13,6,14,8,10];
+  var areas  = [4200,4100,4300,4000,3900,4200,4100,4400,3800,4500,4000,4200];
+  var labels = []; for(var i=0;i<counts.length;i++) labels.push(monthLabel(i,'Jan 2025'));
+  var rates=[],tC=0,tA=0;
+  for(var i=0;i<counts.length;i++){rates.push(counts[i]/areas[i]*1000);tC+=counts[i];tA+=areas[i];}
+  var uBar=(tC/tA)*1000, uRaw=tC/tA;
+  var n=rates.length,cA=[],uA=[],lA=[],uwA=[],lwA=[];
+  for(var i=0;i<n;i++){
+    var se=Math.sqrt(uRaw/areas[i])*1000;
+    cA.push(uBar);uA.push(uBar+3*se);lA.push(Math.max(uBar-3*se,0));
+    uwA.push(uBar+2*se);lwA.push(Math.max(uBar-2*se,0));
+  }
+  var r1=rule1(rates,uA,lA),r2=rule2(rates,cA),r3=rule3(rates),r4f=rule4(rates,cA,uA,lA,uwA,lwA);
+  var sc=rates.map(function(_,i){return r1[i]||r2[i]||r3[i]||r4f[i];});
+  var col=colours(rates,cA,uA,lA,r1,sc,'low');
+  renderSPC(document.getElementById('chart-u'), labels, rates, {
+    title:'u Chart — Pressure Ulcers per 1,000 Patient-Days', centre:cA, ucl:uA, lcl:lA,
+    r1:r1, r2:r2, r3:r3, r4:r4f, colours:col, direction:'low',
+    yFmt:function(v){return v.toFixed(2);}
+  });
+})();
+
+// ===================================================================
+//  5. Run Chart — Patient Satisfaction
+// ===================================================================
+(function(){
+  var vals = [7.2,7.5,7.1,7.8,7.3,7.0,6.8,7.4,7.6,7.2,8.1,8.3,8.0,8.5,8.2,8.4,8.6,8.1,8.3,8.5];
+  var labels = []; for(var i=0;i<vals.length;i++) labels.push('Q'+(i+1));
+  var med=median(vals);
+  var n=vals.length, cA=[];for(var i=0;i<n;i++)cA.push(med);
+  var r2=rule2(vals,cA),r3=rule3(vals);
+  var sc=vals.map(function(_,i){return r2[i]||r3[i];});
+  var noR=[]; for(var i=0;i<n;i++) noR.push(false);
+  var col=colours(vals,cA,cA,cA,noR,sc,'high');
+  renderSPC(document.getElementById('chart-run'), labels, vals, {
+    title:'Run Chart — Patient Satisfaction Score', centre:cA,
+    ucl:null, lcl:null, isRun:true,
+    r1:noR, r2:r2, r3:r3, r4:null, colours:col, direction:'high',
+    yFmt:function(v){return v.toFixed(1);}
+  });
+})();
+
+// ── date label helper ──
+function monthLabel(i, start) {
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var parts=start.split(' ');
+  var mIdx=months.indexOf(parts[0]);
+  var yr=parseInt(parts[1]);
+  var m=(mIdx+i)%12;
+  var y=yr+Math.floor((mIdx+i)/12);
+  return months[m]+' '+y;
+}
+</script>
+</body>
+</html>
