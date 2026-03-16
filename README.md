@@ -98,7 +98,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![XmR Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_xmr.png)
+![XmR Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_xmr.png)
 
 ---
 
@@ -125,7 +125,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![p Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_p.png)
+![p Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_p.png)
 
 You can also pass a **numerator column** and a **denominator column**:
 
@@ -165,7 +165,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![c Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_c.png)
+![c Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_c.png)
 
 ---
 
@@ -189,7 +189,7 @@ fig, ax = plot_run_chart(
 )
 ```
 
-![Run Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_run.png)
+![Run Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_run.png)
 
 `plot_spc_chart` also accepts `chart_type="run"` and will automatically
 delegate to `plot_run_chart`:
@@ -216,7 +216,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![Chart with Logo](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_with_logo.png)
+![Chart with Logo](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_with_logo.png)
 
 The logo is right-aligned with the plot area and bottom-aligned with the top
 edge of the axes, so it sits naturally beside the title text.
@@ -266,7 +266,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![Date Axis XmR](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_date_axis.png)
+![Date Axis XmR](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_date_axis.png)
 
 > The tick labels are automatically rotated 45° and formatted by
 > matplotlib's `ConciseDateFormatter` (e.g. *Jan 2022*, *2023*).
@@ -287,7 +287,7 @@ fig, ax = plot_run_chart(
 )
 ```
 
-![Run Chart Date Column](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_run_dates.png)
+![Run Chart Date Column](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_run_dates.png)
 
 ### `date_format` parameter
 
@@ -361,7 +361,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![Change-Point Annotations](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_change_points.png)
+![Change-Point Annotations](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_change_points.png)
 
 The `x` value can be a numeric index or a date if your x-axis uses dates via
 `x_col`.  Each dict requires `"x"` and `"label"` keys.
@@ -397,7 +397,7 @@ fig, ax = plot_spc_chart(
 )
 ```
 
-![Auto-Rebase](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/docs/images/chart_auto_rebase.png)
+![Auto-Rebase](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_auto_rebase.png)
 
 You can also use `rebase_control_limits` directly to get the phase-annotated
 DataFrame without plotting:
@@ -439,19 +439,19 @@ row and the **assurance icon** corresponds to the column:
 
 | Type | Icon | Meaning |
 |------|------|---------|
-| Improvement (high) | ![improvement_high](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/variation_improvement_high.png) | Special-cause improvement (values trending higher) |
-| Improvement (low) | ![improvement_low](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/variation_improvement_low.png) | Special-cause improvement (values trending lower) |
-| Common cause | ![common_cause](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/variation_common_cause.png) | No special-cause variation detected |
-| Concern (high) | ![concern_high](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/variation_concern_high.png) | Special-cause concern (values trending higher) |
-| Concern (low) | ![concern_low](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/variation_concern_low.png) | Special-cause concern (values trending lower) |
+| Improvement (high) | ![improvement_high](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/variation_improvement_high.png) | Special-cause improvement (values trending higher) |
+| Improvement (low) | ![improvement_low](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/variation_improvement_low.png) | Special-cause improvement (values trending lower) |
+| Common cause | ![common_cause](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/variation_common_cause.png) | No special-cause variation detected |
+| Concern (high) | ![concern_high](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/variation_concern_high.png) | Special-cause concern (values trending higher) |
+| Concern (low) | ![concern_low](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/variation_concern_low.png) | Special-cause concern (values trending lower) |
 
 **Assurance icons** (describes whether the target will be met):
 
 | Type | Icon | Meaning |
 |------|------|---------|
-| Pass | ![pass](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/assurance_pass.png) | Target will consistently be met |
-| Hit or miss | ![hit_or_miss](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/assurance_hit_or_miss.png) | Target may or may not be met |
-| Fail | ![fail](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/pypi-publish/abspc/icons/assurance_fail.png) | Target will consistently not be met |
+| Pass | ![pass](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_pass.png) | Target will consistently be met |
+| Hit or miss | ![hit_or_miss](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_hit_or_miss.png) | Target may or may not be met |
+| Fail | ![fail](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_fail.png) | Target will consistently not be met |
 
 > For run charts only the variation icon is shown (no control limits means
 > assurance cannot be calculated).
