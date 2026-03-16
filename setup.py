@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="abspc",
-    version="0.1.1",
+    version="0.1.2",
     description=(
         "Statistical Process Control charts following the NHS "
         "Making Data Count methodology"
