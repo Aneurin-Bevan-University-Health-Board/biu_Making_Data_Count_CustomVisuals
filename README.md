@@ -1,9 +1,24 @@
 # biu_Making_Data_Count_CustomVisuals
 
-A Python package – **`custom_spc_mdc`** – for Statistical Process Control (SPC)
-charts following the NHS [Making Data Count](https://www.england.nhs.uk/publication/making-data-count/)
-(MDC) methodology.  Rules are aligned with the NHS-R community's
-[NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots) package.
+Custom visuals implementing the NHS
+[Making Data Count](https://www.england.nhs.uk/publication/making-data-count/) (MDC)
+methodology for Statistical Process Control (SPC) charts.
+
+This repository provides **ready-to-deploy chart components** across multiple
+platforms:
+
+| Platform | Status | Location |
+|----------|--------|----------|
+| **Python** (`custom_spc_mdc` package) | ✅ Available | [`custom_spc_mdc/`](custom_spc_mdc/) |
+| **Looker** (LookML custom viz) | 🔜 Planned | `looker/` |
+| **Looker Studio** (community viz) | 🔜 Planned | `looker_studio/` |
+
+SPC rules are aligned with the NHS-R community's
+[NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots) R package.
+The Making Data Count methodology is developed by
+[NHS England](https://www.england.nhs.uk/publication/making-data-count/) —
+this project is an **independent, open-source implementation** and is not
+affiliated with or endorsed by NHS England.
 
 ---
 
@@ -563,3 +578,19 @@ pytest
 
 106 unit tests covering all chart types, SPC rules, run-chart signals,
 auto-rebase, change-point annotations, and plotting.
+
+---
+
+## Licence & Attribution
+
+This project is released under the [MIT Licence](LICENSE).
+
+The **Making Data Count** methodology is developed and maintained by
+[NHS England](https://www.england.nhs.uk/publication/making-data-count/).
+SPC rules implemented here are aligned with the
+[NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots) R
+package by the NHS-R Community.
+
+This repository is an **independent, open-source implementation** created by
+**Aneurin Bevan University Health Board** and is not affiliated with, endorsed
+by, or officially connected to NHS England or the NHS-R Community.
