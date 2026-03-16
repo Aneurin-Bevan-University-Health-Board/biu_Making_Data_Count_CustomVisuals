@@ -62,6 +62,39 @@ icons, and an MDC summary table.
 
 **Full documentation:** [`abspc/README.md`](abspc/README.md)
 
+### Chart Gallery
+
+These are taken from the interactive test notebook (`tests/test_notebook.ipynb`),
+which walks through every chart type and feature.
+
+**Auto-Rebase** — detects sustained shifts and recalculates control limits per phase:
+
+![Auto-Rebase](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_auto_rebase.png)
+
+**p Chart** — proportion data with variable control limits:
+
+![p Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_p.png)
+
+**c Chart** — count data with Poisson-based limits:
+
+![c Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_c.png)
+
+**Run Chart** — median centre line, no control limits:
+
+![Run Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_run.png)
+
+**Change-Point Annotations** — mark known process changes on the chart:
+
+![Change Points](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_change_points.png)
+
+**Date-Axis Formatting**:
+
+![Date Axis](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_date_axis.png)
+
+**Logo Placement**:
+
+![Chart with Logo](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_with_logo.png)
+
 ---
 
 ## Looker — Custom Visualizations

@@ -1,254 +1,190 @@
 # NHS Making Data Count - Looker Core Visuals
 
-JavaScript implementations of NHS Making Data Count (MDC) Statistical Process Control charts for Looker Core, following the methodology from the NHS-R NHSRplotthedots package.
+JavaScript SPC chart implementations for Looker Core, based on the NHS Making Data Count methodology and the NHS-R [NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots) package.
 
-## ✨ Key Features
+Supports XmR, p, u, c, and Run charts with auto-detection, NHS colour scheme, and all four special cause rules. Pure JavaScript with no external dependencies.
 
-- **Minimal Data Requirements**: Just provide date and value columns - the system automatically calculates everything else
-- **Smart Auto-Detection**: Automatically selects the best chart type based on your data characteristics
-- **NHS MDC Compliant**: Follows official NHS Making Data Count methodology and color scheme
-- **All Chart Types**: XmR, p, u, c, and Run charts
-- **Special Cause Detection**: Implements all four NHS MDC rules for identifying special cause variation
+## Supported Chart Types
 
-## 📊 Supported Chart Types
+| Chart Type | Use Case | Auto-Detection Criteria |
+|------------|----------|------------------------|
+| XmR | Individual measurements over time | Continuous data, negative values possible |
+| p | Proportions (0-1 range) | Values between 0-1 with decimals |
+| u | Rates per unit (varying denominators) | Integer counts, variable sample sizes |
+| c | Counts (fixed sample size) | Small integer counts (0-50) |
+| Run | Simple trend analysis | Any data type (alternative to SPC) |
 
-| Chart Type | Use Case | Required Data | Auto-Detection |
-|------------|----------|---------------|----------------|
-| **XmR** | Individual measurements over time | `value` | Continuous data, negative values possible |
-| **p** | Proportions (0-1 range) | `value` | Values between 0-1 with decimals |
-| **u** | Rates per unit (varying denominators) | `value` | Integer counts, variable sample sizes |
-| **c** | Counts (fixed sample size) | `value` | Small integer counts (0-50) |
-| **Run** | Simple trend analysis | `value` | Any data type (alternative to SPC) |
+## Quick Start
 
-## 🚀 Quick Start
-
-### Option 1: Auto-Chart (Recommended)
-Let the system automatically detect the best chart type:
+The simplest approach is to use the auto-chart, which picks the right chart type for you:
 
 ```javascript
-// Your Looker data only needs two columns:
 const data = [
   { date: '2024-01-01', value: 23 },
   { date: '2024-01-02', value: 25 },
   { date: '2024-01-03', value: 21 },
-  // ... more data points
+  // ...
 ];
 
-// The AutoChart will:
-// 1. Analyze your data characteristics
-// 2. Select the appropriate chart type (XmR, p, u, c, or run)
-// 3. Calculate all control limits and special cause rules
-// 4. Apply NHS color scheme and formatting
+// AutoChart analyses the data, picks a chart type,
+// calculates control limits, and applies NHS colours.
 ```
 
-### Option 2: Specific Chart Types
-If you know which chart type you need:
+You can also force a specific chart type if you already know what you need:
 
 ```javascript
-// For proportion data (percentages, rates between 0-1)
+// Proportion data - system defaults subgroup_size to 100
 const proportionData = [
-  { date: '2024-01-01', value: 0.15 },  // 15%
-  { date: '2024-01-02', value: 0.12 },  // 12%
-  // System automatically adds subgroup_size: 100
+  { date: '2024-01-01', value: 0.15 },
+  { date: '2024-01-02', value: 0.12 },
 ];
 
-// For count data
+// Count data
 const countData = [
-  { date: '2024-01-01', value: 3 },     // 3 incidents
-  { date: '2024-01-02', value: 5 },     // 5 incidents
-  // System automatically calculates control limits
+  { date: '2024-01-01', value: 3 },
+  { date: '2024-01-02', value: 5 },
 ];
 ```
 
-## 📈 Data Requirements
+## Data Requirements
 
-### Minimal Requirements (All Charts)
+At minimum, you just need a `value` column. Dates are optional but recommended:
+
 ```javascript
-const minimalData = [
+// Minimal
+const data = [
   { value: 23.5 },
   { value: 25.1 },
   { value: 21.8 }
-  // That's it! Date column is optional
 ];
-```
 
-### With Dates (Recommended)
-```javascript
-const dataWithDates = [
+// With dates
+const data = [
   { date: '2024-01-01', value: 23.5 },
   { date: '2024-02-01', value: 25.1 },
   { date: '2024-03-01', value: 21.8 }
 ];
-```
 
-### Advanced: Manual Subgroup Sizes
-```javascript
-// Only needed if you want to override auto-detection
-const advancedData = [
+// With manual subgroup size (overrides auto-detection)
+const data = [
   { date: '2024-01-01', value: 0.15, subgroup_size: 200 }
 ];
 ```
 
-## 🎨 Configuration Options
+## Configuration
 
-### Auto-Chart Configuration
 ```javascript
-const autoChartConfig = {
-  value_column: 'value',           // Your value column name
-  chart_type: 'auto',              // Let system choose
-  improvement_direction: 'low',     // 'high' or 'low'
-  target_value: 10,                // Optional target line
-  show_analysis_info: true         // Show auto-detection reasoning
+// Auto-chart config
+const config = {
+  value_column: 'value',
+  chart_type: 'auto',            // or 'xmr', 'p', 'u', 'c', 'run'
+  improvement_direction: 'low',   // 'high' or 'low'
+  target_value: 10,               // optional target line
+  show_analysis_info: true        // show auto-detection reasoning
+};
+
+// Chart-specific options
+const config = {
+  chart_type: 'p',
+  display_as_percentage: true,
+  show_control_limits: true,
+  show_warning_limits: false,
+  subgroup_size: 150
 };
 ```
 
-### Chart-Specific Configurations
-```javascript
-const specificConfig = {
-  chart_type: 'p',                 // Force specific chart type
-  display_as_percentage: true,     // p-chart: show as %
-  show_control_limits: true,       // Show UCL/LCL lines
-  show_warning_limits: false,      // Show 2-sigma limits
-  subgroup_size: 150              // Default for p/u charts
-};
-```
+## NHS Colour Scheme
 
-## 🏥 NHS Color Scheme
+Colours are applied automatically following the NHS identity:
 
-The visuals automatically apply the official NHS color scheme:
+| Colour | Hex | Used For |
+|--------|-----|----------|
+| NHS Blue | `#005EB8` | Centre lines, improvement points |
+| NHS Dark Blue | `#003087` | Control limit lines |
+| NHS Orange | `#ED8B00` | Concern/deterioration points |
+| NHS Grey | `#768692` | Common cause variation |
+| NHS Warm Yellow | `#FFB81C` | Target lines |
 
-- **NHS Blue** (`#005EB8`) - Center lines, improvement points
-- **NHS Dark Blue** (`#003087`) - Control limit lines  
-- **NHS Orange** (`#ED8B00`) - Concern/deterioration points
-- **NHS Grey** (`#768692`) - Common cause variation
-- **NHS Warm Yellow** (`#FFB81C`) - Target lines
+## Special Cause Rules
 
-## 📊 Special Cause Rules (NHS MDC)
+All four NHS MDC rules are applied automatically:
 
-All four NHS Making Data Count rules are automatically applied:
+1. **Astronomical Point** - single point beyond 3-sigma limits
+2. **Shift** - 7+ consecutive points on the same side of the centre line
+3. **Trend** - 7+ consecutive points all increasing or all decreasing
+4. **Two-in-Three** - 2 out of 3 consecutive points in the warning zone
 
-1. **Astronomical Point** - Single point outside 3-sigma limits
-2. **Shift** - 7+ consecutive points on same side of center line
-3. **Trend** - 7+ consecutive points all increasing or decreasing  
-4. **Two-in-Three** - 2 of 3 consecutive points in warning zone
-
-## 📁 File Structure
+## File Structure
 
 ```
 looker_core_visuals/
 ├── src/
-│   ├── auto_chart.js      # 🎯 Smart auto-detection (start here!)
-│   ├── xmr_chart.js       # Individual measurements
-│   ├── p_chart.js         # Proportions 
-│   ├── u_chart.js         # Rates per unit
-│   ├── c_chart.js         # Counts
-│   ├── run_chart.js       # Run charts
-│   └── spc_utils.js       # Shared utilities & NHS colors
+│   ├── auto_chart.js      # Auto-detection entry point
+│   ├── xmr_chart.js
+│   ├── p_chart.js
+│   ├── u_chart.js
+│   ├── c_chart.js
+│   ├── run_chart.js
+│   └── spc_utils.js       # Shared utilities and NHS colours
 └── examples/
     ├── minimal_example.js
-    ├── proportion_example.js
-    └── count_example.js
+    └── healthcare_examples.js
 ```
 
-## 💡 Usage Examples
+## Examples
 
-### Example 1: Emergency Department Wait Times
+### ED Wait Times (XmR)
 ```javascript
-// Just your basic data
 const waitTimes = [
   { month: '2024-01', avg_wait_hours: 3.2 },
   { month: '2024-02', avg_wait_hours: 4.1 },
   { month: '2024-03', avg_wait_hours: 2.8 }
 ];
-
-// AutoChart will:
-// ✅ Detect: XmR chart (continuous measurements)
-// ✅ Calculate: Mean, control limits, special causes
-// ✅ Color: Points based on improvement direction
-// ✅ Display: Professional NHS-styled chart
+// Auto-detected as XmR (continuous measurements)
 ```
 
-### Example 2: Infection Rates
+### Infection Rates (p-chart)
 ```javascript
-// Proportion data (percentages as decimals)
 const infectionRates = [
-  { week: '2024-W01', infection_rate: 0.023 }, // 2.3%
-  { week: '2024-W02', infection_rate: 0.019 }, // 1.9%
-  { week: '2024-W03', infection_rate: 0.031 }  // 3.1%
+  { week: '2024-W01', infection_rate: 0.023 },
+  { week: '2024-W02', infection_rate: 0.019 },
+  { week: '2024-W03', infection_rate: 0.031 }
 ];
-
-// AutoChart will:
-// ✅ Detect: p-chart (proportion data 0-1 range)
-// ✅ Assume: Subgroup size 100 (configurable)
-// ✅ Calculate: Variable control limits per point
-// ✅ Apply: NHS color scheme for improvement/concern
+// Auto-detected as p-chart (values between 0 and 1)
+// Defaults to subgroup_size: 100
 ```
 
-### Example 3: Medication Errors
+### Medication Errors (c-chart)
 ```javascript
-// Count data
 const medicationErrors = [
   { month: '2024-01', error_count: 2 },
   { month: '2024-02', error_count: 5 },
   { month: '2024-03', error_count: 1 }
 ];
-
-// AutoChart will:
-// ✅ Detect: c-chart (small integer counts)
-// ✅ Calculate: Poisson-based control limits
-// ✅ Flag: Special causes using NHS rules
+// Auto-detected as c-chart (small integer counts)
 ```
 
-## 🔧 Integration with Looker Core
-
-Add to your Looker visualization:
+## Looker Integration
 
 ```javascript
 import { AutoChart } from './src/auto_chart.js';
 
-// Looker will automatically:
-// - Pass your query results as data
-// - Handle user configuration options
-// - Manage responsive resizing
-// - Provide download/export functionality
+// Looker handles passing query results, user config,
+// responsive resizing, and export functionality.
 ```
 
-## ⚡ Performance & Browser Support
+## Troubleshooting
 
-- **Lightweight**: Pure JavaScript, no external dependencies
-- **Fast**: Efficient algorithms optimized for healthcare data volumes
-- **Compatible**: Modern browsers (ES2020+)
-- **Responsive**: Automatically adapts to container sizing
+- **"No data available"** - check your value column contains numeric data and the column name matches your config.
+- **"Auto-detection failed"** - falls back to XmR. You can set `chart_type` manually if needed.
+- **"Invalid subgroup size"** - for p/u charts, make sure `subgroup_size` is greater than 0. The system uses defaults if it's missing.
 
-## 🔍 Troubleshooting
+General tips: remove nulls, keep data types consistent (all numbers), use ISO date format (`YYYY-MM-DD`) where possible, and avoid large gaps in the series.
 
-### Common Issues
-
-1. **"No data available"**
-   - Check your value column contains numeric data
-   - Ensure column name matches configuration
-
-2. **"Auto-detection failed"**
-   - Falls back to XmR chart
-   - Manually specify chart_type if needed
-
-3. **"Invalid subgroup size"**
-   - For p/u charts, ensure subgroup_size > 0
-   - System will use defaults if missing
-
-### Data Quality Tips
-
-- Remove null/empty values before charting
-- Ensure consistent data types (all numbers)
-- For dates, use ISO format (YYYY-MM-DD) when possible
-- Keep data points sequential (no large gaps)
-
----
-
-## 📚 References
+## References
 
 - [NHS Making Data Count](https://www.england.nhs.uk/publication/making-data-count/)
-- [NHS-R NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots)
-- [Statistical Process Control in Healthcare](https://improvement.nhs.uk/resources/statistical-process-control/)
+- [NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots)
+- [SPC in Healthcare - NHS](https://improvement.nhs.uk/resources/statistical-process-control/)
 
-Built with ❤️ for the NHS by Aneurin Bevan University Health Board
+Developed by Aneurin Bevan University Health Board.
