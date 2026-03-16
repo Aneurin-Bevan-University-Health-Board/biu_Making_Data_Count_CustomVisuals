@@ -427,27 +427,55 @@ The package can automatically determine and display the official
 variation and assurance icons on any chart.  Set `show_icons=True` to enable
 them — both icons appear at the **top-left** of the plot area.
 
-### Variation Icons
+**Variation** (left icon) describes the type of special-cause variation in the
+most recent data.  **Assurance** (right icon) describes whether the process is
+consistently capable of meeting the target.
 
-Variation describes the **type of special-cause variation** present in the most
-recent data points:
+The full icon matrix is shown below — the **variation icon** corresponds to the
+row and the **assurance icon** corresponds to the column:
 
-| Icon | Meaning |
-|------|---------|
-| Improvement (high / low) | Special-cause variation in the improvement direction |
-| Common cause | No special-cause variation detected |
-| Concern (high / low) | Special-cause variation in the concern direction |
-
-### Assurance Icons
-
-Assurance describes whether the process is **consistently capable** of meeting
-the target:
-
-| Icon | Meaning |
-|------|---------|
-| Pass | The process consistently meets the target (target is within the favourable side of the limits) |
-| Hit or miss | The target sits between UCL and LCL — sometimes met, sometimes not |
-| Fail | The process consistently fails to meet the target (target is outside the unfavourable side) |
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th align="center">Pass<br/><sub>Target will consistently<br/>be met</sub></th>
+      <th align="center">Hit or Miss<br/><sub>Target may or may not<br/>be met</sub></th>
+      <th align="center">Fail<br/><sub>Target will consistently<br/>not be met</sub></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Improvement (high)</strong><br/><sub>Special-cause variation<br/>in the improvement<br/>direction (high)</sub></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_high.png" height="40"/> <img src="abspc/icons/assurance_pass.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_high.png" height="40"/> <img src="abspc/icons/assurance_hit_or_miss.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_high.png" height="40"/> <img src="abspc/icons/assurance_fail.png" height="40"/></td>
+    </tr>
+    <tr>
+      <td><strong>Improvement (low)</strong><br/><sub>Special-cause variation<br/>in the improvement<br/>direction (low)</sub></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_low.png" height="40"/> <img src="abspc/icons/assurance_pass.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_low.png" height="40"/> <img src="abspc/icons/assurance_hit_or_miss.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_improvement_low.png" height="40"/> <img src="abspc/icons/assurance_fail.png" height="40"/></td>
+    </tr>
+    <tr>
+      <td><strong>Common Cause</strong><br/><sub>No special-cause<br/>variation detected</sub></td>
+      <td align="center"><img src="abspc/icons/variation_common_cause.png" height="40"/> <img src="abspc/icons/assurance_pass.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_common_cause.png" height="40"/> <img src="abspc/icons/assurance_hit_or_miss.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_common_cause.png" height="40"/> <img src="abspc/icons/assurance_fail.png" height="40"/></td>
+    </tr>
+    <tr>
+      <td><strong>Concern (high)</strong><br/><sub>Special-cause variation<br/>in the concern<br/>direction (high)</sub></td>
+      <td align="center"><img src="abspc/icons/variation_concern_high.png" height="40"/> <img src="abspc/icons/assurance_pass.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_concern_high.png" height="40"/> <img src="abspc/icons/assurance_hit_or_miss.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_concern_high.png" height="40"/> <img src="abspc/icons/assurance_fail.png" height="40"/></td>
+    </tr>
+    <tr>
+      <td><strong>Concern (low)</strong><br/><sub>Special-cause variation<br/>in the concern<br/>direction (low)</sub></td>
+      <td align="center"><img src="abspc/icons/variation_concern_low.png" height="40"/> <img src="abspc/icons/assurance_pass.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_concern_low.png" height="40"/> <img src="abspc/icons/assurance_hit_or_miss.png" height="40"/></td>
+      <td align="center"><img src="abspc/icons/variation_concern_low.png" height="40"/> <img src="abspc/icons/assurance_fail.png" height="40"/></td>
+    </tr>
+  </tbody>
+</table>
 
 > For run charts only the variation icon is shown (no control limits means
 > assurance cannot be calculated).
