@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Aneurin Bevan University Health Board"},
+    { name = "Aneurin Bevan University Health Board" },
+    { name = "Daniel Westwood", email = "daniel.westwood@wales.nhs.uk" },
 ]
 keywords = ["spc", "statistical process control", "nhs", "making data count", "quality improvement", "looker", "looker studio"]
 classifiers = [
