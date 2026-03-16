@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /workspaces/biu_Making_Data_Count_CustomVisuals && git ls-tree --name-only origin/main abspc/icons/$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
