@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abspc"
-version = "0.1.0"
+version = "0.1.2"
 description = "SPC chart visuals using the NHS Making Data Count methodology — Python, Looker & Looker Studio"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Aneurin Bevan University Health Board" },
+    { name = "Aneurin Bevan University Health Board"},
 ]
 keywords = ["spc", "statistical process control", "nhs", "making data count", "quality improvement", "looker", "looker studio"]
 classifiers = [
