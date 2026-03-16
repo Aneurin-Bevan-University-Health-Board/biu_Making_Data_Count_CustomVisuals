@@ -20,6 +20,10 @@ htmlcov/
 venv/
 env/
 
+# Smoke test artefacts
+test_table.png
+tests/spc_chart_output.png
+
 # IDE / editor
 .idea/
 .vscode/
