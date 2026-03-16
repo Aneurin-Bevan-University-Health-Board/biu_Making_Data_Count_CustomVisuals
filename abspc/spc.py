@@ -1,0 +1,881 @@
+"""
+spc.py
+======
+Core Statistical Process Control calculations following the NHS Making Data
+Count (MDC) methodology.  Rules are aligned with the NHSRplotthedots R
+package (https://github.com/nhs-r-community/NHSRplotthedots).
+
+Supported chart types
+---------------------
+* ``"XmR"``  – Individuals / moving-range chart
+* ``"p"``    – Proportion chart  (requires ``subgroup_sizes`` column)
+* ``"u"``    – Counts-per-unit chart (requires ``subgroup_sizes`` column)
+* ``"c"``    – Counts in a fixed population
+* ``"run"``  – Basic run chart (median centre line, no control limits)
+
+NHS MDC Special-Cause rules implemented (SPC charts)
+------------------------------------------------------
+1. **Rule 1 – Astronomical point**: a single value outside the 3-sigma
+   process control limits (UCL / LCL).
+2. **Rule 2 – Shift**: **seven** or more consecutive points all above *or*
+   all below the centre line (mean) — aligned with NHS MDC / NHSRplotthedots.
+3. **Rule 3 – Trend**: **seven** or more consecutive points all going up *or*
+   all going down.
+4. **Rule 4 – Two-in-three**: two out of three consecutive points in the
+   warning zone (between 2-sigma and 3-sigma limits) on the same side.
+
+Run-chart signals (run chart only)
+-----------------------------------
+* **Shift**: seven or more consecutive points on the same side of the median.
+* **Trend**: seven or more consecutive points all increasing *or* all
+  decreasing.
+
+NHS Colour scheme
+-----------------
+* NHS Blue        ``#005EB8``  – mean line, improvement points
+* NHS Dark Blue   ``#003087``  – control-limit lines
+* NHS Orange      ``#ED8B00``  – concern points
+* Grey            ``#768692``  – common-cause points
+* NHS Warm Yellow ``#FFB81C``  – optional target line
+* Light Blue      ``#41B6E6``  – optional shading (tolerance band)
+* Pale Grey       ``#E8EDEE``  – optional shading (tolerance band)
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from .utils import validate_data
+
+# ---------------------------------------------------------------------------
+# NHS colour constants
+# ---------------------------------------------------------------------------
+NHS_BLUE = "#005EB8"
+NHS_DARK_BLUE = "#003087"
+NHS_ORANGE = "#ED8B00"
+NHS_GREY = "#768692"
+NHS_WARM_YELLOW = "#FFB81C"
+NHS_LIGHT_BLUE = "#41B6E6"
+NHS_PALE_GREY = "#E8EDEE"
+
+# Colour assigned to each point category
+COLOUR_COMMON_CAUSE = NHS_GREY
+COLOUR_IMPROVEMENT = NHS_BLUE
+COLOUR_CONCERN = NHS_ORANGE
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def calculate_control_limits(
+    data: pd.DataFrame,
+    chart_type: str,
+    value_col: str = "value",
+    subgroup_col: str | None = "subgroup_size",
+    numerator_col: str | None = None,
+) -> pd.DataFrame:
+    """Calculate mean and 3-sigma process control limits.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input data.  Must contain at least the column specified by
+        *value_col*.  For ``"p"`` and ``"u"`` charts it must also contain
+        the column specified by *subgroup_col* (default ``"subgroup_size"``).
+        Alternatively, supply *numerator_col* together with *subgroup_col* for
+        ``"p"`` charts where ``value`` is the raw numerator count rather than
+        the pre-computed proportion.
+    chart_type : str
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``.
+    value_col : str, optional
+        Name of the column containing the measured values (default
+        ``"value"``).
+    subgroup_col : str or None, optional
+        Name of the column containing subgroup / denominator sizes.  Required
+        for ``"p"`` and ``"u"`` charts.  Defaults to ``"subgroup_size"``
+        (ignored for ``"XmR"``, ``"c"``, and ``"run"``).
+    numerator_col : str or None, optional
+        When provided for ``"p"`` charts, *value_col* is treated as the
+        denominator and *numerator_col* as the count of events.  The
+        proportion is then computed as ``numerator / value``.
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *data* with additional columns:
+
+        * ``mean``  – centre line (constant or per-point where varying
+          subgroup sizes are used); for ``"run"`` charts this is the median.
+        * ``ucl``   – upper control limit (absent for ``"run"`` charts)
+        * ``lcl``   – lower control limit (absent for ``"run"`` charts)
+        * ``uwl``   – upper warning limit at 2-sigma (absent for ``"run"``)
+        * ``lwl``   – lower warning limit at 2-sigma (absent for ``"run"``)
+
+    Raises
+    ------
+    ValueError
+        If *chart_type* is not one of the supported types.
+    """
+    chart_type = chart_type.strip().lower() if chart_type else chart_type
+    _SUPPORTED = {"xmr", "p", "u", "c", "run"}
+    if chart_type not in _SUPPORTED:
+        raise ValueError(
+            f"Unsupported chart_type '{chart_type}'. "
+            f"Must be one of: {sorted(_SUPPORTED)}"
+        )
+
+    # When numerator_col is provided for a p-chart, value_col is the denominator
+    # (subgroup size), so validate it as the subgroup column.
+    if chart_type == "run":
+        validate_data(data, "xmr", value_col=value_col, subgroup_col=None)
+    elif chart_type == "p" and numerator_col is not None:
+        validate_data(
+            data,
+            chart_type,
+            value_col=numerator_col,
+            subgroup_col=value_col,
+        )
+    else:
+        validate_data(data, chart_type, value_col=value_col, subgroup_col=subgroup_col)
+
+    result = data.copy()
+
+    if chart_type == "xmr":
+        result = _calc_xmr(result, value_col)
+    elif chart_type == "p":
+        result = _calc_p(result, value_col, subgroup_col, numerator_col)
+    elif chart_type == "u":
+        result = _calc_u(result, value_col, subgroup_col)
+    elif chart_type == "c":
+        result = _calc_c(result, value_col)
+    elif chart_type == "run":
+        result = _calc_run(result, value_col)
+
+    # Ensure LCL is non-negative for count / proportion charts
+    if chart_type in {"p", "u", "c"}:
+        result["lcl"] = result["lcl"].clip(lower=0)
+        result["lwl"] = result["lwl"].clip(lower=0)
+
+    return result
+
+
+def detect_special_causes(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    mean_col: str = "mean",
+    ucl_col: str = "ucl",
+    lcl_col: str = "lcl",
+    uwl_col: str = "uwl",
+    lwl_col: str = "lwl",
+) -> pd.DataFrame:
+    """Detect special-cause variation using NHS MDC rules.
+
+    Four rules are applied (aligned with NHSRplotthedots / NHS MDC):
+
+    * **Rule 1** – astronomical point: value outside 3-sigma control limits.
+    * **Rule 2** – shift: ≥ 7 consecutive points on the same side of the mean.
+    * **Rule 3** – trend: ≥ 7 consecutive points all increasing *or* all
+      decreasing.
+    * **Rule 4** – two-in-three: two out of three consecutive points in the
+      warning zone (between 2-sigma and 3-sigma), on the same side of the mean.
+      Only applied when *uwl_col* / *lwl_col* are present in *result*.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`calculate_control_limits` containing at least the
+        columns *value_col*, *mean_col*, *ucl_col*, *lcl_col*.
+    value_col : str, optional
+        Name of the values column (default ``"value"``).
+    mean_col : str, optional
+        Name of the mean / centre-line column (default ``"mean"``).
+    ucl_col : str, optional
+        Name of the UCL column (default ``"ucl"``).
+    lcl_col : str, optional
+        Name of the LCL column (default ``"lcl"``).
+    uwl_col : str, optional
+        Name of the upper warning-limit column (default ``"uwl"``).  Rule 4
+        is skipped when this column is absent.
+    lwl_col : str, optional
+        Name of the lower warning-limit column (default ``"lwl"``).  Rule 4
+        is skipped when this column is absent.
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *result* with additional boolean columns:
+
+        * ``rule1`` – point is outside control limits
+        * ``rule2`` – point is part of a run on one side of the mean
+        * ``rule3`` – point is part of a run trend (up or down)
+        * ``rule4`` – point is part of a 2-in-3 warning-zone cluster
+          (only set when warning limits are present)
+        * ``special_cause`` – True if **any** rule is triggered
+    """
+    df = result.copy()
+    values = df[value_col].to_numpy(dtype=float)
+    mean = df[mean_col].to_numpy(dtype=float)
+    ucl = df[ucl_col].to_numpy(dtype=float)
+    lcl = df[lcl_col].to_numpy(dtype=float)
+
+    rule1 = _rule1_astronomical(values, ucl, lcl)
+    rule2 = _rule2_shift(values, mean, run_length=7)
+    rule3 = _rule3_trend(values, run_length=7)
+
+    df["rule1"] = rule1
+    df["rule2"] = rule2
+    df["rule3"] = rule3
+
+    has_warning_limits = uwl_col in df.columns and lwl_col in df.columns
+    if has_warning_limits:
+        uwl = df[uwl_col].to_numpy(dtype=float)
+        lwl = df[lwl_col].to_numpy(dtype=float)
+        rule4 = _rule4_two_in_three(values, mean, ucl, lcl, uwl, lwl)
+        df["rule4"] = rule4
+        df["special_cause"] = rule1 | rule2 | rule3 | rule4
+    else:
+        df["special_cause"] = rule1 | rule2 | rule3
+
+    return df
+
+
+def determine_point_colours(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    mean_col: str = "mean",
+    ucl_col: str = "ucl",
+    lcl_col: str = "lcl",
+    improvement_direction: str = "high",
+    target: float | None = None,
+) -> list[str]:
+    """Determine the NHS MDC colour for every data point.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`detect_special_causes` which must contain the
+        boolean flag columns ``rule1``, ``rule2``, ``rule3``,
+        ``special_cause``.
+    value_col : str, optional
+        Column containing measured values (default ``"value"``).
+    mean_col : str, optional
+        Column containing the centre line (default ``"mean"``).
+    ucl_col : str, optional
+        Column containing the UCL (default ``"ucl"``).
+    lcl_col : str, optional
+        Column containing the LCL (default ``"lcl"``).
+    improvement_direction : str, optional
+        ``"high"`` if higher values are better (e.g. compliance rate) or
+        ``"low"`` if lower values are better (e.g. error rate).
+        Defaults to ``"high"``.
+    target : float or None, optional
+        Optional target value.  When supplied, special-cause points that
+        move towards the target are coloured as improvement.
+
+    Returns
+    -------
+    list of str
+        A list of hex colour strings, one per row in *result*.
+
+    Raises
+    ------
+    ValueError
+        If *improvement_direction* is not ``"high"`` or ``"low"``.
+    """
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    required_cols = {"rule1", "rule2", "rule3", "special_cause"}
+    missing = required_cols - set(result.columns)
+    if missing:
+        raise ValueError(
+            f"result is missing columns: {missing}.  "
+            "Run detect_special_causes() first."
+        )
+
+    values = result[value_col].to_numpy(dtype=float)
+    mean = result[mean_col].to_numpy(dtype=float)
+    ucl = result[ucl_col].to_numpy(dtype=float)
+    lcl = result[lcl_col].to_numpy(dtype=float)
+    special_cause = result["special_cause"].to_numpy(dtype=bool)
+    rule1 = result["rule1"].to_numpy(dtype=bool)
+    rule2 = result["rule2"].to_numpy(dtype=bool)
+
+    colours = []
+    for i in range(len(values)):
+        if not special_cause[i]:
+            colours.append(COLOUR_COMMON_CAUSE)
+            continue
+
+        # Determine direction of the special cause
+        is_high = _is_high_signal(
+            values[i], mean[i], ucl[i], lcl[i], rule1[i], rule2[i], values, mean, i
+        )
+
+        if target is not None:
+            # Override: classify based on proximity to target
+            is_improvement = _towards_target(values[i], mean[i], target)
+        elif improvement_direction == "high":
+            is_improvement = is_high
+        else:
+            is_improvement = not is_high
+
+        colours.append(COLOUR_IMPROVEMENT if is_improvement else COLOUR_CONCERN)
+
+    return colours
+
+
+def detect_run_chart_signals(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    median_col: str = "mean",
+) -> pd.DataFrame:
+    """Detect signals in a run chart using NHS MDC run-chart rules.
+
+    Two rules are applied against the **median** centre line:
+
+    * **Run shift**: ≥ 7 consecutive points on the same side of the median.
+    * **Run trend**: ≥ 7 consecutive points all increasing *or* all decreasing.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`calculate_control_limits` with ``chart_type="run"``.
+        Must contain *value_col* and *median_col* (default ``"mean"``).
+    value_col : str, optional
+        Name of the values column (default ``"value"``).
+    median_col : str, optional
+        Name of the median / centre-line column (default ``"mean"``).
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *result* with additional boolean columns:
+
+        * ``run_shift``  – point is part of a 7+ run on one side of the median
+        * ``run_trend``  – point is part of a 7+ consecutive up/down trend
+        * ``run_signal`` – True if **either** rule is triggered
+    """
+    df = result.copy()
+    values = df[value_col].to_numpy(dtype=float)
+    median = df[median_col].to_numpy(dtype=float)
+
+    run_shift = _rule2_shift(values, median, run_length=7)
+    run_trend = _rule3_trend(values, run_length=7)
+
+    df["run_shift"] = run_shift
+    df["run_trend"] = run_trend
+    df["run_signal"] = run_shift | run_trend
+
+    return df
+
+
+def rebase_control_limits(
+    data: pd.DataFrame,
+    chart_type: str,
+    improvement_direction: str = "high",
+    value_col: str = "value",
+    subgroup_col: str | None = "subgroup_size",
+    numerator_col: str | None = None,
+    min_phase_length: int = 7,
+) -> pd.DataFrame:
+    """Calculate control limits with automatic phase rebasing on improvement.
+
+    When a sustained improvement shift (≥ *min_phase_length* consecutive
+    points in the *improvement_direction* relative to the current mean) is
+    detected, control limits are recalculated from the start of that shift
+    forward.  The process repeats iteratively so that multiple successive
+    phases of improvement are all captured.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input data — same requirements as :func:`calculate_control_limits`.
+    chart_type : str
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"`` (case-insensitive).
+        ``"run"`` is not supported.
+    improvement_direction : str, optional
+        ``"high"`` (default) or ``"low"`` — direction in which improvement
+        lies.
+    value_col : str, optional
+        Column containing measured values (default ``"value"``).
+    subgroup_col : str or None, optional
+        Column containing subgroup sizes (required for ``"p"`` and ``"u"``).
+    numerator_col : str or None, optional
+        For ``"p"`` charts: column with event counts when *value_col* is the
+        denominator.
+    min_phase_length : int, optional
+        Minimum consecutive points in the improvement direction required to
+        trigger a rebase (default ``7``, aligned with NHS MDC Rule 2 / shift).
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of *data* with the usual ``mean``, ``ucl``, ``lcl``,
+        ``uwl``, ``lwl`` columns (recalculated per phase) plus:
+
+        * ``rebase_phase`` – integer phase index (0 = baseline, 1 = first
+          improvement phase, 2 = second, etc.)
+
+    Raises
+    ------
+    ValueError
+        If *chart_type* is ``"run"`` or *improvement_direction* is invalid.
+    """
+    chart_type_key = chart_type.strip().lower() if chart_type else chart_type
+    if chart_type_key == "run":
+        raise ValueError(
+            "Auto-rebasing is not supported for run charts.  "
+            "Use chart_type one of 'xmr', 'p', 'u', 'c'."
+        )
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    # Baseline limits over the full dataset
+    result = calculate_control_limits(
+        data,
+        chart_type=chart_type,
+        value_col=value_col,
+        subgroup_col=subgroup_col,
+        numerator_col=numerator_col,
+    )
+    result["rebase_phase"] = 0
+
+    phase = 0
+    phase_start = 0  # absolute row index where the current phase begins
+
+    while True:
+        phase_slice = result.iloc[phase_start:]
+        values = phase_slice[value_col].to_numpy(dtype=float)
+        mean_arr = phase_slice["mean"].to_numpy(dtype=float)
+
+        rel_idx = _find_improvement_shift_start(
+            values, mean_arr, improvement_direction, min_phase_length
+        )
+        if rel_idx is None:
+            break  # No further improvement detected in this phase
+
+        abs_rebase = phase_start + rel_idx
+        remaining = len(data) - abs_rebase
+        if remaining < min_phase_length:
+            break  # Not enough data for a meaningful new phase
+
+        # Recalculate limits for the new phase using the original raw data
+        new_phase_raw = data.iloc[abs_rebase:].reset_index(drop=True)
+        new_phase_result = calculate_control_limits(
+            new_phase_raw,
+            chart_type=chart_type,
+            value_col=value_col,
+            subgroup_col=subgroup_col,
+            numerator_col=numerator_col,
+        )
+
+        phase += 1
+        # Write the new phase's limits back into the full result DataFrame
+        for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
+            if col in new_phase_result.columns:
+                result.iloc[
+                    abs_rebase:, result.columns.get_loc(col)
+                ] = new_phase_result[col].to_numpy()
+        result.iloc[
+            abs_rebase:, result.columns.get_loc("rebase_phase")
+        ] = phase
+
+        phase_start = abs_rebase
+
+    return result
+
+
+def determine_variation_type(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    mean_col: str = "mean",
+    improvement_direction: str = "high",
+) -> str:
+    """Determine the overall variation icon type for an SPC chart.
+
+    Examines the most recent special-cause signals to classify the process
+    into one of:
+
+    * ``"improvement_high"`` – special cause improving, values significantly higher
+    * ``"improvement_low"``  – special cause improving, values significantly lower
+    * ``"concern_high"``     – special cause concerning, values significantly higher
+    * ``"concern_low"``      – special cause concerning, values significantly lower
+    * ``"common_cause"``     – no special-cause variation detected
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`detect_special_causes`.
+    value_col : str
+        Column containing measured values.
+    mean_col : str
+        Column containing the centre line.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
+
+    Returns
+    -------
+    str
+        One of the variation type strings listed above.
+    """
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    if "special_cause" not in result.columns:
+        return "common_cause"
+
+    # Look at the most recent data points for the overall assessment
+    sc = result["special_cause"].to_numpy(dtype=bool)
+    if not sc.any():
+        return "common_cause"
+
+    values = result[value_col].to_numpy(dtype=float)
+    mean = result[mean_col].to_numpy(dtype=float)
+
+    # Assess the most recent special-cause point
+    last_sc_idx = int(np.where(sc)[0][-1])
+    value_is_high = values[last_sc_idx] > mean[last_sc_idx]
+
+    if improvement_direction == "high":
+        if value_is_high:
+            return "improvement_high"
+        else:
+            return "concern_low"
+    else:  # improvement_direction == "low"
+        if value_is_high:
+            return "concern_high"
+        else:
+            return "improvement_low"
+
+
+def determine_assurance_type(
+    result: pd.DataFrame,
+    target: float | None,
+    improvement_direction: str = "high",
+    ucl_col: str = "ucl",
+    lcl_col: str = "lcl",
+) -> str:
+    """Determine the assurance icon type for an SPC chart.
+
+    Compares the target value against the control limits to classify whether
+    the process will consistently meet the target:
+
+    * ``"pass"``        – target is within the process capability on the
+      favourable side; the process will consistently PASS the target.
+    * ``"hit_or_miss"`` – target falls between UCL and LCL; the process
+      may or may not meet the target.
+    * ``"fail"``        – target is outside the process capability on the
+      unfavourable side; the process will consistently FAIL the target.
+    * ``"no_target"``   – no target is set; assurance cannot be determined.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`calculate_control_limits` (must contain UCL/LCL).
+    target : float or None
+        The target value. Returns ``"no_target"`` when ``None``.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
+    ucl_col, lcl_col : str
+        Column names for the upper and lower control limits.
+
+    Returns
+    -------
+    str
+        One of ``"pass"``, ``"hit_or_miss"``, ``"fail"``, or ``"no_target"``.
+    """
+    if target is None:
+        return "no_target"
+
+    if ucl_col not in result.columns or lcl_col not in result.columns:
+        return "no_target"
+
+    # Use the most recent phase's limits (last row)
+    ucl = float(result[ucl_col].iloc[-1])
+    lcl = float(result[lcl_col].iloc[-1])
+
+    if improvement_direction == "high":
+        # Higher is better: pass if target < LCL (all above target)
+        if target <= lcl:
+            return "pass"
+        elif target >= ucl:
+            return "fail"
+        else:
+            return "hit_or_miss"
+    else:
+        # Lower is better: pass if target > UCL (all below target)
+        if target >= ucl:
+            return "pass"
+        elif target <= lcl:
+            return "fail"
+        else:
+            return "hit_or_miss"
+
+
+# ---------------------------------------------------------------------------
+# Chart-specific helpers
+# ---------------------------------------------------------------------------
+
+
+def _calc_xmr(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """XmR (individuals / moving-range) chart calculations.
+
+    Uses the debiasing constant ``d2 = 1.128`` for subgroup size of 2.
+    ``UCL = mean + 3 / d2 * mean_mr``  which simplifies to
+    ``mean ± 2.66 * mean_mr``.
+
+    Warning limits (2-sigma) use ``limitclose = 2/3 * 2.66 ≈ 1.77``,
+    consistent with NHSRplotthedots.
+    """
+    values = df[value_col].to_numpy(dtype=float)
+    mean_val = np.nanmean(values)
+    moving_range = np.abs(np.diff(values))
+    mean_mr = np.nanmean(moving_range)
+
+    # 3 / d2 ≈ 2.659, rounded to 2.66 in NHS MDC guidance
+    d2 = 1.128
+    sigma_multiplier = 3.0 / d2          # ≈ 2.66
+    warn_multiplier = 2.0 * sigma_multiplier / 3.0  # ≈ 1.77
+
+    df["mean"] = mean_val
+    df["ucl"] = mean_val + sigma_multiplier * mean_mr
+    df["lcl"] = mean_val - sigma_multiplier * mean_mr
+    df["uwl"] = mean_val + warn_multiplier * mean_mr
+    df["lwl"] = mean_val - warn_multiplier * mean_mr
+    return df
+
+
+def _calc_p(
+    df: pd.DataFrame,
+    value_col: str,
+    subgroup_col: str | None,
+    numerator_col: str | None,
+) -> pd.DataFrame:
+    """p-chart (proportion) calculations with varying subgroup sizes."""
+    if numerator_col is not None:
+        # value_col is the denominator; numerator_col holds event counts
+        n = df[value_col].to_numpy(dtype=float)
+        numerator = df[numerator_col].to_numpy(dtype=float)
+        p_i = numerator / n
+        p_bar = np.nansum(numerator) / np.nansum(n)
+    else:
+        n = df[subgroup_col].to_numpy(dtype=float)
+        p_i = df[value_col].to_numpy(dtype=float)
+        # Back-calculate totals from proportions and subgroup sizes
+        p_bar = np.nansum(p_i * n) / np.nansum(n)
+
+    sigma_i = np.sqrt(p_bar * (1 - p_bar) / n)
+
+    df["mean"] = p_bar
+    df["ucl"] = p_bar + 3 * sigma_i
+    df["lcl"] = p_bar - 3 * sigma_i
+    df["uwl"] = p_bar + 2 * sigma_i
+    df["lwl"] = p_bar - 2 * sigma_i
+
+    # Update value_col if numerator was provided (use proportion)
+    if numerator_col is not None:
+        df[value_col] = p_i
+
+    return df
+
+
+def _calc_u(
+    df: pd.DataFrame,
+    value_col: str,
+    subgroup_col: str | None,
+) -> pd.DataFrame:
+    """u-chart (counts per unit) calculations with varying subgroup sizes."""
+    n = df[subgroup_col].to_numpy(dtype=float)
+    u_i = df[value_col].to_numpy(dtype=float)
+    u_bar = np.nansum(u_i * n) / np.nansum(n)
+
+    sigma_i = np.sqrt(u_bar / n)
+
+    df["mean"] = u_bar
+    df["ucl"] = u_bar + 3 * sigma_i
+    df["lcl"] = u_bar - 3 * sigma_i
+    df["uwl"] = u_bar + 2 * sigma_i
+    df["lwl"] = u_bar - 2 * sigma_i
+    return df
+
+
+def _calc_c(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """c-chart (counts in fixed population) calculations."""
+    values = df[value_col].to_numpy(dtype=float)
+    c_bar = np.nanmean(values)
+    sigma = np.sqrt(c_bar)
+
+    df["mean"] = c_bar
+    df["ucl"] = c_bar + 3 * sigma
+    df["lcl"] = c_bar - 3 * sigma
+    df["uwl"] = c_bar + 2 * sigma
+    df["lwl"] = c_bar - 2 * sigma
+    return df
+
+
+def _calc_run(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """Run chart calculations – median centre line only, no control limits."""
+    values = df[value_col].to_numpy(dtype=float)
+    median_val = float(np.nanmedian(values))
+    df["mean"] = median_val
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Special-cause rule helpers
+# ---------------------------------------------------------------------------
+
+
+def _rule1_astronomical(
+    values: np.ndarray,
+    ucl: np.ndarray,
+    lcl: np.ndarray,
+) -> np.ndarray:
+    """Rule 1 – single point outside 3-sigma control limits."""
+    return (values > ucl) | (values < lcl)
+
+
+def _rule2_shift(
+    values: np.ndarray,
+    mean: np.ndarray,
+    run_length: int = 7,
+) -> np.ndarray:
+    """Rule 2 – run of *run_length* (≥7) points on the same side of mean.
+
+    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
+    """
+    n = len(values)
+    flags = np.zeros(n, dtype=bool)
+    above = values > mean
+    below = values < mean
+
+    for start in range(n - run_length + 1):
+        end = start + run_length
+        segment_above = above[start:end]
+        segment_below = below[start:end]
+        if segment_above.all() or segment_below.all():
+            flags[start:end] = True
+
+    return flags
+
+
+def _rule3_trend(values: np.ndarray, run_length: int = 7) -> np.ndarray:
+    """Rule 3 – run of *run_length* (≥7) consecutively increasing/decreasing.
+
+    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
+    """
+    n = len(values)
+    flags = np.zeros(n, dtype=bool)
+    diffs = np.diff(values)  # length n-1
+
+    for start in range(n - run_length + 1):
+        # We need (run_length - 1) consecutive diffs all same sign
+        seg = diffs[start : start + run_length - 1]
+        if (seg > 0).all() or (seg < 0).all():
+            flags[start : start + run_length] = True
+
+    return flags
+
+
+def _rule4_two_in_three(
+    values: np.ndarray,
+    mean: np.ndarray,
+    ucl: np.ndarray,
+    lcl: np.ndarray,
+    uwl: np.ndarray,
+    lwl: np.ndarray,
+) -> np.ndarray:
+    """Rule 4 – 2 out of 3 consecutive points in the warning zone on same side.
+
+    The warning zone is the region between the 2-sigma warning limits
+    (``uwl``/``lwl``) and the 3-sigma control limits (``ucl``/``lcl``).
+    Both qualifying points must be on the same side of the centre line.
+
+    Aligned with ``ptd_two_in_three`` from NHSRplotthedots.
+    """
+    n = len(values)
+    flags = np.zeros(n, dtype=bool)
+
+    # close_to_limits: 1 if in warning zone (above uwl or below lwl) and not outside limits
+    outside = (values > ucl) | (values < lcl)
+    close = ~outside & ((values > uwl) | (values < lwl))
+
+    # relative_to_mean: +1 if above mean, -1 if below, 0 if equal
+    rtm = np.sign(values - mean).astype(int)
+
+    # Slide a window of 3 and check if ≥2 are close AND all 3 on same side
+    for i in range(n):
+        for window_start in (i - 2, i - 1, i):
+            ws = window_start
+            we = window_start + 3
+            if ws < 0 or we > n:
+                continue
+            seg_close = close[ws:we]
+            seg_rtm = rtm[ws:we]
+            if seg_close.sum() >= 2 and abs(seg_rtm.sum()) == 3:
+                # Point i is only flagged if it is itself close to limits
+                if close[i]:
+                    flags[i] = True
+                    break
+
+    return flags
+
+
+# ---------------------------------------------------------------------------
+# Colour-decision helpers
+# ---------------------------------------------------------------------------
+
+
+def _is_high_signal(
+    value: float,
+    mean: float,
+    ucl: float,
+    lcl: float,
+    is_rule1: bool,
+    is_rule2: bool,
+    all_values: np.ndarray,
+    all_means: np.ndarray,
+    idx: int,
+) -> bool:
+    """Return True if the special-cause signal is in the *high* direction."""
+    if is_rule1:
+        return value > ucl
+    # Rule 2 or 3: look at which side of mean the point is on
+    return value > mean
+
+
+def _towards_target(value: float, mean: float, target: float) -> bool:
+    """Return True if *value* is closer to *target* than the mean is."""
+    return abs(value - target) < abs(mean - target)
+
+
+def _find_improvement_shift_start(
+    values: np.ndarray,
+    mean: np.ndarray,
+    improvement_direction: str,
+    run_length: int = 7,
+) -> int | None:
+    """Return the index of the first point in an improvement shift, or ``None``.
+
+    An improvement shift is *run_length* or more consecutive points in the
+    *improvement_direction* relative to *mean*.
+    """
+    n = len(values)
+    in_direction = (values > mean) if improvement_direction == "high" else (values < mean)
+
+    for start in range(n - run_length + 1):
+        if in_direction[start : start + run_length].all():
+            return start
+    return None
