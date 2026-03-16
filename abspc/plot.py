@@ -895,15 +895,21 @@ def plot_mdc_summary_table(
             cell = table[i, icon_col]
             cell.set_edgecolor("#D8DDE0")
 
+    # ---- finalise layout BEFORE placing icons --------------------------------
+    if title:
+        fig.suptitle(title, fontsize=13, fontweight="bold", y=0.98)
+    fig.tight_layout(rect=[0, 0, 1, 0.95] if title else [0, 0, 1, 1])
+
     # ---- place icons centred in their dedicated cells -----------------------
-    fig.canvas.draw()  # needed so table cell positions are resolved
+    fig.canvas.draw()  # resolve table cell positions after layout
+    renderer = fig.canvas.get_renderer()
     fig_h = fig.get_size_inches()[1] * fig.dpi
 
     for row_idx, col_idx, icon_path_str in icon_cells:
         cell = table[row_idx + 1, col_idx]  # +1 for header offset
-        bbox = cell.get_window_extent(fig.canvas.get_renderer())
+        bbox = cell.get_window_extent(renderer)
         bbox_fig = bbox.transformed(fig.transFigure.inverted())
-        cx = bbox_fig.x0 + bbox_fig.width * 0.5  # centre of cell
+        cx = bbox_fig.x0 + bbox_fig.width * 0.5
         cy = bbox_fig.y0 + bbox_fig.height * 0.5
 
         img = mpimg.imread(icon_path_str)
@@ -920,8 +926,4 @@ def plot_mdc_summary_table(
         )
         fig.add_artist(ab)
 
-    if title:
-        fig.suptitle(title, fontsize=13, fontweight="bold", y=0.98)
-
-    fig.tight_layout(rect=[0, 0, 1, 0.95] if title else [0, 0, 1, 1])
     return fig, ax
