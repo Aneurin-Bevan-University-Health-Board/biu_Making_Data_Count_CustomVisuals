@@ -36,6 +36,7 @@ affiliated with or endorsed by NHS England.
 - [Date Axis](#date-axis)
 - [Change-Point Annotations](#change-point-annotations)
 - [Auto-Rebase on Sustained Improvement](#auto-rebase-on-sustained-improvement)
+- [MDC Variation & Assurance Icons](#mdc-variation--assurance-icons)
 - [NHS Colour Scheme](#nhs-colour-scheme)
 - [API Reference](#api-reference)
 
@@ -419,6 +420,93 @@ print(result[["value", "mean", "ucl", "rebase_phase"]])
 
 ---
 
+## MDC Variation & Assurance Icons
+
+The package can automatically determine and display the official
+[Making Data Count](https://www.england.nhs.uk/publication/making-data-count/)
+variation and assurance icons on any chart.  Set `show_icons=True` to enable
+them — both icons appear at the **top-left** of the plot area.
+
+### Variation Icons
+
+Variation describes the **type of special-cause variation** present in the most
+recent data points:
+
+| Icon | Meaning |
+|------|---------|
+| Improvement (high / low) | Special-cause variation in the improvement direction |
+| Common cause | No special-cause variation detected |
+| Concern (high / low) | Special-cause variation in the concern direction |
+
+### Assurance Icons
+
+Assurance describes whether the process is **consistently capable** of meeting
+the target:
+
+| Icon | Meaning |
+|------|---------|
+| Pass | The process consistently meets the target (target is within the favourable side of the limits) |
+| Hit or miss | The target sits between UCL and LCL — sometimes met, sometimes not |
+| Fail | The process consistently fails to meet the target (target is outside the unfavourable side) |
+
+> For run charts only the variation icon is shown (no control limits means
+> assurance cannot be calculated).
+
+### Usage
+
+```python
+from abspc import plot_spc_chart
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="XmR",
+    title="XmR Chart with MDC Icons",
+    improvement_direction="high",
+    target=60,
+    show_target=True,
+    show_icons=True,          # ← enable MDC icons
+    icon_zoom=0.06,           # ← icon height as fraction of figure (default)
+)
+```
+
+The icons are sourced from the official
+[nhsengland/making-data-count](https://github.com/nhsengland/making-data-count)
+repository and are bundled with the package.
+
+### Programmatic Access
+
+You can also determine the variation and assurance types directly without
+plotting:
+
+```python
+from abspc import (
+    calculate_control_limits,
+    detect_special_causes,
+    determine_variation_type,
+    determine_assurance_type,
+)
+
+result = calculate_control_limits(data, chart_type="XmR")
+result = detect_special_causes(result)
+
+variation = determine_variation_type(
+    result, value_col="value", improvement_direction="high",
+)
+assurance = determine_assurance_type(
+    result, target=60, improvement_direction="high",
+)
+
+print(f"Variation: {variation}")   # e.g. "improvement_high"
+print(f"Assurance: {assurance}")   # e.g. "pass"
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `show_icons` | `bool` | `False` | Display MDC variation & assurance icons at the top-left of the chart. |
+| `icon_zoom` | `float` | `0.06` | Icon height as a fraction of figure height. Increase for larger icons. |
+
+---
+
 ## NHS Colour Scheme
 
 All charts use the NHS identity palette:
@@ -464,10 +552,10 @@ fig, ax = plot_spc_chart(
     date_format=None,     # strftime string, e.g. "%b %Y"
     logo_path=None,       # top-right logo aligned with title
     logo_zoom=0.07,       # logo height as fraction of figure height
+    show_icons=False,     # MDC variation & assurance icons
+    icon_zoom=0.06,       # icon height as fraction of figure height
 )
 ```
-
-#### `plot_spc_chart` — Parameter Reference
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -494,6 +582,8 @@ fig, ax = plot_spc_chart(
 | `date_format` | `str \| None` | `None` | `strftime`-style format for the x-axis when datetime values are detected (e.g. `"%b %Y"`). `None` uses matplotlib's `ConciseDateFormatter`. |
 | `logo_path` | `str \| None` | `None` | Path to a logo image (PNG, JPEG, etc.) placed at the **top-right of the figure, in line with the title**. |
 | `logo_zoom` | `float` | `0.07` | Logo height as a fraction of figure height. Increase for a larger logo. |
+| `show_icons` | `bool` | `False` | Display MDC variation & assurance icons at the top-left of the chart. |
+| `icon_zoom` | `float` | `0.06` | Icon height as a fraction of figure height. |
 
 **Returns:** `(fig, ax)` — a `matplotlib.figure.Figure` and `matplotlib.axes.Axes`.
 
@@ -520,10 +610,10 @@ fig, ax = plot_run_chart(
     date_format=None,     # strftime string, e.g. "%b %Y"
     logo_path=None,       # top-right logo aligned with title
     logo_zoom=0.07,       # logo height as fraction of figure height
+    show_icons=False,     # MDC variation icon
+    icon_zoom=0.06,       # icon height as fraction of figure height
 )
 ```
-
-#### `plot_run_chart` — Parameter Reference
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -544,6 +634,8 @@ fig, ax = plot_run_chart(
 | `date_format` | `str \| None` | `None` | `strftime`-style format for datetime x-axis (e.g. `"%b %Y"`). |
 | `logo_path` | `str \| None` | `None` | Logo image placed at the top-right of the figure. |
 | `logo_zoom` | `float` | `0.07` | Logo height as a fraction of figure height. |
+| `show_icons` | `bool` | `False` | Display MDC variation icon at the top-left of the chart. |
+| `icon_zoom` | `float` | `0.06` | Icon height as a fraction of figure height. |
 
 **Returns:** `(fig, ax)` — a `matplotlib.figure.Figure` and `matplotlib.axes.Axes`.
 

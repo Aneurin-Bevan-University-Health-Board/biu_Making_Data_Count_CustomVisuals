@@ -145,10 +145,10 @@ def _add_mdc_icons(
     assurance_type: str,
     icon_zoom: float = 0.06,
 ) -> None:
-    """Place variation and assurance icons below the chart title.
+    """Place variation and assurance icons at the top-left of the chart.
 
-    The variation icon is placed at the top-left of the axes and the
-    assurance icon at the top-right, both just below the title.
+    Both icons are placed side by side at the top-left of the axes,
+    just below the title: variation icon first, then assurance icon.
 
     Parameters
     ----------
@@ -166,9 +166,10 @@ def _add_mdc_icons(
     fig_h = fig.get_size_inches()[1] * fig.dpi
     target_h = icon_zoom * fig_h
 
-    for icon_type, icon_map, x_pos, ha in [
-        (variation_type, _VARIATION_ICON_MAP, 0.0, "left"),
-        (assurance_type, _ASSURANCE_ICON_MAP, 1.0, "right"),
+    x_offset = 0.0  # running x position in axes-fraction units
+    for icon_type, icon_map in [
+        (variation_type, _VARIATION_ICON_MAP),
+        (assurance_type, _ASSURANCE_ICON_MAP),
     ]:
         icon_path = icon_map.get(icon_type)
         if icon_path is None or not icon_path.exists():
@@ -176,20 +177,30 @@ def _add_mdc_icons(
 
         img = mpimg.imread(str(icon_path))
         img_h = img.shape[0]
+        img_w = img.shape[1]
         zoom = target_h / img_h if img_h > 0 else 0.1
+
+        # Width of this icon in axes-fraction units
+        ax_bbox = ax.get_position()
+        fig_w = fig.get_size_inches()[0] * fig.dpi
+        ax_w_px = ax_bbox.width * fig_w
+        icon_w_frac = (img_w * zoom) / ax_w_px if ax_w_px > 0 else 0.1
 
         imagebox = OffsetImage(img, zoom=zoom)
         imagebox.image.axes = ax
 
         ab = AnnotationBbox(
             imagebox,
-            (x_pos, 1.0),
+            (x_offset, 1.0),
             xycoords="axes fraction",
-            box_alignment=(0.0 if ha == "left" else 1.0, 0.0),
+            box_alignment=(0.0, 0.0),
             frameon=False,
             pad=0.1,
         )
         ax.add_artist(ab)
+
+        # Advance x position for the next icon (add small gap)
+        x_offset += icon_w_frac + 0.01
 
 
 # ---------------------------------------------------------------------------
