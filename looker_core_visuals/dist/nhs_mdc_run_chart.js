@@ -24,9 +24,7 @@
     for(var i=0;i<=v.length-r;i++){var u=true,d=true;for(var j=i+1;j<i+r;j++){if(v[j]<=v[j-1])u=false;if(v[j]>=v[j-1])d=false;}
     if(u||d)for(var j=i;j<i+r;j++)f[j]=true;}return f;}
   function ptCol(v,c,sc,dir,tgt){return v.map(function(x,i){if(!sc[i])return COLOUR_COMMON;
-    var isHigh=x>c[i];var imp;
-    if(tgt!==null&&tgt!==undefined){imp=Math.abs(x-tgt)<Math.abs(c[i]-tgt);}
-    else{imp=dir==='high'?isHigh:!isHigh;}
+    var imp;if(tgt!==null&&tgt!==undefined){imp=dir==='high'?x>=tgt:x<=tgt;}else{imp=dir==='high'?x>c[i]:x<c[i];}
     return imp?COLOUR_IMPROVE:COLOUR_CONCERN;});}
 
   var vis = {

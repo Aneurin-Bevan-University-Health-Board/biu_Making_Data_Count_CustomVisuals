@@ -23,19 +23,12 @@
   function rule3(v,r){r=r||7;var f=new Array(v.length);for(var i=0;i<f.length;i++)f[i]=false;
     for(var i=0;i<=v.length-r;i++){var u=true,d=true;for(var j=i+1;j<i+r;j++){if(v[j]<=v[j-1])u=false;if(v[j]>=v[j-1])d=false;}
     if(u||d)for(var j=i;j<i+r;j++)f[j]=true;}return f;}
-  function rule4(v,c,u,l,uw,lw){var n=v.length,f=new Array(n);for(var i=0;i<n;i++)f[i]=false;
-    var close=new Array(n),rtm=new Array(n);
-    for(var i=0;i<n;i++){var out=v[i]>u[i]||v[i]<l[i];close[i]=!out&&(v[i]>uw[i]||v[i]<lw[i]);
-      rtm[i]=v[i]>c[i]?1:(v[i]<c[i]?-1:0);}
-    for(var i=0;i<n;i++){if(!close[i])continue;
-      var ws=[i-2,i-1,i];for(var wi=0;wi<3;wi++){var s=ws[wi],e=s+3;if(s<0||e>n)continue;
-        var cc=0,rs=0;for(var j=s;j<e;j++){if(close[j])cc++;rs+=rtm[j];}
-        if(cc>=2&&Math.abs(rs)===3){f[i]=true;break;}}}
-    return f;}
-  function ptCol(v,c,u,l,r1,sc,dir,tgt){return v.map(function(x,i){if(!sc[i])return COLOUR_COMMON;
-    var isHigh=r1[i]?x>u[i]:x>c[i];var imp;
-    if(tgt!==null&&tgt!==undefined){imp=Math.abs(x-tgt)<Math.abs(c[i]-tgt);}
-    else{imp=dir==='high'?isHigh:!isHigh;}
+  function rule4(v,c,u,l,uw,lw){var f=new Array(v.length);for(var i=0;i<f.length;i++)f[i]=false;
+    for(var i=0;i<=v.length-3;i++){var uC=0,lC=0;for(var j=i;j<i+3;j++){
+    if(v[j]>uw[j]&&v[j]<=u[j]&&v[j]>c[j])uC++;if(v[j]<lw[j]&&v[j]>=l[j]&&v[j]<c[j])lC++;}
+    if(uC>=2||lC>=2)for(var j=i;j<i+3;j++)f[j]=true;}return f;}
+  function ptCol(v,c,sc,dir,tgt){return v.map(function(x,i){if(!sc[i])return COLOUR_COMMON;
+    var imp;if(tgt!==null&&tgt!==undefined){imp=dir==='high'?x>=tgt:x<=tgt;}else{imp=dir==='high'?x>c[i]:x<c[i];}
     return imp?COLOUR_IMPROVE:COLOUR_CONCERN;});}
 
   var vis = {
@@ -95,7 +88,7 @@
       var sc=rates.map(function(_,i){return r1[i]||r2[i]||r3[i]||r4[i];});
       var dir=config.improvement_direction||'low';
       var tgt=config.target_value!=null?Number(config.target_value):null;
-      var colours=ptCol(rates,cA,uA,lA,r1,sc,dir,tgt);
+      var colours=ptCol(rates,cA,sc,dir,tgt);
 
       // ── SVG ──
       var rect=this._container.getBoundingClientRect();
