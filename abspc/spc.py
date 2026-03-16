@@ -494,6 +494,136 @@ def rebase_control_limits(
     return result
 
 
+def determine_variation_type(
+    result: pd.DataFrame,
+    value_col: str = "value",
+    mean_col: str = "mean",
+    improvement_direction: str = "high",
+) -> str:
+    """Determine the overall variation icon type for an SPC chart.
+
+    Examines the most recent special-cause signals to classify the process
+    into one of:
+
+    * ``"improvement_high"`` – special cause improving, values significantly higher
+    * ``"improvement_low"``  – special cause improving, values significantly lower
+    * ``"concern_high"``     – special cause concerning, values significantly higher
+    * ``"concern_low"``      – special cause concerning, values significantly lower
+    * ``"common_cause"``     – no special-cause variation detected
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`detect_special_causes`.
+    value_col : str
+        Column containing measured values.
+    mean_col : str
+        Column containing the centre line.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
+
+    Returns
+    -------
+    str
+        One of the variation type strings listed above.
+    """
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
+
+    if "special_cause" not in result.columns:
+        return "common_cause"
+
+    # Look at the most recent data points for the overall assessment
+    sc = result["special_cause"].to_numpy(dtype=bool)
+    if not sc.any():
+        return "common_cause"
+
+    values = result[value_col].to_numpy(dtype=float)
+    mean = result[mean_col].to_numpy(dtype=float)
+
+    # Assess the most recent special-cause point
+    last_sc_idx = int(np.where(sc)[0][-1])
+    value_is_high = values[last_sc_idx] > mean[last_sc_idx]
+
+    if improvement_direction == "high":
+        if value_is_high:
+            return "improvement_high"
+        else:
+            return "concern_low"
+    else:  # improvement_direction == "low"
+        if value_is_high:
+            return "concern_high"
+        else:
+            return "improvement_low"
+
+
+def determine_assurance_type(
+    result: pd.DataFrame,
+    target: float | None,
+    improvement_direction: str = "high",
+    ucl_col: str = "ucl",
+    lcl_col: str = "lcl",
+) -> str:
+    """Determine the assurance icon type for an SPC chart.
+
+    Compares the target value against the control limits to classify whether
+    the process will consistently meet the target:
+
+    * ``"pass"``        – target is within the process capability on the
+      favourable side; the process will consistently PASS the target.
+    * ``"hit_or_miss"`` – target falls between UCL and LCL; the process
+      may or may not meet the target.
+    * ``"fail"``        – target is outside the process capability on the
+      unfavourable side; the process will consistently FAIL the target.
+    * ``"no_target"``   – no target is set; assurance cannot be determined.
+
+    Parameters
+    ----------
+    result : pd.DataFrame
+        Output from :func:`calculate_control_limits` (must contain UCL/LCL).
+    target : float or None
+        The target value. Returns ``"no_target"`` when ``None``.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
+    ucl_col, lcl_col : str
+        Column names for the upper and lower control limits.
+
+    Returns
+    -------
+    str
+        One of ``"pass"``, ``"hit_or_miss"``, ``"fail"``, or ``"no_target"``.
+    """
+    if target is None:
+        return "no_target"
+
+    if ucl_col not in result.columns or lcl_col not in result.columns:
+        return "no_target"
+
+    # Use the most recent phase's limits (last row)
+    ucl = float(result[ucl_col].iloc[-1])
+    lcl = float(result[lcl_col].iloc[-1])
+
+    if improvement_direction == "high":
+        # Higher is better: pass if target < LCL (all above target)
+        if target <= lcl:
+            return "pass"
+        elif target >= ucl:
+            return "fail"
+        else:
+            return "hit_or_miss"
+    else:
+        # Lower is better: pass if target > UCL (all below target)
+        if target >= ucl:
+            return "pass"
+        elif target <= lcl:
+            return "fail"
+        else:
+            return "hit_or_miss"
+
+
 # ---------------------------------------------------------------------------
 # Chart-specific helpers
 # ---------------------------------------------------------------------------

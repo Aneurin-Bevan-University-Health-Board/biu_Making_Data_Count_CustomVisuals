@@ -27,6 +27,8 @@ from .spc import (
     detect_run_chart_signals,
     rebase_control_limits,
     determine_point_colours,
+    determine_variation_type,
+    determine_assurance_type,
 )
 from .plot import plot_spc_chart, plot_run_chart
 from .utils import validate_data, add_logo
@@ -37,6 +39,8 @@ __all__ = [
     "detect_run_chart_signals",
     "rebase_control_limits",
     "determine_point_colours",
+    "determine_variation_type",
+    "determine_assurance_type",
     "plot_spc_chart",
     "plot_run_chart",
     "validate_data",

@@ -49,6 +49,9 @@ Repository = "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Makin
 where = ["."]
 include = ["abspc*"]
 
+[tool.setuptools.package-data]
+abspc = ["icons/*.png"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"

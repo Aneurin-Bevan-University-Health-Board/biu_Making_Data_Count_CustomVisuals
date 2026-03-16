@@ -29,6 +29,8 @@ from .spc import (
     detect_run_chart_signals,
     rebase_control_limits,
     determine_point_colours,
+    determine_variation_type,
+    determine_assurance_type,
     NHS_BLUE,
     NHS_DARK_BLUE,
     NHS_ORANGE,
@@ -41,6 +43,29 @@ from .spc import (
     COLOUR_CONCERN,
 )
 from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line
+
+# ---------------------------------------------------------------------------
+# Icon paths (bundled NHS MDC icons)
+# ---------------------------------------------------------------------------
+
+import pathlib as _pathlib
+
+_ICON_DIR = _pathlib.Path(__file__).parent / "icons"
+
+_VARIATION_ICON_MAP = {
+    "improvement_high": _ICON_DIR / "variation_improvement_high.png",
+    "improvement_low": _ICON_DIR / "variation_improvement_low.png",
+    "common_cause": _ICON_DIR / "variation_common_cause.png",
+    "concern_high": _ICON_DIR / "variation_concern_high.png",
+    "concern_low": _ICON_DIR / "variation_concern_low.png",
+}
+
+_ASSURANCE_ICON_MAP = {
+    "pass": _ICON_DIR / "assurance_pass.png",
+    "hit_or_miss": _ICON_DIR / "assurance_hit_or_miss.png",
+    "fail": _ICON_DIR / "assurance_fail.png",
+    "no_target": _ICON_DIR / "icon_empty.png",
+}
 
 # ---------------------------------------------------------------------------
 # Date-axis helpers
@@ -109,6 +134,65 @@ def _extract_x(result: pd.DataFrame, x_col: str | None) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Icon overlay helpers
+# ---------------------------------------------------------------------------
+
+
+def _add_mdc_icons(
+    fig: matplotlib.figure.Figure,
+    ax: matplotlib.axes.Axes,
+    variation_type: str,
+    assurance_type: str,
+    icon_zoom: float = 0.06,
+) -> None:
+    """Place variation and assurance icons below the chart title.
+
+    The variation icon is placed at the top-left of the axes and the
+    assurance icon at the top-right, both just below the title.
+
+    Parameters
+    ----------
+    fig, ax : matplotlib objects
+    variation_type : str
+        Key into ``_VARIATION_ICON_MAP``.
+    assurance_type : str
+        Key into ``_ASSURANCE_ICON_MAP``.
+    icon_zoom : float
+        Icon height as a fraction of figure height.
+    """
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+    import matplotlib.image as mpimg
+
+    fig_h = fig.get_size_inches()[1] * fig.dpi
+    target_h = icon_zoom * fig_h
+
+    for icon_type, icon_map, x_pos, ha in [
+        (variation_type, _VARIATION_ICON_MAP, 0.0, "left"),
+        (assurance_type, _ASSURANCE_ICON_MAP, 1.0, "right"),
+    ]:
+        icon_path = icon_map.get(icon_type)
+        if icon_path is None or not icon_path.exists():
+            continue
+
+        img = mpimg.imread(str(icon_path))
+        img_h = img.shape[0]
+        zoom = target_h / img_h if img_h > 0 else 0.1
+
+        imagebox = OffsetImage(img, zoom=zoom)
+        imagebox.image.axes = ax
+
+        ab = AnnotationBbox(
+            imagebox,
+            (x_pos, 1.0),
+            xycoords="axes fraction",
+            box_alignment=(0.0 if ha == "left" else 1.0, 0.0),
+            frameon=False,
+            pad=0.1,
+        )
+        ax.add_artist(ab)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -145,6 +229,8 @@ def plot_spc_chart(
     date_format: str | None = None,
     logo_path: str | None = None,
     logo_zoom: float = 0.07,
+    show_icons: bool = False,
+    icon_zoom: float = 0.06,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC SPC or run chart.
 
@@ -233,6 +319,13 @@ def plot_spc_chart(
     logo_zoom : float, optional
         Logo height as a fraction of the figure height (default ``0.07``).
         Increase for a larger logo; decrease for a smaller one.
+    show_icons : bool, optional
+        When ``True``, display NHS MDC variation and assurance icons on the
+        chart.  The variation icon appears at the top-left and the assurance
+        icon at the top-right (default ``False``).  Assurance icons require
+        a *target* to be set; otherwise the empty/no-target icon is shown.
+    icon_zoom : float, optional
+        Icon height as a fraction of the figure height (default ``0.06``).
 
     Returns
     -------
@@ -261,6 +354,8 @@ def plot_spc_chart(
             date_format=date_format,
             logo_path=logo_path,
             logo_zoom=logo_zoom,
+            show_icons=show_icons,
+            icon_zoom=icon_zoom,
         )
 
     # --- Calculate limits ---------------------------------------------------
@@ -400,6 +495,18 @@ def plot_spc_chart(
     if nhs_logo_path is not None:
         add_nhs_logo(ax, nhs_logo_path, position="lower right")
 
+    # --- MDC variation & assurance icons ------------------------------------
+    if show_icons:
+        variation = determine_variation_type(
+            result,
+            value_col=value_col,
+            improvement_direction=improvement_direction,
+        )
+        assurance = determine_assurance_type(
+            result, target=target, improvement_direction=improvement_direction,
+        )
+        _add_mdc_icons(fig, ax, variation, assurance, icon_zoom=icon_zoom)
+
     return fig, ax
 
 
@@ -421,6 +528,8 @@ def plot_run_chart(
     date_format: str | None = None,
     logo_path: str | None = None,
     logo_zoom: float = 0.07,
+    show_icons: bool = False,
+    icon_zoom: float = 0.06,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC run chart with median centre line.
 
@@ -567,5 +676,23 @@ def plot_run_chart(
         add_logo(fig, ax, logo_path, zoom=logo_zoom)
     if nhs_logo_path is not None:
         add_nhs_logo(ax, nhs_logo_path, position="lower right")
+
+    # --- MDC variation icon (run charts have no assurance) -------------------
+    if show_icons:
+        # Run charts don't have UCL/LCL, so only variation icon applies.
+        # Determine variation from run signals instead.
+        run_signal = result["run_signal"].to_numpy(dtype=bool)
+        if not run_signal.any():
+            variation = "common_cause"
+        else:
+            values_arr = result[value_col].to_numpy(dtype=float)
+            median_arr = result["mean"].to_numpy(dtype=float)
+            last_sig = int(np.where(run_signal)[0][-1])
+            val_is_high = values_arr[last_sig] > median_arr[last_sig]
+            if improvement_direction == "high":
+                variation = "improvement_high" if val_is_high else "concern_low"
+            else:
+                variation = "concern_high" if val_is_high else "improvement_low"
+        _add_mdc_icons(fig, ax, variation, "no_target", icon_zoom=icon_zoom)
 
     return fig, ax
