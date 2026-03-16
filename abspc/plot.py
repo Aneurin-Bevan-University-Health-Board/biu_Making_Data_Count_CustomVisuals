@@ -774,18 +774,20 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
-    col_labels = ["Measure", "Description", "Variation", "Assurance", "Latest Value"]
+    # 7 columns: Measure | Description | icon | Variation | icon | Assurance | Value
+    col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Latest Value"]
     n_cols = len(col_labels)
 
     if figsize is None:
-        figsize = (14, 1.2 + n * 0.9)
+        figsize = (16, 1.2 + n * 0.9)
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.set_axis_off()
 
     # ---- build cell text and compute variation / assurance ------------------
     cell_text: list[list[str]] = []
-    icon_cells: list[tuple[int, int, str]] = []  # (row_idx, col_idx, icon_path)
+    # (row_idx, col_idx_in_table, icon_path_str)
+    icon_cells: list[tuple[int, int, str]] = []
 
     for i, row in enumerate(rows):
         data = row["data"]
@@ -843,16 +845,19 @@ def plot_mdc_summary_table(
         variation_label = _VARIATION_LABELS.get(variation, variation)
         assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
 
-        cell_text.append([measure, description, variation_label, assurance_label, latest_str])
+        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Value
+        cell_text.append([
+            measure, description, "", variation_label, "", assurance_label, latest_str,
+        ])
 
-        # Queue icon overlays for variation (col 2) and assurance (col 3)
+        # Queue icon inserts — col 2 = variation icon, col 4 = assurance icon
         var_path = _VARIATION_ICON_MAP.get(variation)
         if var_path and var_path.exists():
             icon_cells.append((i, 2, str(var_path)))
 
         ass_path = _ASSURANCE_ICON_MAP.get(assurance)
         if ass_path and ass_path.exists():
-            icon_cells.append((i, 3, str(ass_path)))
+            icon_cells.append((i, 4, str(ass_path)))
 
     # ---- draw table ---------------------------------------------------------
     table = ax.table(
@@ -864,6 +869,12 @@ def plot_mdc_summary_table(
     table.auto_set_font_size(False)
     table.set_fontsize(9)
     table.scale(1.0, 2.2)
+
+    # Set relative column widths — icon columns narrow, text columns wider
+    col_widths = [0.12, 0.22, 0.04, 0.20, 0.04, 0.22, 0.08]
+    for j, w in enumerate(col_widths):
+        for r in range(n + 1):  # header + data rows
+            table[r, j].set_width(w)
 
     # Style header row
     for j in range(n_cols):
@@ -878,19 +889,21 @@ def plot_mdc_summary_table(
             cell.set_facecolor("#F0F4F5" if i % 2 == 0 else "white")
             cell.set_edgecolor("#D8DDE0")
 
-    # Widen description column, give icon columns more space
-    table.auto_set_column_width(list(range(n_cols)))
+    # Make icon column borders match surrounding cells (seamless look)
+    for i in range(n + 1):  # header + data rows
+        for icon_col in (2, 4):
+            cell = table[i, icon_col]
+            cell.set_edgecolor("#D8DDE0")
 
-    # ---- overlay icons on top of variation/assurance cells -------------------
+    # ---- place icons centred in their dedicated cells -----------------------
     fig.canvas.draw()  # needed so table cell positions are resolved
     fig_h = fig.get_size_inches()[1] * fig.dpi
 
     for row_idx, col_idx, icon_path_str in icon_cells:
         cell = table[row_idx + 1, col_idx]  # +1 for header offset
         bbox = cell.get_window_extent(fig.canvas.get_renderer())
-        # Convert to figure fraction
         bbox_fig = bbox.transformed(fig.transFigure.inverted())
-        cx = bbox_fig.x0 + bbox_fig.width * 0.12  # left side of cell
+        cx = bbox_fig.x0 + bbox_fig.width * 0.5  # centre of cell
         cy = bbox_fig.y0 + bbox_fig.height * 0.5
 
         img = mpimg.imread(icon_path_str)
@@ -906,10 +919,6 @@ def plot_mdc_summary_table(
             pad=0,
         )
         fig.add_artist(ab)
-
-        # Indent cell text so it doesn't overlap the icon
-        existing = cell.get_text().get_text()
-        cell.get_text().set_text(f"   {existing}")
 
     if title:
         fig.suptitle(title, fontsize=13, fontweight="bold", y=0.98)
