@@ -1,7 +1,7 @@
 """
 tests/conftest.py
 =================
-Shared pytest fixtures for the custom_spc_mdc test suite.
+Shared pytest fixtures for the abspc test suite.
 """
 
 import numpy as np

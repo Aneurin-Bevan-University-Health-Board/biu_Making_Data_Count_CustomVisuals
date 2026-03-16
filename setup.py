@@ -1,5 +1,5 @@
 """
-setup.py – Legacy build support for custom_spc_mdc.
+setup.py – Legacy build support for abspc.
 
 Modern packaging metadata is defined in pyproject.toml.  This file is kept
 for compatibility with tools that do not yet fully support PEP 517/518.
@@ -8,13 +8,13 @@ for compatibility with tools that do not yet fully support PEP 517/518.
 from setuptools import setup, find_packages
 
 setup(
-    name="custom_spc_mdc",
+    name="abspc",
     version="0.1.0",
     description=(
         "Statistical Process Control charts following the NHS "
         "Making Data Count methodology"
     ),
-    packages=find_packages(include=["custom_spc_mdc", "custom_spc_mdc.*"]),
+    packages=find_packages(include=["abspc", "abspc.*"]),
     python_requires=">=3.9",
     install_requires=[
         "numpy>=1.23",

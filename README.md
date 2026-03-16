@@ -9,7 +9,7 @@ platforms:
 
 | Platform | Status | Location |
 |----------|--------|----------|
-| **Python** (`custom_spc_mdc` package) | ✅ Available | [`custom_spc_mdc/`](custom_spc_mdc/) |
+| **Python** (`abspc` package) | ✅ Available | [`abspc/`](abspc/) |
 | **Looker** (LookML custom viz) | 🔜 Planned | `looker/` |
 | **Looker Studio** (community viz) | 🔜 Planned | `looker_studio/` |
 
@@ -44,7 +44,7 @@ affiliated with or endorsed by NHS England.
 ## Installation
 
 ```bash
-pip install custom_spc_mdc
+pip install abspc
 ```
 
 Or install the development version from source:
@@ -61,7 +61,7 @@ pip install -e ".[dev]"
 
 ```python
 import pandas as pd
-from custom_spc_mdc import plot_spc_chart, plot_run_chart
+from abspc import plot_spc_chart, plot_run_chart
 
 # Minimal XmR chart
 data = pd.DataFrame({"value": [48, 52, 49, 55, 47, 51, 53, 50, 48, 54]})
@@ -81,7 +81,7 @@ It is suitable for individual measurements collected over time.
 ```python
 import numpy as np
 import pandas as pd
-from custom_spc_mdc import plot_spc_chart
+from abspc import plot_spc_chart
 
 data = pd.DataFrame({"value": np.random.normal(50, 3, 24)})
 
@@ -174,7 +174,7 @@ centre line and no control limits.  It uses run-chart rules to detect signals
 (7-point shift and 7-point trend).
 
 ```python
-from custom_spc_mdc import plot_run_chart
+from abspc import plot_run_chart
 
 data = pd.DataFrame({"value": np.random.normal(40, 4, 24)})
 
@@ -247,7 +247,7 @@ with a `DatetimeIndex` or an explicit date column.
 ```python
 import pandas as pd
 import numpy as np
-from custom_spc_mdc import plot_spc_chart
+from abspc import plot_spc_chart
 
 dates = pd.date_range("2022-01-01", periods=30, freq="MS")  # monthly
 data  = pd.DataFrame({"value": np.random.normal(75, 6, 30)}, index=dates)
@@ -331,7 +331,7 @@ Points are coloured according to the NHS MDC scheme:
 ### Using the detection functions directly
 
 ```python
-from custom_spc_mdc import calculate_control_limits, detect_special_causes
+from abspc import calculate_control_limits, detect_special_causes
 
 result = calculate_control_limits(data, chart_type="XmR")
 flags  = detect_special_causes(result)
@@ -401,7 +401,7 @@ You can also use `rebase_control_limits` directly to get the phase-annotated
 DataFrame without plotting:
 
 ```python
-from custom_spc_mdc import rebase_control_limits
+from abspc import rebase_control_limits
 
 result = rebase_control_limits(
     data,

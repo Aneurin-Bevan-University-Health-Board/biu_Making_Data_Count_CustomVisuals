@@ -1,7 +1,7 @@
 """
 tests/test_utils.py
 ===================
-Unit tests for the custom_spc_mdc.utils module.
+Unit tests for the abspc.utils module.
 """
 
 import pytest
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from custom_spc_mdc.utils import validate_data, add_target_line, add_shading, add_change_line, add_logo
+from abspc.utils import validate_data, add_target_line, add_shading, add_change_line, add_logo
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """
 utils.py
 ========
-Helper functions for the custom_spc_mdc package including data validation
+Helper functions for the abspc package including data validation
 and chart annotation utilities.
 """
 
@@ -288,7 +288,7 @@ def add_logo(
 
     Or call directly after tight_layout:
 
-    >>> from custom_spc_mdc.utils import add_logo
+    >>> from abspc.utils import add_logo
     >>> fig.tight_layout()
     >>> add_logo(fig, ax, "logo.png", zoom=0.08)
     """

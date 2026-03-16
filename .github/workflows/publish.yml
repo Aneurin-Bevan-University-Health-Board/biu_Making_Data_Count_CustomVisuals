@@ -60,4 +60,4 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         # Uses OIDC trusted publishing — no API token needed.
-        # Set up at: https://pypi.org/manage/project/custom_spc_mdc/settings/publishing/
+        # Set up at: https://pypi.org/manage/project/abspc/settings/publishing/

@@ -1,14 +1,14 @@
 """
 tests/test_spc.py
 =================
-Unit tests for the custom_spc_mdc.spc module.
+Unit tests for the abspc.spc module.
 """
 
 import pytest
 import numpy as np
 import pandas as pd
 
-from custom_spc_mdc.spc import (
+from abspc.spc import (
     calculate_control_limits,
     detect_special_causes,
     detect_run_chart_signals,
@@ -282,7 +282,7 @@ class TestDetectSpecialCauses:
 
     def test_rule4_two_in_three(self):
         """2 of 3 consecutive points in warning zone on same side trigger Rule 4."""
-        from custom_spc_mdc.spc import _rule4_two_in_three
+        from abspc.spc import _rule4_two_in_three
         n = 10
         # 7 stable values at mean, then 2 in the warning zone with 1 in-between
         values = np.array([10.0] * 7 + [14.0, 10.5, 14.0])

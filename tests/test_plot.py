@@ -1,7 +1,7 @@
 """
 tests/test_plot.py
 ==================
-Unit tests for the custom_spc_mdc.plot module.
+Unit tests for the abspc.plot module.
 """
 
 import pytest
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
 
-from custom_spc_mdc.plot import plot_spc_chart, plot_run_chart
+from abspc.plot import plot_spc_chart, plot_run_chart
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """
-custom_spc_mdc
-==============
+abspc
+=====
 A Python package for Statistical Process Control (SPC) charts following
 the NHS Making Data Count (MDC) methodology.
 
@@ -15,7 +15,7 @@ Supported chart types
 Quick start
 -----------
 >>> import pandas as pd
->>> from custom_spc_mdc import plot_spc_chart, plot_run_chart
+>>> from abspc import plot_spc_chart, plot_run_chart
 >>> data = pd.DataFrame({"value": [10, 12, 11, 15, 9, 13, 11, 14, 10, 12]})
 >>> plot_spc_chart(data, chart_type="XmR")
 >>> plot_run_chart(data)
