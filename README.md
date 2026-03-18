@@ -11,6 +11,7 @@ platforms:
 |----------|--------|----------|
 | **Python** (`abspc` package) | ✅ Available | [`abspc/`](abspc/) |
 | **Looker** (custom visualizations) | ✅ Available | [`looker_core_visuals/`](looker_core_visuals/) |
+| **Qlik Sense** (on-prem extension) | ✅ Available | [`qlik_sense_extension/`](qlik_sense_extension/) |
 | **Looker Studio** (community viz) | 🔜 Planned | — |
 
 SPC rules are aligned with the NHS-R community's
@@ -26,6 +27,7 @@ affiliated with or endorsed by NHS England.
 
 - [Python — `abspc`](#python--abspc)
 - [Looker — Custom Visualizations](#looker--custom-visualizations)
+- [Qlik Sense — On-Prem Extension](#qlik-sense--on-prem-extension)
 - [Chart Types](#chart-types)
 - [MDC Icons & Assurance](#mdc-icons--assurance)
 - [NHS Colour Scheme](#nhs-colour-scheme)
@@ -122,6 +124,29 @@ configurable improvement direction and targets.
 
 ---
 
+## Qlik Sense — On-Prem Extension
+
+The [`qlik_sense_extension/`](qlik_sense_extension/) directory contains a
+Qlik Sense custom visualization extension that provides the same NHS MDC SPC
+charts inside Qlik Sense on-premises dashboards.
+
+**Minimal data requirement** — add a single date dimension and value measure;
+the extension performs all SPC calculations automatically.
+
+Supported chart types: XmR, p, u, c and run charts with full NHS MDC
+special-cause detection (all four rules) and the NHS colour scheme.
+
+### Quick Start
+
+1. ZIP the contents of `qlik_sense_extension/`
+2. Import via the Qlik Management Console (**QMC → Extensions → Import**)
+3. Drag **NHS MDC SPC Chart** onto any sheet
+4. Add a date dimension and a value measure
+
+**Full documentation:** [`qlik_sense_extension/README.md`](qlik_sense_extension/README.md)
+
+---
+
 ## Chart Types
 
 Both the Python package and Looker visualizations support the same core
@@ -212,6 +237,15 @@ auto-rebase, change-point annotations, and plotting.
 
 See [`looker_core_visuals/README.md`](looker_core_visuals/README.md) for
 browser-based testing instructions.
+
+### Qlik Sense
+
+```bash
+node qlik_sense_extension/tests/test_spc_calculations.js
+```
+
+65 unit tests covering all chart types, SPC rules, point-colouring logic,
+edge cases and NHS colour constants.
 
 ---
 
