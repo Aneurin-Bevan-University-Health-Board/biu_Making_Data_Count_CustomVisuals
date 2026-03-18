@@ -29,3 +29,6 @@ tests/spc_chart_output.png
 .vscode/
 *.swp
 *~
+
+# Node.js
+node_modules/

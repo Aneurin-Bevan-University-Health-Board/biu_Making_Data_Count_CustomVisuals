@@ -1,0 +1,14 @@
+{
+  "name": "ABSPC SPC Chart",
+  "description": "ABSPC Statistical Process Control chart for Qlik Sense. Implements XmR, p, u, c and run charts following NHS Making Data Count methodology, aligned with the NHS-R NHSRplotthedots package.",
+  "type": "visualization",
+  "version": "1.0.0",
+  "icon": "line-chart",
+  "author": "Aneurin Bevan University Health Board",
+  "homepage": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals",
+  "license": "MIT",
+  "keywords": "abspc, spc, nhs, making data count, control chart, healthcare",
+  "dependencies": {
+    "qlik-sense": ">=3.0.0"
+  }
+}

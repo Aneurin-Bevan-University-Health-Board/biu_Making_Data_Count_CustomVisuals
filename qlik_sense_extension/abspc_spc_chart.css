@@ -1,0 +1,90 @@
+/**
+ * abspc_spc_chart.css
+ * ====================
+ * Styles for the ABSPC SPC Chart Qlik Sense extension.
+ */
+
+.abspc-spc-chart {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+}
+
+/* SVG chart container */
+.abspc-spc-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Data point styling */
+.abspc-spc-chart .data-point {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  transform-origin: center;
+}
+
+.abspc-spc-chart .data-point:hover {
+  transform: scale(1.5);
+}
+
+/* Tooltip */
+.abspc-spc-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.abspc-spc-chart-tooltip.visible {
+  opacity: 1;
+}
+
+/* Legend */
+.abspc-spc-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.abspc-spc-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #333;
+}
+
+.abspc-spc-chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Error / empty state */
+.abspc-spc-chart-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  text-align: center;
+  color: #768692;
+  font-size: 14px;
+}
+
+.abspc-spc-chart-error.error {
+  color: #ED8B00;
+}
