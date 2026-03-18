@@ -1,7 +1,7 @@
 /**
  * initialProperties.js
  * =====================
- * Default property values for the NHS MDC SPC Chart extension.
+ * Default property values for the ABSPC SPC Chart extension.
  */
 define([], function () {
   'use strict';

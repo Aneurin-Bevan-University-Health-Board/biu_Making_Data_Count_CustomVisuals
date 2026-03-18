@@ -1,10 +1,10 @@
 /**
- * nhs_mdc_spc_chart.css
- * ======================
- * Styles for the NHS Making Data Count SPC Chart Qlik Sense extension.
+ * abspc_spc_chart.css
+ * ====================
+ * Styles for the ABSPC SPC Chart Qlik Sense extension.
  */
 
-.nhs-mdc-spc-chart {
+.abspc-spc-chart {
   width: 100%;
   height: 100%;
   position: relative;
@@ -13,23 +13,23 @@
 }
 
 /* SVG chart container */
-.nhs-mdc-spc-chart svg {
+.abspc-spc-chart svg {
   width: 100%;
   height: 100%;
 }
 
 /* Data point styling */
-.nhs-mdc-spc-chart .data-point {
+.abspc-spc-chart .data-point {
   cursor: pointer;
   transition: r 0.15s ease;
 }
 
-.nhs-mdc-spc-chart .data-point:hover {
+.abspc-spc-chart .data-point:hover {
   r: 6;
 }
 
 /* Tooltip */
-.nhs-mdc-spc-tooltip {
+.abspc-spc-chart-tooltip {
   position: absolute;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.8);
@@ -44,19 +44,19 @@
   transition: opacity 0.15s ease;
 }
 
-.nhs-mdc-spc-tooltip.visible {
+.abspc-spc-chart-tooltip.visible {
   opacity: 1;
 }
 
 /* Legend */
-.nhs-mdc-spc-legend {
+.abspc-spc-chart-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   padding: 4px 0;
 }
 
-.nhs-mdc-spc-legend-item {
+.abspc-spc-chart-legend-item {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -64,7 +64,7 @@
   color: #333;
 }
 
-.nhs-mdc-spc-legend-swatch {
+.abspc-spc-chart-legend-swatch {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -72,7 +72,7 @@
 }
 
 /* Error / empty state */
-.nhs-mdc-spc-error {
+.abspc-spc-chart-error {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -84,6 +84,6 @@
   font-size: 14px;
 }
 
-.nhs-mdc-spc-error.error {
+.abspc-spc-chart-error.error {
   color: #ED8B00;
 }

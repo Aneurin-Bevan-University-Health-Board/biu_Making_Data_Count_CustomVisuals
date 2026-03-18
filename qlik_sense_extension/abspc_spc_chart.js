@@ -1,10 +1,11 @@
 /**
- * nhs_mdc_spc_chart.js
- * =====================
- * NHS Making Data Count SPC Chart — Qlik Sense On-Prem Extension
+ * abspc_spc_chart.js
+ * ===================
+ * ABSPC SPC Chart — Qlik Sense On-Prem Extension
  *
- * Implements XmR, p, u, c and run charts following NHS MDC methodology,
- * aligned with the NHS-R NHSRplotthedots package and the abspc Python package.
+ * Implements XmR, p, u, c and run charts following NHS Making Data Count
+ * methodology, aligned with the NHS-R NHSRplotthedots package and the
+ * abspc Python package.
  *
  * Data contract:
  *   Dimension 1 — date / time period label (e.g. Month)
@@ -18,7 +19,7 @@ define([
   './definition',
   './initialProperties',
   './lib/spc_utils',
-  'css!./nhs_mdc_spc_chart.css'
+  'css!./abspc_spc_chart.css'
 ], function (qlik, definition, initialProperties, spc) {
   'use strict';
 
@@ -150,14 +151,9 @@ define([
           specialCause: runResult.specialCause
         };
         for (var i = 0; i < values.length; i++) {
-          if (!violations.rule1.length) violations.rule1.push(false);
-          if (violations.rule1.length < values.length) violations.rule1.push(false);
-          if (!violations.rule4.length) violations.rule4.push(false);
-          if (violations.rule4.length < values.length) violations.rule4.push(false);
+          violations.rule1.push(false);
+          violations.rule4.push(false);
         }
-        // Ensure arrays are correct length
-        while (violations.rule1.length < values.length) violations.rule1.push(false);
-        while (violations.rule4.length < values.length) violations.rule4.push(false);
         break;
 
       default: // xmr
@@ -390,14 +386,14 @@ define([
       // Validate hypercube
       var hc = layout.qHyperCube;
       if (!hc || !hc.qDataPages || !hc.qDataPages.length || !hc.qDataPages[0].qMatrix || !hc.qDataPages[0].qMatrix.length) {
-        container.innerHTML = '<div class="nhs-mdc-spc-error">Add a date dimension and a value measure to display an SPC chart.</div>';
+        container.innerHTML = '<div class="abspc-spc-chart-error">Add a date dimension and a value measure to display an SPC chart.</div>';
         return qlik.Promise.resolve();
       }
 
       try {
         var data = extractData(layout);
         if (data.values.length === 0) {
-          container.innerHTML = '<div class="nhs-mdc-spc-error">No valid data to display.</div>';
+          container.innerHTML = '<div class="abspc-spc-chart-error">No valid data to display.</div>';
           return qlik.Promise.resolve();
         }
 
@@ -405,12 +401,12 @@ define([
         var result = computeSPC(chartType, data.values, data.subgroups);
 
         // Wrap in the extension CSS class
-        container.className = (container.className || '').replace(/nhs-mdc-spc-chart/g, '').trim();
-        container.className += ' nhs-mdc-spc-chart';
+        container.className = (container.className || '').replace(/abspc-spc-chart/g, '').trim();
+        container.className += ' abspc-spc-chart';
 
         drawChart(container, data, result, layout);
       } catch (err) {
-        container.innerHTML = '<div class="nhs-mdc-spc-error error">Error: ' + (err.message || err) + '</div>';
+        container.innerHTML = '<div class="abspc-spc-chart-error error">Error: ' + (err.message || err) + '</div>';
       }
 
       return qlik.Promise.resolve();

@@ -1,7 +1,7 @@
 /**
  * definition.js
  * ==============
- * Property panel definition for the NHS MDC SPC Chart extension.
+ * Property panel definition for the ABSPC SPC Chart extension.
  * Configures the Qlik Sense property panel with sections for
  * chart type, analysis settings and display options.
  */

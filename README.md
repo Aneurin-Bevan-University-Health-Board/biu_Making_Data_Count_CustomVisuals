@@ -127,20 +127,20 @@ configurable improvement direction and targets.
 ## Qlik Sense — On-Prem Extension
 
 The [`qlik_sense_extension/`](qlik_sense_extension/) directory contains a
-Qlik Sense custom visualization extension that provides the same NHS MDC SPC
+Qlik Sense custom visualization extension that provides the same abspc SPC
 charts inside Qlik Sense on-premises dashboards.
 
 **Minimal data requirement** — add a single date dimension and value measure;
 the extension performs all SPC calculations automatically.
 
-Supported chart types: XmR, p, u, c and run charts with full NHS MDC
+Supported chart types: XmR, p, u, c and run charts with full abspc
 special-cause detection (all four rules) and the NHS colour scheme.
 
 ### Quick Start
 
 1. ZIP the contents of `qlik_sense_extension/`
 2. Import via the Qlik Management Console (**QMC → Extensions → Import**)
-3. Drag **NHS MDC SPC Chart** onto any sheet
+3. Drag **ABSPC SPC Chart** onto any sheet
 4. Add a date dimension and a value measure
 
 **Full documentation:** [`qlik_sense_extension/README.md`](qlik_sense_extension/README.md)

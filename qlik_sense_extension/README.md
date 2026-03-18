@@ -1,6 +1,6 @@
-# NHS Making Data Count — Qlik Sense SPC Extension
+# ABSPC — Qlik Sense SPC Extension
 
-A custom visualization extension for **Qlik Sense on-premises** that implements Statistical Process Control (SPC) charts following the NHS Making Data Count methodology.
+A custom visualization extension for **Qlik Sense on-premises** that implements Statistical Process Control (SPC) charts following the NHS Making Data Count methodology. Part of the **abspc** family of SPC tools.
 
 ## Chart Types
 
@@ -14,7 +14,7 @@ A custom visualization extension for **Qlik Sense on-premises** that implements 
 
 ## Special Cause Rules
 
-The extension applies the same four NHS MDC rules as the Python (`abspc`) and Looker Core implementations:
+The extension applies the same four rules as the Python (`abspc`) and Looker Core (`abspc_*`) implementations:
 
 1. **Rule 1 — Astronomical Point**: single value outside 3-sigma control limits
 2. **Rule 2 — Shift**: ≥ 7 consecutive points on the same side of the centre line
@@ -45,9 +45,9 @@ Download or clone the `qlik_sense_extension` folder from this repository. The fo
 
 ```
 qlik_sense_extension/
-├── nhs_mdc_spc_chart.qext      # Extension metadata
-├── nhs_mdc_spc_chart.js         # Main visualisation logic
-├── nhs_mdc_spc_chart.css        # Styles
+├── abspc_spc_chart.qext         # Extension metadata
+├── abspc_spc_chart.js           # Main visualisation logic
+├── abspc_spc_chart.css          # Styles
 ├── definition.js                # Property panel configuration
 ├── initialProperties.js         # Default settings
 └── lib/
@@ -59,10 +59,10 @@ qlik_sense_extension/
 Create a ZIP file containing the **contents** of the `qlik_sense_extension` folder (not the folder itself):
 
 ```
-nhs_mdc_spc_chart.zip
-├── nhs_mdc_spc_chart.qext
-├── nhs_mdc_spc_chart.js
-├── nhs_mdc_spc_chart.css
+abspc_spc_chart.zip
+├── abspc_spc_chart.qext
+├── abspc_spc_chart.js
+├── abspc_spc_chart.css
 ├── definition.js
 ├── initialProperties.js
 └── lib/
@@ -78,14 +78,14 @@ nhs_mdc_spc_chart.zip
 3. Click **Import** (bottom-left)
 4. Browse to the ZIP file created in Step 2
 5. Click **Import**
-6. The extension **NHS MDC SPC Chart** should appear in the list
+6. The extension **ABSPC SPC Chart** should appear in the list
 
 ### Step 4 — Alternative: Manual File Copy
 
 If you prefer, copy the folder directly to the Qlik Sense extensions directory:
 
 ```
-C:\Program Files\Qlik\Sense\Client\Extensions\nhs_mdc_spc_chart\
+C:\Program Files\Qlik\Sense\Client\Extensions\abspc_spc_chart\
 ```
 
 Then restart the **Qlik Sense Repository Service** (QRS) or wait for the cache to refresh.
@@ -95,7 +95,7 @@ Then restart the **Qlik Sense Repository Service** (QRS) or wait for the cache t
 1. Open or create a Qlik Sense app
 2. Edit a sheet
 3. In the **Custom objects** panel on the left, expand **Extensions**
-4. You should see **NHS MDC SPC Chart** with a line-chart icon
+4. You should see **ABSPC SPC Chart** with a line-chart icon
 5. Drag it onto the sheet canvas
 
 ## Usage in Qlik Sense
