@@ -2,6 +2,11 @@
 
 A custom visualization extension for **Qlik Sense on-premises** that implements Statistical Process Control (SPC) charts following the NHS Making Data Count methodology. Part of the **abspc** family of SPC tools.
 
+> 📖 **New to this extension?** See the full
+> [Implementation Guide](implementation/IMPLEMENTATION_GUIDE.md) for a
+> step-by-step walkthrough with screenshots-style instructions and
+> healthcare examples.
+
 ## Chart Types
 
 | Type | Description | Centre Line | Control Limits |

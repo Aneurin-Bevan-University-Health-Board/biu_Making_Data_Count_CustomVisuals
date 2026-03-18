@@ -21,11 +21,12 @@
 /* Data point styling */
 .abspc-spc-chart .data-point {
   cursor: pointer;
-  transition: r 0.15s ease;
+  transition: transform 0.15s ease;
+  transform-origin: center;
 }
 
 .abspc-spc-chart .data-point:hover {
-  r: 6;
+  transform: scale(1.5);
 }
 
 /* Tooltip */
