@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "abspc"
-version = "0.1.5"
+version = "0.1.6"
 description = "SPC chart visuals using the NHS Making Data Count methodology — Python, Looker & Looker Studio"
 readme = "README.md"
 requires-python = ">=3.9"
