@@ -1,0 +1,39 @@
+{
+  "name": "@aneurin-bevan-uhb/looker-mdc-visuals",
+  "version": "0.1.5",
+  "description": "NHS Making Data Count SPC charts for Looker Core",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/test_spc_calculations.js",
+    "preview": "echo 'Open tests/preview.html in your browser'",
+    "bundle": "node scripts/bundle-for-lookml.cjs",
+    "deploy": "npm run bundle && echo 'LookML files ready in dist/lookml/ - copy to your LookML project'"
+  },
+  "keywords": [
+    "nhs",
+    "making-data-count",
+    "spc",
+    "statistical-process-control",
+    "looker",
+    "healthcare",
+    "quality-improvement"
+  ],
+  "author": "Aneurin Bevan University Health Board",
+  "contributors": [
+    "Daniel Westwood <daniel.westwood@wales.nhs.uk>"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals.git",
+    "directory": "looker_core_visuals"
+  },
+  "bugs": {
+    "url": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/issues"
+  },
+  "homepage": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals#looker--custom-visualizations",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

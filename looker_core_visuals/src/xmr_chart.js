@@ -243,6 +243,8 @@ export const XmRChart = {
       const pointColors = determinePointColors(
         values, 
         meanArray, 
+        uclArray,
+        lclArray,
         specialCauses, 
         improvementDirection, 
         targetValue
@@ -287,8 +289,11 @@ export const XmRChart = {
     // Chart dimensions
     const margin = { top: 60, right: 40, bottom: 60, left: 80 };
     const containerRect = this._container.getBoundingClientRect();
-    const width = containerRect.width - margin.left - margin.right;
-    const height = containerRect.height - margin.top - margin.bottom;
+    const width = Math.max(containerRect.width - margin.left - margin.right, 200);
+    const height = Math.max(containerRect.height - margin.top - margin.bottom, 120);
+    const svgWidth = width + margin.left + margin.right;
+    const svgHeight = height + margin.top + margin.bottom;
+    svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
     
     // Create chart group
     const chartGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -330,7 +335,7 @@ export const XmRChart = {
     this._drawAxes(chartGroup, xScale, yScale, width, height);
     
     // Add title
-    this._addTitle(svg, config.chart_title || 'XmR Chart - Individual Measurements', containerRect.width);
+    this._addTitle(svg, config.chart_title || 'XmR Chart - Individual Measurements', svgWidth);
     
     // Add legend
     this._addLegend(chartGroup, width, height, specialCauses, config);
@@ -375,6 +380,22 @@ export const XmRChart = {
    * @private
    */
   _drawDataPoints(group, xScale, yScale, values, pointColors) {
+    // Draw connecting line as a single path (much faster than per-segment lines)
+    if (values.length > 1) {
+      let pathData = `M ${xScale(0)} ${yScale(values[0])}`;
+      for (let i = 1; i < values.length; i++) {
+        pathData += ` L ${xScale(i)} ${yScale(values[i])}`;
+      }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathData);
+      path.setAttribute('stroke', '#cccccc');
+      path.setAttribute('stroke-width', '1');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('opacity', '0.7');
+      group.appendChild(path);
+    }
+
+    // Draw points
     values.forEach((value, index) => {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', xScale(index));
@@ -390,19 +411,6 @@ export const XmRChart = {
       circle.appendChild(title);
       
       group.appendChild(circle);
-      
-      // Connect points with lines
-      if (index > 0) {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', xScale(index - 1));
-        line.setAttribute('y1', yScale(values[index - 1]));
-        line.setAttribute('x2', xScale(index));
-        line.setAttribute('y2', yScale(value));
-        line.setAttribute('stroke', '#cccccc');
-        line.setAttribute('stroke-width', '1');
-        line.setAttribute('opacity', '0.7');
-        group.insertBefore(line, circle);
-      }
     });
   },
 

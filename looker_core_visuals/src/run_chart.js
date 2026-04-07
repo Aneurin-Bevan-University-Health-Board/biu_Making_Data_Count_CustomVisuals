@@ -246,8 +246,11 @@ export const RunChart = {
     // Chart dimensions
     const margin = { top: 60, right: 40, bottom: 60, left: 80 };
     const containerRect = this._container.getBoundingClientRect();
-    const width = containerRect.width - margin.left - margin.right;
-    const height = containerRect.height - margin.top - margin.bottom;
+    const width = Math.max(containerRect.width - margin.left - margin.right, 200);
+    const height = Math.max(containerRect.height - margin.top - margin.bottom, 120);
+    const svgWidth = width + margin.left + margin.right;
+    const svgHeight = height + margin.top + margin.bottom;
+    svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
     
     // Create chart group
     const chartGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -281,7 +284,7 @@ export const RunChart = {
     this._drawAxes(chartGroup, xScale, yScale, width, height);
     
     // Add title
-    this._addTitle(svg, config.chart_title || 'Run Chart - Median Center Line', containerRect.width);
+    this._addTitle(svg, config.chart_title || 'Run Chart - Median Center Line', svgWidth);
     
     // Add legend
     this._addLegend(chartGroup, width, height, signals, config);

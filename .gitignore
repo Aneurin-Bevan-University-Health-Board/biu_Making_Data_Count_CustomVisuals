@@ -24,8 +24,20 @@ env/
 test_table.png
 tests/spc_chart_output.png
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
 # IDE / editor
 .idea/
 .vscode/
 *.swp
 *~
+
+# OS
+.DS_Store
+Thumbs.db

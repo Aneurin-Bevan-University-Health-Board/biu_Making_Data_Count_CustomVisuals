@@ -1,0 +1,72 @@
+name: Build LookML Visualizations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'looker_core_visuals/src/**'
+      - 'looker_core_visuals/scripts/bundle-for-lookml.cjs'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle-lookml:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Bundle visualizations for LookML
+        run: |
+          cd looker_core_visuals
+          npm run bundle
+      
+      - name: Upload LookML bundle as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lookml-visualizations
+          path: looker_core_visuals/dist/lookml/
+          retention-days: 90
+      
+      - name: Create bundle summary
+        run: |
+          echo "## 📦 LookML Visualizations Ready" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Bundled files ready to paste into your LookML project:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### JavaScript Files" >> $GITHUB_STEP_SUMMARY
+          ls -1 looker_core_visuals/dist/lookml/*.js | xargs -n 1 basename | while read file; do
+            echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Manifest" >> $GITHUB_STEP_SUMMARY
+          echo "- \`manifest.lkml\` (add visualization entries to your project)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **lookml-visualizations** artifact from this workflow run." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deploy to LookML" >> $GITHUB_STEP_SUMMARY
+          echo "1. Copy all \`.js\` files to your LookML project's \`visualizations/\` folder" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add visualization entries from \`manifest.lkml\` to your project's \`manifest.lkml\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Commit and push to production" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Display sample from manifest
+        run: |
+          echo ""
+          echo "========================================"
+          echo "Sample manifest.lkml content:"
+          echo "========================================"
+          head -n 20 looker_core_visuals/dist/lookml/manifest.lkml
+          echo ""
+          echo "... (see full file in artifact)"
+          echo ""

@@ -1,15 +1,12 @@
-﻿/**
+/**
  * NHS Making Data Count - Summary Table
- * Standalone Looker Core Custom Visualization
- * 
- * Upload this single file to Looker Admin > Visualizations
+ * Looker Core Custom Visualization (ES Module)
  * 
  * DATA REQUIREMENTS:
  *   - Dimension: A date/time field (x-axis for time series analysis)
  *   - Measures: One or more numeric measures (each becomes a row in the table)
  *   Each measure gets its own XmR analysis, variation and assurance classification.
  */
-(function() {
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ NHS COLOURS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var NHS_BLUE       = '#005EB8';
   var NHS_DARK_BLUE  = '#003087';
@@ -264,9 +261,7 @@
   }
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ LOOKER VIS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  var vis = {
-    id: 'abspc_summary_table',
-    label: 'ABSPC Summary Table',
+  export const SummaryTable = {
     options: (function(){
       var o = {
         chart_title: {
@@ -286,11 +281,11 @@
         o['direction_' + i] = {
           type: 'string', label: 'Row ' + i + ' Direction', display: 'select',
           values: [{'Higher is better':'high'},{'Lower is better':'low'}],
-          default: 'high', section: 'Row ' + i, order: 1
+          default: 'high', section: 'Targets', order: (i - 1) * 2 + 1
         };
         o['target_' + i] = {
-          type: 'number', label: 'Row ' + i + ' Target (optional)',
-          section: 'Row ' + i, order: 2
+          type: 'number', label: 'Row ' + i + ' Target',
+          section: 'Targets', order: (i - 1) * 2 + 2
         };
       }
       return o;
@@ -447,5 +442,8 @@
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  looker.plugins.visualizations.add(vis);
-})();
+  if (typeof looker !== 'undefined') {
+    looker.plugins.visualizations.add(SummaryTable);
+  }
+
+  export default SummaryTable;

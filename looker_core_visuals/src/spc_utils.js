@@ -294,3 +294,57 @@ export function formatNumber(value, decimals = 2) {
   }
   return Number(value).toFixed(decimals);
 }
+
+/**
+ * Determine the overall variation icon type for an SPC chart.
+ * Aligned with Python determine_variation_type.
+ * @param {number[]} values - Data values
+ * @param {number[]} centerLine - Centre line values (mean or median)
+ * @param {boolean[]} specialCause - Per-point special-cause flag
+ * @param {string} improvementDirection - 'high' or 'low'
+ * @returns {string} One of 'improvement_high', 'improvement_low',
+ *   'common_cause', 'concern_high', 'concern_low'
+ */
+export function determineVariationType(values, centerLine, specialCause, improvementDirection = 'high') {
+  if (!specialCause || !specialCause.some(Boolean)) {
+    return 'common_cause';
+  }
+
+  // Find the most recent special-cause index
+  let lastIdx = -1;
+  for (let i = specialCause.length - 1; i >= 0; i--) {
+    if (specialCause[i]) { lastIdx = i; break; }
+  }
+
+  const isHigh = values[lastIdx] > centerLine[lastIdx];
+
+  if (improvementDirection === 'high') {
+    return isHigh ? 'improvement_high' : 'concern_low';
+  }
+  return isHigh ? 'concern_high' : 'improvement_low';
+}
+
+/**
+ * Determine the assurance icon type for an SPC chart.
+ * Aligned with Python determine_assurance_type.
+ * @param {number} target - Target value (null → 'no_target')
+ * @param {number} ucl - Upper control limit (last phase)
+ * @param {number} lcl - Lower control limit (last phase)
+ * @param {string} improvementDirection - 'high' or 'low'
+ * @returns {string} One of 'pass', 'hit_or_miss', 'fail', 'no_target'
+ */
+export function determineAssuranceType(target, ucl, lcl, improvementDirection = 'high') {
+  if (target === null || target === undefined) {
+    return 'no_target';
+  }
+
+  if (improvementDirection === 'high') {
+    if (target <= lcl) return 'pass';
+    if (target >= ucl) return 'fail';
+    return 'hit_or_miss';
+  }
+  // Lower is better
+  if (target >= ucl) return 'pass';
+  if (target <= lcl) return 'fail';
+  return 'hit_or_miss';
+}
