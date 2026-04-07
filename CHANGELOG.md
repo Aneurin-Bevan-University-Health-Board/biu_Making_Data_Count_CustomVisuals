@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-04-07
+
+### Fixed
+- Fixed PyPI README path to use `abspc/README.md` instead of root `README.md`
+
 ### Added (Looker Visualizations)
 - **LookML bundler** - Automated bundling of ES6 modules into standalone files for LookML projects
-- GitHub Actions workflow to auto-generate LookML-ready visualizations on push to main
+- GitHub Actions workflow (`bundle-lookml.yml`) to auto-generate LookML-ready visualizations on push to main
 - New scrollable summary table visualization with per-measure targets
 - Added `determineVariationType()` function to classify overall SPC variation patterns
 - Added `determineAssuranceType()` function to evaluate target achievement likelihood
@@ -22,16 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed zero-dimension rendering bug that caused white/blank charts on initial load
 - Optimized XmR chart rendering performance by using single SVG path instead of per-point elements
 
-### Added (Looker Visualizations)
-- New scrollable summary table visualization with per-measure targets
-- Added `determineVariationType()` function to classify overall SPC variation patterns
-- Added `determineAssuranceType()` function to evaluate target achievement likelihood
-- Added viewport meta tag to preview.html for mobile compatibility
+### Changed (DevOps)
+- Enhanced .gitignore with Node.js and OS file patterns
+- Created package.json with test, bundle, and deploy scripts
+- Removed old manual dist/ files in favor of automated dist/lookml/ bundling
 
-### Changed
-- Updated deployment workflow to copy updated chart files with `abspc_` prefix
-
-## [0.1.5] - 2026-XX-XX
+## [0.1.5] - 2025-XX-XX
 
 ### Added
 - Python package (`abspc`) published to PyPI

@@ -1,6 +1,6 @@
 {
   "name": "@aneurin-bevan-uhb/looker-mdc-visuals",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "NHS Making Data Count SPC charts for Looker Core",
   "type": "module",
   "main": "index.js",
