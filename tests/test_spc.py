@@ -417,6 +417,33 @@ class TestRebaseControlLimits:
                 xmr_data, chart_type="XmR", improvement_direction="sideways"
             )
 
+    def test_no_infinite_loop_low_direction(self):
+        """Regression: auto_rebase with improvement_direction='low' must not hang.
+
+        Data with a low cluster followed by high values can cause rel_idx == 0
+        in _find_improvement_shift_start, leading to no forward progress in the
+        while loop.  The fix ensures the loop terminates immediately when
+        rel_idx == 0.
+        """
+        values = [50.0] * 10 + [10.0] * 7 + [100.0] * 3
+        df = pd.DataFrame({"value": values})
+        # Must complete in well under a second (previously hung forever)
+        result = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="low"
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == len(df)
+
+    def test_no_infinite_loop_high_direction(self):
+        """Same regression guard for improvement_direction='high'."""
+        values = [50.0] * 10 + [90.0] * 7 + [1.0] * 3
+        df = pd.DataFrame({"value": values})
+        result = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high"
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == len(df)
+
 
 # ---------------------------------------------------------------------------
 # determine_point_colours
