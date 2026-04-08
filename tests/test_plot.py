@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
 
-from abspc.plot import plot_spc_chart, plot_run_chart
+from abspc.plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
 
 
 # ---------------------------------------------------------------------------
@@ -391,8 +391,6 @@ class TestDateAxis:
 # plot_mdc_summary_table – Target column
 # ---------------------------------------------------------------------------
 
-from abspc.plot import plot_mdc_summary_table
-
 
 class TestMdcSummaryTableTargetColumn:
     """Tests for the Target column in the MDC summary table."""
@@ -403,8 +401,8 @@ class TestMdcSummaryTableTargetColumn:
         fig, ax = plot_mdc_summary_table(rows)
         table = ax.tables[0]
         # Header row is row 0; find all header cell texts
-        n_cols = table.get_celld()
-        headers = [table[0, j].get_text().get_text() for j in range(8)]
+        col_count = max(col for (_, col) in table.get_celld().keys()) + 1
+        headers = [table[0, j].get_text().get_text() for j in range(col_count)]
         assert "Target" in headers
 
     def test_target_value_in_cell(self, xmr_data):
