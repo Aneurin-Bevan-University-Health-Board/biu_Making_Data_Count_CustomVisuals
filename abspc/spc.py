@@ -752,7 +752,7 @@ def _rule2_shift(
     mean: np.ndarray,
     run_length: int = 8,
 ) -> np.ndarray:
-    """Rule 2 – run of *run_length* (≥8) points on the same side of mean."""
+    """Rule 2 – run of *run_length* consecutive points on the same side of mean."""
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     above = values > mean
@@ -769,7 +769,7 @@ def _rule2_shift(
 
 
 def _rule3_trend(values: np.ndarray, run_length: int = 6) -> np.ndarray:
-    """Rule 3 – run of *run_length* (≥6) consecutively increasing/decreasing."""
+    """Rule 3 – run of *run_length* consecutive points increasing/decreasing."""
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     diffs = np.diff(values)  # length n-1

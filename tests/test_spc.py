@@ -378,7 +378,7 @@ class TestRebaseControlLimits:
 
     def test_detects_improvement_shift_high(self):
         """Eight consecutive high points trigger a phase boundary."""
-        # Low baseline (phase 0) then 7 clearly higher points (phase 1)
+        # Low baseline (phase 0) then 10 clearly higher points (phase 1)
         values = [5.0] * 10 + [30.0] * 10
         df = pd.DataFrame({"value": values})
         result = rebase_control_limits(
