@@ -64,6 +64,9 @@ COLOUR_COMMON_CAUSE = NHS_GREY
 COLOUR_IMPROVEMENT = NHS_BLUE
 COLOUR_CONCERN = NHS_ORANGE
 
+# Minimum number of data points recommended for reliable SPC analysis
+SPC_MIN_DATA_POINTS = 15
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

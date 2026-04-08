@@ -41,6 +41,7 @@ from .spc import (
     COLOUR_COMMON_CAUSE,
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
+    SPC_MIN_DATA_POINTS,
 )
 from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line
 
@@ -497,6 +498,29 @@ def plot_spc_chart(
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+
+    # --- Insufficient data warning ------------------------------------------
+    if len(result) < SPC_MIN_DATA_POINTS:
+        ax.text(
+            0.5,
+            0.5,
+            f"Warning: SPC analysis requires at least {SPC_MIN_DATA_POINTS} "
+            f"data points\n(only {len(result)} provided). "
+            "Results may be unreliable.",
+            transform=ax.transAxes,
+            fontsize=11,
+            color=NHS_ORANGE,
+            fontweight="bold",
+            horizontalalignment="center",
+            verticalalignment="center",
+            bbox=dict(
+                boxstyle="round,pad=0.6",
+                facecolor="#FFF9E6",
+                edgecolor=NHS_ORANGE,
+                alpha=0.9,
+            ),
+            zorder=10,
+        )
 
     fig.tight_layout()
 
