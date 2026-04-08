@@ -799,10 +799,10 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
-    # 9 columns: Measure | Description | icon | Variation | icon | Assurance | icon | Imp. Direction | Value
+    # 9 columns: Measure | Description | icon | Variation | icon | Assurance | icon | Improvement Direction | Value
     col_labels = [
         "Measure", "Description", "", "Variation", "", "Assurance",
-        "", "Imp. Direction", "Latest Value",
+        "", "Improvement Direction", "Latest Value",
     ]
     n_cols = len(col_labels)
 
