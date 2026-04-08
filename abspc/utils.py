@@ -267,7 +267,9 @@ def add_annotation(
             )
         # Label centred at the top of the shaded region
         if label is not None:
-            # Compute the midpoint – works for both numeric and datetime x
+            # Compute the midpoint – works for numeric, Timestamp, and
+            # datetime64 x values.  Falls back to *start* for types that
+            # do not support midpoint arithmetic.
             try:
                 mid = start + (end - start) / 2
             except TypeError:
