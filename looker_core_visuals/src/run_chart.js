@@ -7,7 +7,7 @@
  * aligned with the NHS-R NHSRplotthedots package and custom_spc_mdc Python package.
  * 
  * Run charts use median center line and detect signals using run-chart rules
- * (7-point shift and 7-point trend). No control limits are calculated.
+ * (8-point shift and 6-point trend). No control limits are calculated.
  */
 
 import { 
@@ -39,8 +39,8 @@ export function calculateRunChartSignals(data, valueColumn = 'value') {
   const medianArray = new Array(values.length).fill(median);
   
   // Detect run chart signals (no Rule 1 or Rule 4 for run charts)
-  const rule2 = rule2Shift(values, medianArray, 7);  // 7-point shift
-  const rule3 = rule3Trend(values, 7);               // 7-point trend
+  const rule2 = rule2Shift(values, medianArray, 8);  // 8-point shift
+  const rule3 = rule3Trend(values, 6);               // 6-point trend
   const specialCause = rule2.map((r2, i) => r2 || rule3[i]);
   
   return {

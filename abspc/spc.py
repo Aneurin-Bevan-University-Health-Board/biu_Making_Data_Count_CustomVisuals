@@ -17,17 +17,17 @@ NHS MDC Special-Cause rules implemented (SPC charts)
 ------------------------------------------------------
 1. **Rule 1 – Astronomical point**: a single value outside the 3-sigma
    process control limits (UCL / LCL).
-2. **Rule 2 – Shift**: **seven** or more consecutive points all above *or*
-   all below the centre line (mean) — aligned with NHS MDC / NHSRplotthedots.
-3. **Rule 3 – Trend**: **seven** or more consecutive points all going up *or*
+2. **Rule 2 – Shift**: **eight** or more consecutive points all above *or*
+   all below the centre line (mean).
+3. **Rule 3 – Trend**: **six** or more consecutive points all going up *or*
    all going down.
 4. **Rule 4 – Two-in-three**: two out of three consecutive points in the
    warning zone (between 2-sigma and 3-sigma limits) on the same side.
 
 Run-chart signals (run chart only)
 -----------------------------------
-* **Shift**: seven or more consecutive points on the same side of the median.
-* **Trend**: seven or more consecutive points all increasing *or* all
+* **Shift**: eight or more consecutive points on the same side of the median.
+* **Trend**: six or more consecutive points all increasing *or* all
   decreasing.
 
 NHS Colour scheme
@@ -175,8 +175,8 @@ def detect_special_causes(
     Four rules are applied (aligned with NHSRplotthedots / NHS MDC):
 
     * **Rule 1** – astronomical point: value outside 3-sigma control limits.
-    * **Rule 2** – shift: ≥ 7 consecutive points on the same side of the mean.
-    * **Rule 3** – trend: ≥ 7 consecutive points all increasing *or* all
+    * **Rule 2** – shift: ≥ 8 consecutive points on the same side of the mean.
+    * **Rule 3** – trend: ≥ 6 consecutive points all increasing *or* all
       decreasing.
     * **Rule 4** – two-in-three: two out of three consecutive points in the
       warning zone (between 2-sigma and 3-sigma), on the same side of the mean.
@@ -221,8 +221,8 @@ def detect_special_causes(
     lcl = df[lcl_col].to_numpy(dtype=float)
 
     rule1 = _rule1_astronomical(values, ucl, lcl)
-    rule2 = _rule2_shift(values, mean, run_length=7)
-    rule3 = _rule3_trend(values, run_length=7)
+    rule2 = _rule2_shift(values, mean, run_length=8)
+    rule3 = _rule3_trend(values, run_length=6)
 
     df["rule1"] = rule1
     df["rule2"] = rule2
@@ -339,8 +339,8 @@ def detect_run_chart_signals(
 
     Two rules are applied against the **median** centre line:
 
-    * **Run shift**: ≥ 7 consecutive points on the same side of the median.
-    * **Run trend**: ≥ 7 consecutive points all increasing *or* all decreasing.
+    * **Run shift**: ≥ 8 consecutive points on the same side of the median.
+    * **Run trend**: ≥ 6 consecutive points all increasing *or* all decreasing.
 
     Parameters
     ----------
@@ -357,16 +357,16 @@ def detect_run_chart_signals(
     pd.DataFrame
         A copy of *result* with additional boolean columns:
 
-        * ``run_shift``  – point is part of a 7+ run on one side of the median
-        * ``run_trend``  – point is part of a 7+ consecutive up/down trend
+        * ``run_shift``  – point is part of an 8+ run on one side of the median
+        * ``run_trend``  – point is part of a 6+ consecutive up/down trend
         * ``run_signal`` – True if **either** rule is triggered
     """
     df = result.copy()
     values = df[value_col].to_numpy(dtype=float)
     median = df[median_col].to_numpy(dtype=float)
 
-    run_shift = _rule2_shift(values, median, run_length=7)
-    run_trend = _rule3_trend(values, run_length=7)
+    run_shift = _rule2_shift(values, median, run_length=8)
+    run_trend = _rule3_trend(values, run_length=6)
 
     df["run_shift"] = run_shift
     df["run_trend"] = run_trend
@@ -382,7 +382,7 @@ def rebase_control_limits(
     value_col: str = "value",
     subgroup_col: str | None = "subgroup_size",
     numerator_col: str | None = None,
-    min_phase_length: int = 7,
+    min_phase_length: int = 8,
 ) -> pd.DataFrame:
     """Calculate control limits with automatic phase rebasing on improvement.
 
@@ -411,7 +411,7 @@ def rebase_control_limits(
         denominator.
     min_phase_length : int, optional
         Minimum consecutive points in the improvement direction required to
-        trigger a rebase (default ``7``, aligned with NHS MDC Rule 2 / shift).
+        trigger a rebase (default ``8``, aligned with Rule 2 / shift).
 
     Returns
     -------
@@ -750,12 +750,9 @@ def _rule1_astronomical(
 def _rule2_shift(
     values: np.ndarray,
     mean: np.ndarray,
-    run_length: int = 7,
+    run_length: int = 8,
 ) -> np.ndarray:
-    """Rule 2 – run of *run_length* (≥7) points on the same side of mean.
-
-    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
-    """
+    """Rule 2 – run of *run_length* (≥8) points on the same side of mean."""
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     above = values > mean
@@ -771,11 +768,8 @@ def _rule2_shift(
     return flags
 
 
-def _rule3_trend(values: np.ndarray, run_length: int = 7) -> np.ndarray:
-    """Rule 3 – run of *run_length* (≥7) consecutively increasing/decreasing.
-
-    Aligned with NHS MDC / NHSRplotthedots which uses 7 consecutive points.
-    """
+def _rule3_trend(values: np.ndarray, run_length: int = 6) -> np.ndarray:
+    """Rule 3 – run of *run_length* (≥6) consecutively increasing/decreasing."""
     n = len(values)
     flags = np.zeros(n, dtype=bool)
     diffs = np.diff(values)  # length n-1
@@ -865,7 +859,7 @@ def _find_improvement_shift_start(
     values: np.ndarray,
     mean: np.ndarray,
     improvement_direction: str,
-    run_length: int = 7,
+    run_length: int = 8,
 ) -> int | None:
     """Return the index of the first point in an improvement shift, or ``None``.
 

@@ -141,8 +141,8 @@ NHSRplotthedots):
 | Rule | Name | Description |
 |------|------|-------------|
 | **1** | Astronomical point | Single value outside 3σ limits |
-| **2** | Shift | ≥ 7 consecutive points above or below the mean |
-| **3** | Trend | ≥ 7 consecutive points all rising or all falling |
+| **2** | Shift | ≥ 8 consecutive points above or below the mean |
+| **3** | Trend | ≥ 6 consecutive points all rising or all falling |
 | **4** | Two-in-three | 2 of 3 consecutive points in the warning zone |
 
 Points are coloured by the NHS MDC scheme:

@@ -35,7 +35,7 @@ function rule1(vals, ucl, lcl) {
 }
 
 function rule2(vals, centre, run) {
-  run = run || 7;
+  run = run || 8;
   var f = new Array(vals.length);
   for (var i = 0; i < f.length; i++) f[i] = false;
   for (var i = 0; i <= vals.length - run; i++) {
@@ -50,7 +50,7 @@ function rule2(vals, centre, run) {
 }
 
 function rule3(vals, run) {
-  run = run || 7;
+  run = run || 6;
   var f = new Array(vals.length);
   for (var i = 0; i < f.length; i++) f[i] = false;
   for (var i = 0; i <= vals.length - run; i++) {
@@ -177,8 +177,8 @@ var cA = [], uA = [], lA = [], uwA = [], lwA = [];
 for (var i = 0; i < n; i++) { cA.push(xBar); uA.push(uclVal); lA.push(lclVal); uwA.push(uwlVal); lwA.push(lwlVal); }
 
 var r1 = rule1(xmrData, uA, lA);
-var r2 = rule2(xmrData, cA, 7);
-var r3 = rule3(xmrData, 7);
+var r2 = rule2(xmrData, cA, 8);
+var r3 = rule3(xmrData, 6);
 var r4 = rule4(xmrData, cA, uA, lA, uwA, lwA);
 var sc = xmrData.map(function (_, i) { return r1[i] || r2[i] || r3[i] || r4[i]; });
 var colours = pointColours(xmrData, cA, uA, lA, r1, sc, 'low', null);
@@ -240,8 +240,8 @@ console.log('  LCL:                     ', pLCL[0].toFixed(4));
 console.log('  (Limits are constant here because subgroup sizes are equal)');
 
 var pr1 = rule1(pData, pUCL, pLCL);
-var pr2 = rule2(pData, pCentre, 7);
-var pr3 = rule3(pData, 7);
+var pr2 = rule2(pData, pCentre, 8);
+var pr3 = rule3(pData, 6);
 var pr4 = rule4(pData, pCentre, pUCL, pLCL, pUWL, pLWL);
 var psc = pData.map(function (_, i) { return pr1[i] || pr2[i] || pr3[i] || pr4[i]; });
 var pColours = pointColours(pData, pCentre, pUCL, pLCL, pr1, psc, 'low', null);
@@ -297,8 +297,8 @@ var ccA = [], cuA = [], clA = [], cuwA = [], clwA = [];
 for (var i = 0; i < cn; i++) { ccA.push(cBar); cuA.push(cUCL); clA.push(cLCL); cuwA.push(cUWL); clwA.push(cLWL); }
 
 var cr1 = rule1(cData, cuA, clA);
-var cr2 = rule2(cData, ccA, 7);
-var cr3 = rule3(cData, 7);
+var cr2 = rule2(cData, ccA, 8);
+var cr3 = rule3(cData, 6);
 var cr4 = rule4(cData, ccA, cuA, clA, cuwA, clwA);
 var csc = cData.map(function (_, i) { return cr1[i] || cr2[i] || cr3[i] || cr4[i]; });
 var cColours = pointColours(cData, ccA, cuA, clA, cr1, csc, 'low', null);
@@ -341,8 +341,8 @@ console.log('\nCalculated Centre Line:');
 console.log('  Median:  ', runMedian.toFixed(4));
 console.log('  (Run chart has no control limits — only shift & trend signals)');
 
-var rr2 = rule2(runData, runMedianArr, 7);
-var rr3 = rule3(runData, 7);
+var rr2 = rule2(runData, runMedianArr, 8);
+var rr3 = rule3(runData, 6);
 var rsc = runData.map(function (_, i) { return rr2[i] || rr3[i]; });
 var noR1 = []; for (var i = 0; i < runData.length; i++) noR1.push(false);
 var rColours = pointColours(runData, runMedianArr, runMedianArr, runMedianArr, noR1, rsc, 'high', null);
@@ -404,8 +404,8 @@ console.log('  LCL range:           ', Math.min.apply(null, uLCLArr).toFixed(2),
 console.log('  (Variable limits because denominator sizes vary)');
 
 var ur1 = rule1(uRates, uUCLArr, uLCLArr);
-var ur2 = rule2(uRates, uCentreArr, 7);
-var ur3 = rule3(uRates, 7);
+var ur2 = rule2(uRates, uCentreArr, 8);
+var ur3 = rule3(uRates, 6);
 var ur4 = rule4(uRates, uCentreArr, uUCLArr, uLCLArr, uUWLArr, uLWLArr);
 var usc = uRates.map(function (_, i) { return ur1[i] || ur2[i] || ur3[i] || ur4[i]; });
 var uColours = pointColours(uRates, uCentreArr, uUCLArr, uLCLArr, ur1, usc, 'low', null);
@@ -434,27 +434,27 @@ assert('u-chart uBar', +uBarRate.toFixed(4), +((uTotalC / uTotalA) * 1000).toFix
 // ═══════════════════════════════════════════════════════════════════════
 heading('TEST 6: Edge Cases');
 
-// 6a. Exactly 7-point shift
-var shift7 = [10, 10, 10, 15, 15, 15, 15, 15, 15, 15, 10, 10];
-var shift7Mean = mean(shift7);
-var shift7Centre = [];
-for (var i = 0; i < shift7.length; i++) shift7Centre.push(shift7Mean);
-var shift7R2 = rule2(shift7, shift7Centre, 7);
-console.log('\n6a. 7 consecutive points above mean:');
-console.log('  Data:   ', shift7.join(', '));
-console.log('  Mean:   ', shift7Mean.toFixed(2));
-console.log('  Shift:  ', shift7R2.map(function (f) { return f ? 'X' : '.'; }).join(' '));
-assert('7-point shift detected at index 3-9',
-  shift7R2.slice(3, 10).every(function (f) { return f; }), true);
+// 6a. Exactly 8-point shift
+var shift8 = [10, 10, 10, 15, 15, 15, 15, 15, 15, 15, 15, 10, 10];
+var shift8Mean = mean(shift8);
+var shift8Centre = [];
+for (var i = 0; i < shift8.length; i++) shift8Centre.push(shift8Mean);
+var shift8R2 = rule2(shift8, shift8Centre, 8);
+console.log('\n6a. 8 consecutive points above mean:');
+console.log('  Data:   ', shift8.join(', '));
+console.log('  Mean:   ', shift8Mean.toFixed(2));
+console.log('  Shift:  ', shift8R2.map(function (f) { return f ? 'X' : '.'; }).join(' '));
+assert('8-point shift detected at index 3-10',
+  shift8R2.slice(3, 11).every(function (f) { return f; }), true);
 
-// 6b. Exactly 7-point trend
-var trend7 = [5, 10, 6, 7, 8, 9, 10, 11, 12, 5, 10, 10];
-var trend7R3 = rule3(trend7, 7);
-console.log('\n6b. 7 consecutive increasing points:');
-console.log('  Data:   ', trend7.join(', '));
-console.log('  Trend:  ', trend7R3.map(function (f) { return f ? 'X' : '.'; }).join(' '));
-assert('7-point trend detected at index 2-8',
-  trend7R3.slice(2, 9).every(function (f) { return f; }), true);
+// 6b. Exactly 6-point trend
+var trend6 = [5, 10, 6, 7, 8, 9, 10, 11, 5, 10, 10];
+var trend6R3 = rule3(trend6, 6);
+console.log('\n6b. 6 consecutive increasing points:');
+console.log('  Data:   ', trend6.join(', '));
+console.log('  Trend:  ', trend6R3.map(function (f) { return f ? 'X' : '.'; }).join(' '));
+assert('6-point trend detected at index 2-7',
+  trend6R3.slice(2, 8).every(function (f) { return f; }), true);
 
 // 6c. Two data points (minimum)
 var tiny = [10, 20];

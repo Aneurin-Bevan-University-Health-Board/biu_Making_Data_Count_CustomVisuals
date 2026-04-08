@@ -247,33 +247,33 @@ class TestDetectSpecialCauses:
         flags = detect_special_causes(result)
         assert flags["rule1"].iloc[-1]
 
-    def test_rule2_detects_shift_seven_points(self):
-        """Seven consecutive points all above the mean should trigger Rule 2."""
-        # 3 low baseline points + 7 high points well above
-        values = [5, 5, 5, 20, 20, 20, 20, 20, 20, 20]
+    def test_rule2_detects_shift_eight_points(self):
+        """Eight consecutive points all above the mean should trigger Rule 2."""
+        # 3 low baseline points + 8 high points well above
+        values = [5, 5, 5, 20, 20, 20, 20, 20, 20, 20, 20]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="XmR")
         flags = detect_special_causes(result)
         assert flags["rule2"].iloc[3:].all()
 
-    def test_rule2_not_triggered_with_six_points(self):
-        """Only 6 consecutive above mean — should NOT trigger Rule 2 (NHS MDC uses 7)."""
-        values = [5, 5, 5, 5, 20, 20, 20, 20, 20, 20]
+    def test_rule2_not_triggered_with_seven_points(self):
+        """Only 7 consecutive above mean — should NOT trigger Rule 2 (uses 8)."""
+        values = [5, 5, 5, 5, 20, 20, 20, 20, 20, 20, 20]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="XmR")
         flags = detect_special_causes(result)
         assert not flags["rule2"].any()
 
-    def test_rule3_detects_trend_seven_points(self):
-        """Seven consecutive strictly increasing points should trigger Rule 3."""
-        values = [1, 2, 3, 4, 5, 6, 7, 5, 5, 5]
+    def test_rule3_detects_trend_six_points(self):
+        """Six consecutive strictly increasing points should trigger Rule 3."""
+        values = [1, 2, 3, 4, 5, 6, 5, 5, 5, 5]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="XmR")
         flags = detect_special_causes(result)
-        assert flags["rule3"].iloc[:7].all()
+        assert flags["rule3"].iloc[:6].all()
 
     def test_rule3_not_triggered_with_five_points(self):
-        """Only 5 increasing points — should NOT trigger Rule 3 (NHS MDC uses 7)."""
+        """Only 5 increasing points — should NOT trigger Rule 3 (uses 6)."""
         values = [1, 2, 3, 4, 5, 3, 3, 3, 3, 3]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="XmR")
@@ -330,23 +330,23 @@ class TestDetectRunChartSignals:
         for col in ("run_shift", "run_trend", "run_signal"):
             assert col in flags.columns
 
-    def test_run_shift_seven_points(self):
-        """Seven consecutive points strictly above median trigger run_shift."""
-        # 15 values: first 8 keep median=14, last 7 are all > 14
-        values = [1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17, 18, 19, 20, 21]
+    def test_run_shift_eight_points(self):
+        """Eight consecutive points strictly above median trigger run_shift."""
+        # 16 values: first 8 keep median=14, last 8 are all > 14
+        values = [1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="run")
         flags = detect_run_chart_signals(result)
-        # Indices 8–14 are all > median (14); they form a 7-point shift
+        # Indices 8–15 are all > median; they form an 8-point shift
         assert flags["run_shift"].iloc[8:].all()
 
-    def test_run_trend_seven_points(self):
-        """Seven consecutive increasing points should trigger run_trend."""
-        values = [1, 2, 3, 4, 5, 6, 7, 5, 5, 5]
+    def test_run_trend_six_points(self):
+        """Six consecutive increasing points should trigger run_trend."""
+        values = [1, 2, 3, 4, 5, 6, 5, 5, 5, 5]
         df = pd.DataFrame({"value": values})
         result = calculate_control_limits(df, chart_type="run")
         flags = detect_run_chart_signals(result)
-        assert flags["run_trend"].iloc[:7].all()
+        assert flags["run_trend"].iloc[:6].all()
 
     def test_run_signal_is_union(self, xmr_data):
         result = calculate_control_limits(xmr_data, chart_type="run")
@@ -377,7 +377,7 @@ class TestRebaseControlLimits:
         assert (result["rebase_phase"] == 0).all()
 
     def test_detects_improvement_shift_high(self):
-        """Seven consecutive high points trigger a phase boundary."""
+        """Eight consecutive high points trigger a phase boundary."""
         # Low baseline (phase 0) then 7 clearly higher points (phase 1)
         values = [5.0] * 10 + [30.0] * 10
         df = pd.DataFrame({"value": values})
@@ -388,7 +388,7 @@ class TestRebaseControlLimits:
         assert result["rebase_phase"].iloc[10] == 1
 
     def test_detects_improvement_shift_low(self):
-        """Seven consecutive low points trigger a phase boundary (improvement_direction='low')."""
+        """Eight consecutive low points trigger a phase boundary (improvement_direction='low')."""
         values = [30.0] * 10 + [5.0] * 10
         df = pd.DataFrame({"value": values})
         result = rebase_control_limits(

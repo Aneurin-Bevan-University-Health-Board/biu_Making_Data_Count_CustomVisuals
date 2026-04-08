@@ -139,8 +139,8 @@ fig, ax = plot_spc_chart(
 ### Run Chart
 
 The run chart plots data against time with a **median** centre line and no
-control limits. It uses run-chart rules to detect signals (7-point shift and
-7-point trend).
+control limits. It uses run-chart rules to detect signals (8-point shift and
+6-point trend).
 
 ```python
 from abspc import plot_run_chart
@@ -243,7 +243,7 @@ fig, ax = plot_spc_chart(
 
 ### Auto-Rebase on Sustained Improvement
 
-When ≥ 7 consecutive points show sustained improvement, control limits can be
+When ≥ 8 consecutive points show sustained improvement, control limits can be
 automatically recalculated for the new phase:
 
 ```python
@@ -348,8 +348,8 @@ Four NHS MDC rules (aligned with NHSRplotthedots):
 | Rule | Name | Description |
 |------|------|-------------|
 | **1** | Astronomical point | Single value outside 3σ limits |
-| **2** | Shift | ≥ 7 consecutive points above or below the mean |
-| **3** | Trend | ≥ 7 consecutive points all rising or all falling |
+| **2** | Shift | ≥ 8 consecutive points above or below the mean |
+| **3** | Trend | ≥ 6 consecutive points all rising or all falling |
 | **4** | Two-in-three | 2 of 3 consecutive points in the warning zone |
 
 Use the detection functions directly:
