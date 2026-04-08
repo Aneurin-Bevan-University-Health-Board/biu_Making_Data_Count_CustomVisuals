@@ -385,3 +385,58 @@ class TestDateAxis:
         rotations = [t.get_rotation() for t in ax.xaxis.get_majorticklabels()]
         # After tight_layout the labels should be at 45°
         assert all(r == pytest.approx(45.0) for r in rotations if r != 0.0)
+
+
+# ---------------------------------------------------------------------------
+# plot_mdc_summary_table – Target column
+# ---------------------------------------------------------------------------
+
+from abspc.plot import plot_mdc_summary_table
+
+
+class TestMdcSummaryTableTargetColumn:
+    """Tests for the Target column in the MDC summary table."""
+
+    def test_target_column_header_present(self, xmr_data):
+        """The table should have a 'Target' column header."""
+        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 55}]
+        fig, ax = plot_mdc_summary_table(rows)
+        table = ax.tables[0]
+        # Header row is row 0; find all header cell texts
+        n_cols = table.get_celld()
+        headers = [table[0, j].get_text().get_text() for j in range(8)]
+        assert "Target" in headers
+
+    def test_target_value_in_cell(self, xmr_data):
+        """When a target is set, its value should appear in the Target column."""
+        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 55}]
+        fig, ax = plot_mdc_summary_table(rows)
+        table = ax.tables[0]
+        # Target is column index 6 (0-indexed), data row 1
+        target_cell = table[1, 6].get_text().get_text()
+        assert target_cell == "55"
+
+    def test_no_target_shows_empty(self, xmr_data):
+        """When no target is set, the Target cell should be empty."""
+        rows = [{"data": xmr_data, "chart_type": "XmR"}]
+        fig, ax = plot_mdc_summary_table(rows)
+        table = ax.tables[0]
+        target_cell = table[1, 6].get_text().get_text()
+        assert target_cell == ""
+
+    def test_table_has_eight_columns(self, xmr_data):
+        """The summary table should now have 8 columns."""
+        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 10}]
+        fig, ax = plot_mdc_summary_table(rows)
+        table = ax.tables[0]
+        # Count columns from header row
+        max_col = max(col for (row, col) in table.get_celld().keys())
+        assert max_col == 7  # 0-indexed, so 8 columns
+
+    def test_target_float_formatting(self, xmr_data):
+        """Float targets should use .4g formatting."""
+        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 0.1234}]
+        fig, ax = plot_mdc_summary_table(rows)
+        table = ax.tables[0]
+        target_cell = table[1, 6].get_text().get_text()
+        assert target_cell == "0.1234"
