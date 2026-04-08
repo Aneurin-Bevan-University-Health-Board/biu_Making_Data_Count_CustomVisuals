@@ -31,7 +31,7 @@ from .spc import (
     determine_assurance_type,
 )
 from .plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
-from .utils import validate_data, add_logo
+from .utils import validate_data, add_logo, add_annotation
 
 __all__ = [
     "calculate_control_limits",
@@ -46,6 +46,7 @@ __all__ = [
     "plot_mdc_summary_table",
     "validate_data",
     "add_logo",
+    "add_annotation",
 ]
 
 __version__ = "0.1.5"

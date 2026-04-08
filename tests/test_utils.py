@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from abspc.utils import validate_data, add_target_line, add_shading, add_change_line, add_logo
+from abspc.utils import validate_data, add_target_line, add_shading, add_change_line, add_logo, add_annotation
 
 
 # ---------------------------------------------------------------------------
@@ -206,3 +206,97 @@ class TestAddLogo:
         plt.close(fig2)
 
         assert h_large > h_small
+
+
+# ---------------------------------------------------------------------------
+# add_annotation
+# ---------------------------------------------------------------------------
+
+
+class TestAddAnnotation:
+    def test_single_point_adds_vertical_line(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_lines = len(ax.lines)
+        add_annotation(ax, start=5)
+        assert len(ax.lines) > initial_lines
+        plt.close(fig)
+
+    def test_single_point_adds_text_label(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_annotation(ax, start=5, label="New protocol")
+        assert len(ax.texts) > initial_texts
+        plt.close(fig)
+
+    def test_single_point_no_text_when_label_none(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_annotation(ax, start=5, label=None)
+        assert len(ax.texts) == initial_texts
+        plt.close(fig)
+
+    def test_period_adds_shading(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_collections = len(ax.collections)
+        add_annotation(ax, start=3, end=7)
+        # axvspan adds a Polygon patch
+        assert len(ax.patches) > 0 or len(ax.collections) > initial_collections
+        plt.close(fig)
+
+    def test_period_adds_boundary_lines(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_lines = len(ax.lines)
+        add_annotation(ax, start=3, end=7)
+        # Two boundary lines should be added
+        assert len(ax.lines) >= initial_lines + 2
+        plt.close(fig)
+
+    def test_period_adds_label(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_annotation(ax, start=3, end=7, label="Improvement plan")
+        assert len(ax.texts) > initial_texts
+        plt.close(fig)
+
+    def test_period_no_label_when_none(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        initial_texts = len(ax.texts)
+        add_annotation(ax, start=3, end=7, label=None)
+        assert len(ax.texts) == initial_texts
+        plt.close(fig)
+
+    def test_custom_color(self):
+        fig, ax = plt.subplots()
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 100)
+        add_annotation(ax, start=5, label="Custom", color="#FF0000")
+        text = ax.texts[-1]
+        assert text.get_color() == "#FF0000"
+        plt.close(fig)
+
+    def test_works_with_datetime_x(self):
+        fig, ax = plt.subplots()
+        dates = pd.date_range("2024-01-01", periods=12, freq="MS")
+        ax.plot(dates, range(12))
+        add_annotation(
+            ax,
+            start=pd.Timestamp("2024-03-01"),
+            end=pd.Timestamp("2024-06-01"),
+            label="Pilot phase",
+        )
+        assert len(ax.texts) == 1
+        plt.close(fig)
