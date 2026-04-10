@@ -43,7 +43,7 @@ from .spc import (
     COLOUR_CONCERN,
     SPC_MIN_DATA_POINTS,
 )
-from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line
+from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line, add_annotation
 
 # ---------------------------------------------------------------------------
 # Icon paths (bundled NHS MDC icons)
@@ -237,6 +237,7 @@ def plot_spc_chart(
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
     change_points: list[dict] | None = None,
+    annotations: list[dict] | None = None,
     auto_rebase: bool = False,
     date_format: str | None = None,
     logo_path: str | None = None,
@@ -312,6 +313,23 @@ def plot_spc_chart(
                 {"x": 6,  "label": "New protocol"},
                 {"x": 14, "label": "Staff training"},
             ]
+    annotations : list of dict or None, optional
+        Date or period annotations to overlay on the chart.  Each dict must
+        contain ``"start"`` (x-axis position) and may optionally include:
+
+        * ``"end"``   – x-axis position for the end of a period.  When
+          provided the region between *start* and *end* is shaded.
+        * ``"label"`` – text label displayed alongside the annotation.
+        * ``"color"`` – line / fill colour (default ``"#425563"``).
+        * ``"alpha"`` – fill opacity for period annotations (default ``0.15``).
+
+        Example::
+
+            annotations=[
+                {"start": "2024-03-01", "label": "New improvement plan"},
+                {"start": "2024-06-01", "end": "2024-09-01",
+                 "label": "Pilot phase", "color": "#005EB8"},
+            ]
     auto_rebase : bool, optional
         When ``True``, automatically detect sustained improvement shifts
         (≥ 7 consecutive points in *improvement_direction*) and recalculate
@@ -363,6 +381,7 @@ def plot_spc_chart(
             figsize=figsize,
             show_legend=show_legend,
             change_points=change_points,
+            annotations=annotations,
             date_format=date_format,
             logo_path=logo_path,
             logo_zoom=logo_zoom,
@@ -467,6 +486,18 @@ def plot_spc_chart(
         for cp in change_points:
             add_change_line(ax, x=cp["x"], label=cp.get("label"))
 
+    # --- Period / date annotations ------------------------------------------
+    if annotations:
+        for ann in annotations:
+            add_annotation(
+                ax,
+                start=ann["start"],
+                end=ann.get("end"),
+                label=ann.get("label"),
+                color=ann.get("color", "#425563"),
+                alpha=ann.get("alpha", 0.15),
+            )
+
     # --- Optional NHS logo --------------------------------------------------
     if nhs_logo_path is not None:
         add_nhs_logo(ax, nhs_logo_path, position="lower right")
@@ -560,6 +591,7 @@ def plot_run_chart(
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
     change_points: list[dict] | None = None,
+    annotations: list[dict] | None = None,
     date_format: str | None = None,
     logo_path: str | None = None,
     logo_zoom: float = 0.07,
@@ -609,6 +641,8 @@ def plot_run_chart(
     change_points : list of dict or None, optional
         Vertical annotation lines marking known process changes.  Each dict
         must contain ``"x"`` (position) and ``"label"`` (text).
+    annotations : list of dict or None, optional
+        Date or period annotations (see :func:`plot_spc_chart` for format).
     date_format : str or None, optional
         A ``strftime``-style format string applied to the x-axis when datetime
         values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
@@ -677,6 +711,18 @@ def plot_run_chart(
     if change_points:
         for cp in change_points:
             add_change_line(ax, x=cp["x"], label=cp.get("label"))
+
+    # --- Period / date annotations ------------------------------------------
+    if annotations:
+        for ann in annotations:
+            add_annotation(
+                ax,
+                start=ann["start"],
+                end=ann.get("end"),
+                label=ann.get("label"),
+                color=ann.get("color", "#425563"),
+                alpha=ann.get("alpha", 0.15),
+            )
 
     # --- Labels & title -----------------------------------------------------
     ax.set_title(title if title is not None else "Run Chart",

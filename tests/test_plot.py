@@ -167,6 +167,99 @@ class TestPlotSpcChartChangePoints:
 
 
 # ---------------------------------------------------------------------------
+# plot_spc_chart – annotations
+# ---------------------------------------------------------------------------
+
+
+class TestPlotSpcChartAnnotations:
+    def test_single_point_annotation_adds_line(self, xmr_data):
+        annotations = [{"start": 4, "label": "New plan"}]
+        fig_base, ax_base = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_ann, ax_ann = plot_spc_chart(
+            xmr_data, chart_type="XmR", annotations=annotations
+        )
+        assert len(ax_ann.lines) > len(ax_base.lines)
+
+    def test_period_annotation_adds_shading_and_lines(self, xmr_data):
+        annotations = [{"start": 2, "end": 5, "label": "Improvement phase"}]
+        fig_base, ax_base = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_ann, ax_ann = plot_spc_chart(
+            xmr_data, chart_type="XmR", annotations=annotations
+        )
+        # Period annotation adds 2 boundary lines
+        assert len(ax_ann.lines) > len(ax_base.lines)
+
+    def test_multiple_annotations(self, xmr_data):
+        annotations = [
+            {"start": 2, "label": "Event A"},
+            {"start": 5, "end": 8, "label": "Phase B"},
+        ]
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", annotations=annotations
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+    def test_annotations_none_no_extra_lines(self, xmr_data):
+        fig_base, ax_base = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_none, ax_none = plot_spc_chart(
+            xmr_data, chart_type="XmR", annotations=None
+        )
+        assert len(ax_base.lines) == len(ax_none.lines)
+
+    def test_annotations_with_dates(self):
+        dates = pd.date_range("2023-01-01", periods=24, freq="MS")
+        data = pd.DataFrame({"value": list(range(10, 34))}, index=dates)
+        annotations = [
+            {"start": pd.Timestamp("2023-07-01"), "label": "New protocol"},
+            {
+                "start": pd.Timestamp("2024-01-01"),
+                "end": pd.Timestamp("2024-06-01"),
+                "label": "Pilot phase",
+            },
+        ]
+        fig, ax = plot_spc_chart(
+            data, chart_type="XmR", annotations=annotations
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+    def test_annotations_custom_color_and_alpha(self, xmr_data):
+        annotations = [
+            {"start": 3, "end": 7, "label": "Phase", "color": "#005EB8", "alpha": 0.3}
+        ]
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", annotations=annotations
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+    def test_run_chart_dispatch_passes_annotations(self, xmr_data):
+        """chart_type='run' should pass annotations through to plot_run_chart."""
+        annotations = [{"start": 4, "label": "Event"}]
+        fig_base, ax_base = plot_spc_chart(xmr_data, chart_type="run")
+        fig_ann, ax_ann = plot_spc_chart(
+            xmr_data, chart_type="run", annotations=annotations
+        )
+        assert len(ax_ann.lines) > len(ax_base.lines)
+
+
+# ---------------------------------------------------------------------------
+# plot_run_chart – annotations
+# ---------------------------------------------------------------------------
+
+
+class TestPlotRunChartAnnotations:
+    def test_single_annotation_adds_line(self, xmr_data):
+        annotations = [{"start": 5, "label": "Change"}]
+        fig_base, ax_base = plot_run_chart(xmr_data)
+        fig_ann, ax_ann = plot_run_chart(xmr_data, annotations=annotations)
+        assert len(ax_ann.lines) > len(ax_base.lines)
+
+    def test_period_annotation(self, xmr_data):
+        annotations = [{"start": 2, "end": 6, "label": "Pilot"}]
+        fig, ax = plot_run_chart(xmr_data, annotations=annotations)
+        assert isinstance(fig, matplotlib.figure.Figure)
+
+
+# ---------------------------------------------------------------------------
 # plot_spc_chart – auto_rebase
 # ---------------------------------------------------------------------------
 

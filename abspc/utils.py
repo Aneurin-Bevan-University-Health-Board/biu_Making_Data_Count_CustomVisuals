@@ -184,6 +184,132 @@ def add_change_line(
         )
 
 
+def add_annotation(
+    ax,
+    start,
+    end=None,
+    label: str | None = None,
+    color: str = "#425563",
+    alpha: float = 0.15,
+    linestyle: str = ":",
+    linewidth: float = 1.5,
+    fontsize: int = 8,
+    label_rotation: int = 90,
+    label_offset: float = 0.01,
+) -> None:
+    """Annotate a date or period on the chart.
+
+    When only *start* is provided a vertical line with an optional text label
+    is drawn (similar to :func:`add_change_line`).  When both *start* and
+    *end* are given the region between them is shaded and bounded by vertical
+    lines, with the label centred at the top of the shaded area.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axes to annotate.
+    start : scalar
+        The x-axis position for the start of the annotation (index, numeric
+        value, or date, matching the x-axis type of the chart).
+    end : scalar or None, optional
+        The x-axis position for the end of the annotation.  When ``None``
+        only a vertical line at *start* is drawn (default ``None``).
+    label : str or None, optional
+        Text label to display alongside the annotation.  When ``None`` no text
+        is added (default ``None``).
+    color : str, optional
+        Line, fill and text colour (default NHS Neutral Grey ``"#425563"``).
+    alpha : float, optional
+        Opacity of the shaded fill for period annotations (default ``0.15``).
+    linestyle : str, optional
+        Matplotlib line-style string for the boundary lines (default ``":"``).
+    linewidth : float, optional
+        Line width in points for the boundary lines (default ``1.5``).
+    fontsize : int, optional
+        Font size for the label text (default ``8``).
+    label_rotation : int, optional
+        Rotation of the label text in degrees (default ``90``).
+    label_offset : float, optional
+        Horizontal offset of the text label as a fraction of the axes width
+        (default ``0.01``).  Only used for single-point annotations.
+
+    Examples
+    --------
+    Mark a single date:
+
+    >>> add_annotation(ax, start=pd.Timestamp("2024-03-01"),
+    ...               label="New protocol")
+
+    Shade a date period:
+
+    >>> add_annotation(ax, start=pd.Timestamp("2024-03-01"),
+    ...               end=pd.Timestamp("2024-06-01"),
+    ...               label="Improvement plan")
+    """
+    if end is not None:
+        # --- Period annotation (shaded region) ---
+        ax.axvspan(
+            start,
+            end,
+            color=color,
+            alpha=alpha,
+            zorder=1,
+        )
+        # Boundary lines
+        for boundary in (start, end):
+            ax.axvline(
+                x=boundary,
+                color=color,
+                linestyle=linestyle,
+                linewidth=linewidth,
+                alpha=0.5,
+                zorder=5,
+            )
+        # Label centred at the top of the shaded region
+        if label is not None:
+            # Compute the midpoint – works for numeric, Timestamp, and
+            # datetime64 x values.  Falls back to *start* for types that
+            # do not support midpoint arithmetic.
+            try:
+                mid = start + (end - start) / 2
+            except TypeError:
+                mid = start
+            y_top = ax.get_ylim()[1]
+            ax.text(
+                mid,
+                y_top,
+                label,
+                rotation=label_rotation,
+                verticalalignment="top",
+                horizontalalignment="center",
+                fontsize=fontsize,
+                color=color,
+                zorder=6,
+            )
+    else:
+        # --- Single-point annotation (vertical line) ---
+        ax.axvline(
+            x=start,
+            color=color,
+            linestyle=linestyle,
+            linewidth=linewidth,
+            zorder=5,
+        )
+        if label is not None:
+            y_top = ax.get_ylim()[1]
+            ax.text(
+                start,
+                y_top,
+                f"  {label}",
+                rotation=label_rotation,
+                verticalalignment="top",
+                horizontalalignment="left",
+                fontsize=fontsize,
+                color=color,
+                zorder=6,
+            )
+
+
 def add_nhs_logo(
     ax,
     logo_path: str,

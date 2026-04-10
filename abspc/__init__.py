@@ -32,7 +32,7 @@ from .spc import (
     SPC_MIN_DATA_POINTS,
 )
 from .plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
-from .utils import validate_data, add_logo
+from .utils import validate_data, add_logo, add_annotation
 
 __all__ = [
     "calculate_control_limits",
@@ -47,6 +47,7 @@ __all__ = [
     "plot_mdc_summary_table",
     "validate_data",
     "add_logo",
+    "add_annotation",
     "SPC_MIN_DATA_POINTS",
 ]
 
