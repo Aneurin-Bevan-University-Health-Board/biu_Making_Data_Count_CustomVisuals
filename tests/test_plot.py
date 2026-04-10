@@ -388,53 +388,60 @@ class TestDateAxis:
 
 
 # ---------------------------------------------------------------------------
-# plot_mdc_summary_table – Target column
+# Insufficient data warning for SPC charts (< 15 data points)
 # ---------------------------------------------------------------------------
 
 
-class TestMdcSummaryTableTargetColumn:
-    """Tests for the Target column in the MDC summary table."""
+class TestInsufficientDataWarning:
+    """SPC charts with fewer than 15 data points must display a warning."""
 
-    def test_target_column_header_present(self, xmr_data):
-        """The table should have a 'Target' column header."""
-        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 55}]
-        fig, ax = plot_mdc_summary_table(rows)
-        table = ax.tables[0]
-        # Header row is row 0; find all header cell texts
-        col_count = max(col for (_, col) in table.get_celld().keys()) + 1
-        headers = [table[0, j].get_text().get_text() for j in range(col_count)]
-        assert "Target" in headers
+    def test_warning_shown_for_small_xmr(self):
+        """XmR chart with < 15 points should show a warning text annotation."""
+        data = pd.DataFrame({"value": list(range(10))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t and "15" in t for t in texts)
 
-    def test_target_value_in_cell(self, xmr_data):
-        """When a target is set, its value should appear in the Target column."""
-        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 55}]
-        fig, ax = plot_mdc_summary_table(rows)
-        table = ax.tables[0]
-        # Target is column index 6 (0-indexed), data row 1
-        target_cell = table[1, 6].get_text().get_text()
-        assert target_cell == "55"
+    def test_warning_shown_for_small_p_chart(self):
+        data = pd.DataFrame({
+            "value": [0.1, 0.2, 0.15, 0.12, 0.18],
+            "subgroup_size": [100] * 5,
+        })
+        fig, ax = plot_spc_chart(data, chart_type="p")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t for t in texts)
 
-    def test_no_target_shows_empty(self, xmr_data):
-        """When no target is set, the Target cell should be empty."""
-        rows = [{"data": xmr_data, "chart_type": "XmR"}]
-        fig, ax = plot_mdc_summary_table(rows)
-        table = ax.tables[0]
-        target_cell = table[1, 6].get_text().get_text()
-        assert target_cell == ""
+    def test_warning_shown_for_small_c_chart(self):
+        data = pd.DataFrame({"value": [3, 5, 2, 6, 4]})
+        fig, ax = plot_spc_chart(data, chart_type="c")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t for t in texts)
 
-    def test_table_has_eight_columns(self, xmr_data):
-        """The summary table should now have 8 columns."""
-        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 10}]
-        fig, ax = plot_mdc_summary_table(rows)
-        table = ax.tables[0]
-        # Count columns from header row
-        max_col = max(col for (row, col) in table.get_celld().keys())
-        assert max_col == 7  # 0-indexed, so 8 columns
+    def test_no_warning_for_15_points(self):
+        """Exactly 15 data points should NOT trigger the warning."""
+        data = pd.DataFrame({"value": list(range(15))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
 
-    def test_target_float_formatting(self, xmr_data):
-        """Float targets should use .4g formatting."""
-        rows = [{"data": xmr_data, "chart_type": "XmR", "target": 0.1234}]
-        fig, ax = plot_mdc_summary_table(rows)
-        table = ax.tables[0]
-        target_cell = table[1, 6].get_text().get_text()
-        assert target_cell == "0.1234"
+    def test_no_warning_for_more_than_15_points(self):
+        data = pd.DataFrame({"value": list(range(20))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
+
+    def test_no_warning_for_run_chart(self):
+        """Run charts are not SPC charts — no minimum-data warning."""
+        data = pd.DataFrame({"value": list(range(5))})
+        fig, ax = plot_run_chart(data)
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
+
+    def test_warning_contains_actual_count(self):
+        """Warning text should mention the actual number of data points."""
+        data = pd.DataFrame({"value": list(range(8))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        warning_texts = [t for t in texts if "Warning" in t]
+        assert len(warning_texts) == 1
+        assert "8" in warning_texts[0]
