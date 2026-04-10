@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
 
-from abspc.plot import plot_spc_chart, plot_run_chart
+from abspc.plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
 
 
 # ---------------------------------------------------------------------------

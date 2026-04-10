@@ -798,8 +798,8 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
-    # 7 columns: Measure | Description | icon | Variation | icon | Assurance | Value
-    col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Latest Value"]
+    # 8 columns: Measure | Description | icon | Variation | icon | Assurance | Target | Value
+    col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Target", "Latest Value"]
     n_cols = len(col_labels)
 
     if figsize is None:
@@ -869,9 +869,11 @@ def plot_mdc_summary_table(
         variation_label = _VARIATION_LABELS.get(variation, variation)
         assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
 
-        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Value
+        target_str = f"{target:.4g}" if target is not None else ""
+
+        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Target | Value
         cell_text.append([
-            measure, description, "", variation_label, "", assurance_label, latest_str,
+            measure, description, "", variation_label, "", assurance_label, target_str, latest_str,
         ])
 
         # Queue icon inserts — col 2 = variation icon, col 4 = assurance icon
@@ -895,7 +897,7 @@ def plot_mdc_summary_table(
     table.scale(1.0, 2.2)
 
     # Set relative column widths — icon columns narrow, text columns wider
-    col_widths = [0.12, 0.22, 0.04, 0.20, 0.04, 0.22, 0.08]
+    col_widths = [0.11, 0.20, 0.04, 0.18, 0.04, 0.20, 0.08, 0.08]
     for j, w in enumerate(col_widths):
         for r in range(n + 1):  # header + data rows
             table[r, j].set_width(w)
