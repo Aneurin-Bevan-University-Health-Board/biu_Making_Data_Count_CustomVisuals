@@ -335,7 +335,8 @@
           variationType: result.variationType,
           assuranceType: result.assuranceType,
           latestValue: result.latestValue,
-          latestRendered: lastRendered
+          latestRendered: lastRendered,
+          target: target
         });
       }
 
@@ -346,7 +347,8 @@
       var EVEN_ROW  = '#F0F4F5';
       var ODD_ROW   = '#FFFFFF';
       var BORDER     = '#D8DDE0';
-      var lastColW   = showIcons ? '14%' : '24%';
+      var lastColW   = showIcons ? '10%' : '18%';
+      var targetColW = showIcons ? '8%' : '10%';
 
       var h = [];
 
@@ -360,12 +362,13 @@
 
       // Column widths
       h.push('<colgroup>');
-      h.push('<col style="width:12%">');
-      h.push('<col style="width:22%">');
-      if (showIcons) h.push('<col style="width:5%">');
+      h.push('<col style="width:11%">');
       h.push('<col style="width:20%">');
       if (showIcons) h.push('<col style="width:5%">');
-      h.push('<col style="width:22%">');
+      h.push('<col style="width:18%">');
+      if (showIcons) h.push('<col style="width:5%">');
+      h.push('<col style="width:20%">');
+      h.push('<col style="width:' + targetColW + '">');
       h.push('<col style="width:' + lastColW + '">');
       h.push('</colgroup>');
 
@@ -378,6 +381,7 @@
       h.push('<th style="' + thStyle + '">Variation</th>');
       if (showIcons) h.push('<th style="' + thStyle + ';text-align:center"></th>');
       h.push('<th style="' + thStyle + '">Assurance</th>');
+      h.push('<th style="' + thStyle + ';text-align:right">Target</th>');
       h.push('<th style="' + thStyle + ';text-align:right">Latest Value</th>');
       h.push('</tr></thead>');
 
@@ -424,6 +428,10 @@
         var assLabel  = row.assuranceType ? (ASSURANCE_LABELS[row.assuranceType] || '') : 'No target set';
         var assColour = row.assuranceType ? (ASSURANCE_COLOURS[row.assuranceType] || '#333') : '#999';
         h.push('<td style="' + cs + 'text-align:left;color:' + assColour + ';font-weight:bold">' + escapeHtml(assLabel) + '</td>');
+
+        // Target
+        var targetStr = (row.target !== null && row.target !== undefined) ? String(row.target) : '';
+        h.push('<td style="' + cs + 'text-align:right">' + escapeHtml(targetStr) + '</td>');
 
         // Latest value
         h.push('<td style="' + cs + 'text-align:right;font-weight:bold">' + escapeHtml(row.latestRendered || String(row.latestValue)) + '</td>');

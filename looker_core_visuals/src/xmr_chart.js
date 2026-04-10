@@ -20,7 +20,8 @@ import {
   rule4TwoInThree,
   determinePointColors,
   validateData,
-  formatNumber
+  formatNumber,
+  SPC_MIN_DATA_POINTS
 } from './spc_utils.js';
 
 // Chart constants for XmR calculations
@@ -339,6 +340,34 @@ export const XmRChart = {
     
     // Add legend
     this._addLegend(chartGroup, width, height, specialCauses, config);
+
+    // Insufficient data warning
+    if (values.length < SPC_MIN_DATA_POINTS) {
+      const warningText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      warningText.setAttribute('x', margin.left + width / 2);
+      warningText.setAttribute('y', margin.top + height / 2 + 16);
+      warningText.setAttribute('text-anchor', 'middle');
+      warningText.setAttribute('font-family', 'Arial, sans-serif');
+      warningText.setAttribute('font-size', '12');
+      warningText.setAttribute('font-weight', 'bold');
+      warningText.setAttribute('fill', NHS_COLORS.ORANGE);
+      warningText.textContent = `Warning: SPC requires at least ${SPC_MIN_DATA_POINTS} data points (${values.length} provided). Results may be unreliable.`;
+
+      const bbox = { width: 520, height: 30 };
+      const warningRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      warningRect.setAttribute('x', margin.left + width / 2 - bbox.width / 2 - 10);
+      warningRect.setAttribute('y', margin.top + height / 2 - 2);
+      warningRect.setAttribute('width', bbox.width + 20);
+      warningRect.setAttribute('height', bbox.height + 8);
+      warningRect.setAttribute('rx', '6');
+      warningRect.setAttribute('fill', '#FFF9E6');
+      warningRect.setAttribute('stroke', NHS_COLORS.ORANGE);
+      warningRect.setAttribute('stroke-width', '1.5');
+      warningRect.setAttribute('opacity', '0.95');
+
+      svg.appendChild(warningRect);
+      svg.appendChild(warningText);
+    }
   },
 
   /**

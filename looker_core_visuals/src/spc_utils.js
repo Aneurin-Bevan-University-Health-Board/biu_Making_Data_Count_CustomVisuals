@@ -23,6 +23,9 @@ export const POINT_COLORS = {
   CONCERN: NHS_COLORS.ORANGE
 };
 
+// Minimum number of data points recommended for reliable SPC analysis
+export const SPC_MIN_DATA_POINTS = 15;
+
 /**
  * Calculate moving range for XmR charts
  * @param {number[]} values - Array of measured values

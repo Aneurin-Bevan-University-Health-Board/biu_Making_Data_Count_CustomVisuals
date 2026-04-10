@@ -481,6 +481,25 @@ assert('Flat data MR bar', flatMRBar, 0);
 
 
 // ═══════════════════════════════════════════════════════════════════════
+// 7. SPC_MIN_DATA_POINTS CONSTANT
+// ═══════════════════════════════════════════════════════════════════════
+heading('7. SPC_MIN_DATA_POINTS constant');
+
+var SPC_MIN_DATA_POINTS = 15;
+
+assert('SPC_MIN_DATA_POINTS is 15', SPC_MIN_DATA_POINTS, 15);
+
+var smallData = [1, 2, 3, 4, 5];
+assert('5 points is below minimum', smallData.length < SPC_MIN_DATA_POINTS, true);
+
+var borderData = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+assert('15 points is at minimum', borderData.length < SPC_MIN_DATA_POINTS, false);
+
+var largeData = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+assert('20 points is above minimum', largeData.length < SPC_MIN_DATA_POINTS, false);
+
+
+// ═══════════════════════════════════════════════════════════════════════
 // SUMMARY
 // ═══════════════════════════════════════════════════════════════════════
 heading('TEST SUMMARY');
