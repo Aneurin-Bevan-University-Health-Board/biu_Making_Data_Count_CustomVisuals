@@ -496,6 +496,63 @@ class TestDeterminePointColours:
         with pytest.raises(ValueError, match="missing columns"):
             determine_point_colours(result)
 
+    def test_trend_up_high_direction_all_improvement(self):
+        """All rule3-only points in an upward trend should be IMPROVEMENT when
+        improvement_direction='high'."""
+        values = [1, 2, 3, 4, 5, 6, 7, 5, 5, 5]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        colours = determine_point_colours(flags, improvement_direction="high")
+        # Check rule3-only points (exclude any that also have rule1)
+        for i in range(len(values)):
+            if flags["rule3"].iloc[i] and not flags["rule1"].iloc[i]:
+                assert colours[i] == COLOUR_IMPROVEMENT, (
+                    f"Point {i} (value={values[i]}) should be IMPROVEMENT"
+                )
+
+    def test_trend_up_low_direction_all_concern(self):
+        """All rule3-only points in an upward trend should be CONCERN when
+        improvement_direction='low'."""
+        values = [1, 2, 3, 4, 5, 6, 7, 5, 5, 5]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        colours = determine_point_colours(flags, improvement_direction="low")
+        for i in range(len(values)):
+            if flags["rule3"].iloc[i] and not flags["rule1"].iloc[i]:
+                assert colours[i] == COLOUR_CONCERN, (
+                    f"Point {i} (value={values[i]}) should be CONCERN"
+                )
+
+    def test_trend_down_high_direction_all_concern(self):
+        """All rule3-only points in a downward trend should be CONCERN when
+        improvement_direction='high'."""
+        values = [7, 6, 5, 4, 3, 2, 1, 5, 5, 5]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        colours = determine_point_colours(flags, improvement_direction="high")
+        for i in range(len(values)):
+            if flags["rule3"].iloc[i] and not flags["rule1"].iloc[i]:
+                assert colours[i] == COLOUR_CONCERN, (
+                    f"Point {i} (value={values[i]}) should be CONCERN"
+                )
+
+    def test_trend_down_low_direction_all_improvement(self):
+        """All rule3-only points in a downward trend should be IMPROVEMENT when
+        improvement_direction='low'."""
+        values = [7, 6, 5, 4, 3, 2, 1, 5, 5, 5]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        colours = determine_point_colours(flags, improvement_direction="low")
+        for i in range(len(values)):
+            if flags["rule3"].iloc[i] and not flags["rule1"].iloc[i]:
+                assert colours[i] == COLOUR_IMPROVEMENT, (
+                    f"Point {i} (value={values[i]}) should be IMPROVEMENT"
+                )
+
     def test_target_based_colouring(self):
         values = [10] * 9 + [100]
         df = pd.DataFrame({"value": values})

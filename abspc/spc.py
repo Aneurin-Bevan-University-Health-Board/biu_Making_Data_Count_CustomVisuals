@@ -305,6 +305,7 @@ def determine_point_colours(
     special_cause = result["special_cause"].to_numpy(dtype=bool)
     rule1 = result["rule1"].to_numpy(dtype=bool)
     rule2 = result["rule2"].to_numpy(dtype=bool)
+    rule3 = result["rule3"].to_numpy(dtype=bool)
 
     colours = []
     for i in range(len(values)):
@@ -314,7 +315,9 @@ def determine_point_colours(
 
         # Determine direction of the special cause
         is_high = _is_high_signal(
-            values[i], mean[i], ucl[i], lcl[i], rule1[i], rule2[i], values, mean, i
+            values[i], mean[i], ucl[i], lcl[i],
+            rule1[i], rule2[i], rule3[i],
+            values, mean, i,
         )
 
         if target is not None:
@@ -847,6 +850,7 @@ def _is_high_signal(
     lcl: float,
     is_rule1: bool,
     is_rule2: bool,
+    is_rule3: bool,
     all_values: np.ndarray,
     all_means: np.ndarray,
     idx: int,
@@ -854,7 +858,15 @@ def _is_high_signal(
     """Return True if the special-cause signal is in the *high* direction."""
     if is_rule1:
         return value > ucl
-    # Rule 2 or 3: look at which side of mean the point is on
+    # Rule 3 (trend): direction is determined by the slope, not by
+    # the point's position relative to the mean.  An upward trend is
+    # "high" regardless of whether individual points sit below the mean.
+    if is_rule3 and not is_rule2:
+        if idx > 0:
+            return float(all_values[idx]) > float(all_values[idx - 1])
+        if idx < len(all_values) - 1:
+            return float(all_values[idx + 1]) > float(all_values[idx])
+    # Rule 2 or 4: look at which side of mean the point is on
     return value > mean
 
 
