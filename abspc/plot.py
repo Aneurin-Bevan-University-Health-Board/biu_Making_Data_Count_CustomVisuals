@@ -68,6 +68,11 @@ _ASSURANCE_ICON_MAP = {
     "no_target": _ICON_DIR / "icon_empty.png",
 }
 
+_IMPROVEMENT_DIR_ICON_MAP = {
+    "high": _ICON_DIR / "improvement_direction_high.png",
+    "low": _ICON_DIR / "improvement_direction_low.png",
+}
+
 # ---------------------------------------------------------------------------
 # Date-axis helpers
 # ---------------------------------------------------------------------------
@@ -145,11 +150,14 @@ def _add_mdc_icons(
     variation_type: str,
     assurance_type: str,
     icon_zoom: float = 0.06,
+    improvement_direction: str | None = None,
 ) -> None:
-    """Place variation and assurance icons at the top-left of the chart.
+    """Place variation, assurance, and improvement-direction icons at the
+    top-left of the chart.
 
-    Both icons are placed side by side at the top-left of the axes,
-    just below the title: variation icon first, then assurance icon.
+    Icons are placed side by side at the top-left of the axes, just below
+    the title: variation icon first, then assurance icon, then the
+    improvement-direction arrow.
 
     Parameters
     ----------
@@ -160,6 +168,9 @@ def _add_mdc_icons(
         Key into ``_ASSURANCE_ICON_MAP``.
     icon_zoom : float
         Icon height as a fraction of figure height.
+    improvement_direction : str or None
+        ``"high"`` or ``"low"``.  When supplied, an arrow icon indicating the
+        improvement direction is placed after the other icons.
     """
     from matplotlib.offsetbox import OffsetImage, AnnotationBbox
     import matplotlib.image as mpimg
@@ -167,11 +178,17 @@ def _add_mdc_icons(
     fig_h = fig.get_size_inches()[1] * fig.dpi
     target_h = icon_zoom * fig_h
 
-    x_offset = 0.0  # running x position in axes-fraction units
-    for icon_type, icon_map in [
+    icons_to_draw: list[tuple[str, dict]] = [
         (variation_type, _VARIATION_ICON_MAP),
         (assurance_type, _ASSURANCE_ICON_MAP),
-    ]:
+    ]
+    if improvement_direction is not None:
+        icons_to_draw.append(
+            (improvement_direction, _IMPROVEMENT_DIR_ICON_MAP),
+        )
+
+    x_offset = 0.0  # running x position in axes-fraction units
+    for icon_type, icon_map in icons_to_draw:
         icon_path = icon_map.get(icon_type)
         if icon_path is None or not icon_path.exists():
             continue
@@ -571,7 +588,11 @@ def plot_spc_chart(
         assurance = determine_assurance_type(
             result, target=target, improvement_direction=improvement_direction,
         )
-        _add_mdc_icons(fig, ax, variation, assurance, icon_zoom=icon_zoom)
+        _add_mdc_icons(
+            fig, ax, variation, assurance,
+            icon_zoom=icon_zoom,
+            improvement_direction=improvement_direction,
+        )
 
     return fig, ax
 
@@ -774,7 +795,11 @@ def plot_run_chart(
                 variation = "improvement_high" if val_is_high else "concern_low"
             else:
                 variation = "concern_high" if val_is_high else "improvement_low"
-        _add_mdc_icons(fig, ax, variation, "no_target", icon_zoom=icon_zoom)
+        _add_mdc_icons(
+            fig, ax, variation, "no_target",
+            icon_zoom=icon_zoom,
+            improvement_direction=improvement_direction,
+        )
 
     return fig, ax
 
@@ -844,12 +869,17 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
+    # 9 columns: Measure | Description | icon | Variation | icon | Assurance | icon | Improvement Direction | Value
+    col_labels = [
+        "Measure", "Description", "", "Variation", "", "Assurance",
+        "", "Improvement Direction", "Latest Value",
+    ]
     # 8 columns: Measure | Description | icon | Variation | icon | Assurance | Target | Value
     col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Target", "Latest Value"]
     n_cols = len(col_labels)
 
     if figsize is None:
-        figsize = (16, 1.2 + n * 0.9)
+        figsize = (18, 1.2 + n * 0.9)
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.set_axis_off()
@@ -914,7 +944,12 @@ def plot_mdc_summary_table(
 
         variation_label = _VARIATION_LABELS.get(variation, variation)
         assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
+        direction_label = "Higher is better" if improvement_direction == "high" else "Lower is better"
 
+        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | (icon) | Imp. Direction | Value
+        cell_text.append([
+            measure, description, "", variation_label, "", assurance_label,
+            "", direction_label, latest_str,
         target_str = f"{target:.4g}" if target is not None else ""
 
         # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Target | Value
@@ -922,7 +957,7 @@ def plot_mdc_summary_table(
             measure, description, "", variation_label, "", assurance_label, target_str, latest_str,
         ])
 
-        # Queue icon inserts — col 2 = variation icon, col 4 = assurance icon
+        # Queue icon inserts — col 2 = variation, col 4 = assurance, col 6 = direction
         var_path = _VARIATION_ICON_MAP.get(variation)
         if var_path and var_path.exists():
             icon_cells.append((i, 2, str(var_path)))
@@ -930,6 +965,10 @@ def plot_mdc_summary_table(
         ass_path = _ASSURANCE_ICON_MAP.get(assurance)
         if ass_path and ass_path.exists():
             icon_cells.append((i, 4, str(ass_path)))
+
+        dir_path = _IMPROVEMENT_DIR_ICON_MAP.get(improvement_direction)
+        if dir_path and dir_path.exists():
+            icon_cells.append((i, 6, str(dir_path)))
 
     # ---- draw table ---------------------------------------------------------
     table = ax.table(
@@ -943,7 +982,7 @@ def plot_mdc_summary_table(
     table.scale(1.0, 2.2)
 
     # Set relative column widths — icon columns narrow, text columns wider
-    col_widths = [0.11, 0.20, 0.04, 0.18, 0.04, 0.20, 0.08, 0.08]
+    col_widths = [0.11, 0.19, 0.04, 0.17, 0.04, 0.17, 0.04, 0.12, 0.07]
     for j, w in enumerate(col_widths):
         for r in range(n + 1):  # header + data rows
             table[r, j].set_width(w)
@@ -963,7 +1002,7 @@ def plot_mdc_summary_table(
 
     # Make icon column borders match surrounding cells (seamless look)
     for i in range(n + 1):  # header + data rows
-        for icon_col in (2, 4):
+        for icon_col in (2, 4, 6):
             cell = table[i, icon_col]
             cell.set_edgecolor("#D8DDE0")
 

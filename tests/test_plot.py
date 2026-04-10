@@ -481,6 +481,60 @@ class TestDateAxis:
 
 
 # ---------------------------------------------------------------------------
+# Improvement-direction icon
+# ---------------------------------------------------------------------------
+
+
+class TestImprovementDirectionIcon:
+    """Tests for the improvement-direction arrow icon shown with show_icons."""
+
+    def test_spc_chart_icons_include_direction_high(self, xmr_data):
+        """show_icons=True adds an improvement-direction icon for 'high'."""
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_icons=True,
+            improvement_direction="high",
+        )
+        # Three AnnotationBbox artists: variation + assurance + direction
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        assert len(annot_boxes) == 3
+
+    def test_spc_chart_icons_include_direction_low(self, xmr_data):
+        """show_icons=True adds an improvement-direction icon for 'low'."""
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_icons=True,
+            improvement_direction="low",
+        )
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        assert len(annot_boxes) == 3
+
+    def test_run_chart_icons_include_direction(self, xmr_data):
+        """plot_run_chart with show_icons=True also shows direction icon."""
+        fig, ax = plot_run_chart(
+            xmr_data, show_icons=True, improvement_direction="low",
+        )
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        # run chart: variation + no_target (empty) + direction = 3
+        assert len(annot_boxes) >= 2  # at least variation + direction
+
+    def test_no_direction_icon_when_show_icons_false(self, xmr_data):
+        """show_icons=False should not add any annotation-box icons."""
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_icons=False,
+        )
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        assert len(annot_boxes) == 0
 # Insufficient data warning for SPC charts (< 15 data points)
 # ---------------------------------------------------------------------------
 
