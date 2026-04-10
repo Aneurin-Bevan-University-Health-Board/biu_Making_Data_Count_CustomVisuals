@@ -41,6 +41,7 @@ from .spc import (
     COLOUR_COMMON_CAUSE,
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
+    SPC_MIN_DATA_POINTS,
 )
 from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line, add_annotation
 
@@ -529,6 +530,29 @@ def plot_spc_chart(
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
+    # --- Insufficient data warning ------------------------------------------
+    if len(result) < SPC_MIN_DATA_POINTS:
+        ax.text(
+            0.5,
+            0.5,
+            f"Warning: SPC analysis requires at least {SPC_MIN_DATA_POINTS} "
+            f"data points\n(only {len(result)} provided). "
+            "Results may be unreliable.",
+            transform=ax.transAxes,
+            fontsize=11,
+            color=NHS_ORANGE,
+            fontweight="bold",
+            horizontalalignment="center",
+            verticalalignment="center",
+            bbox=dict(
+                boxstyle="round,pad=0.6",
+                facecolor="#FFF9E6",
+                edgecolor=NHS_ORANGE,
+                alpha=0.9,
+            ),
+            zorder=10,
+        )
+
     fig.tight_layout()
 
     # --- Logo (after tight_layout so ax.get_position() is finalised) --------
@@ -820,8 +844,8 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
-    # 7 columns: Measure | Description | icon | Variation | icon | Assurance | Value
-    col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Latest Value"]
+    # 8 columns: Measure | Description | icon | Variation | icon | Assurance | Target | Value
+    col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Target", "Latest Value"]
     n_cols = len(col_labels)
 
     if figsize is None:
@@ -891,9 +915,11 @@ def plot_mdc_summary_table(
         variation_label = _VARIATION_LABELS.get(variation, variation)
         assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
 
-        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Value
+        target_str = f"{target:.4g}" if target is not None else ""
+
+        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Target | Value
         cell_text.append([
-            measure, description, "", variation_label, "", assurance_label, latest_str,
+            measure, description, "", variation_label, "", assurance_label, target_str, latest_str,
         ])
 
         # Queue icon inserts — col 2 = variation icon, col 4 = assurance icon
@@ -917,7 +943,7 @@ def plot_mdc_summary_table(
     table.scale(1.0, 2.2)
 
     # Set relative column widths — icon columns narrow, text columns wider
-    col_widths = [0.12, 0.22, 0.04, 0.20, 0.04, 0.22, 0.08]
+    col_widths = [0.11, 0.20, 0.04, 0.18, 0.04, 0.20, 0.08, 0.08]
     for j, w in enumerate(col_widths):
         for r in range(n + 1):  # header + data rows
             table[r, j].set_width(w)

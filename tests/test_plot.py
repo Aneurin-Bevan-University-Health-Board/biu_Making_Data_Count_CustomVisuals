@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
 
-from abspc.plot import plot_spc_chart, plot_run_chart
+from abspc.plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
 
 
 # ---------------------------------------------------------------------------
@@ -478,3 +478,63 @@ class TestDateAxis:
         rotations = [t.get_rotation() for t in ax.xaxis.get_majorticklabels()]
         # After tight_layout the labels should be at 45°
         assert all(r == pytest.approx(45.0) for r in rotations if r != 0.0)
+
+
+# ---------------------------------------------------------------------------
+# Insufficient data warning for SPC charts (< 15 data points)
+# ---------------------------------------------------------------------------
+
+
+class TestInsufficientDataWarning:
+    """SPC charts with fewer than 15 data points must display a warning."""
+
+    def test_warning_shown_for_small_xmr(self):
+        """XmR chart with < 15 points should show a warning text annotation."""
+        data = pd.DataFrame({"value": list(range(10))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t and "15" in t for t in texts)
+
+    def test_warning_shown_for_small_p_chart(self):
+        data = pd.DataFrame({
+            "value": [0.1, 0.2, 0.15, 0.12, 0.18],
+            "subgroup_size": [100] * 5,
+        })
+        fig, ax = plot_spc_chart(data, chart_type="p")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t for t in texts)
+
+    def test_warning_shown_for_small_c_chart(self):
+        data = pd.DataFrame({"value": [3, 5, 2, 6, 4]})
+        fig, ax = plot_spc_chart(data, chart_type="c")
+        texts = [t.get_text() for t in ax.texts]
+        assert any("Warning" in t for t in texts)
+
+    def test_no_warning_for_15_points(self):
+        """Exactly 15 data points should NOT trigger the warning."""
+        data = pd.DataFrame({"value": list(range(15))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
+
+    def test_no_warning_for_more_than_15_points(self):
+        data = pd.DataFrame({"value": list(range(20))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
+
+    def test_no_warning_for_run_chart(self):
+        """Run charts are not SPC charts — no minimum-data warning."""
+        data = pd.DataFrame({"value": list(range(5))})
+        fig, ax = plot_run_chart(data)
+        texts = [t.get_text() for t in ax.texts]
+        assert not any("Warning" in t for t in texts)
+
+    def test_warning_contains_actual_count(self):
+        """Warning text should mention the actual number of data points."""
+        data = pd.DataFrame({"value": list(range(8))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR")
+        texts = [t.get_text() for t in ax.texts]
+        warning_texts = [t for t in texts if "Warning" in t]
+        assert len(warning_texts) == 1
+        assert "8" in warning_texts[0]
