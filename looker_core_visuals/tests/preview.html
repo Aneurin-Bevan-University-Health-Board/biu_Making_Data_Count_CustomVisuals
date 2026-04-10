@@ -227,8 +227,8 @@ function renderSPC(el, labels, vals, opts) {
     var idx=e.target.getAttribute('data-idx');if(idx===null)return;idx=+idx;
     var p=['<b>'+labels[idx]+'</b>','Value: '+(opts.yFmt?opts.yFmt(vals[idx]):vals[idx].toFixed(3))];
     if(opts.r1[idx])p.push('<span style="color:#ED8B00">&#9888; Astronomical</span>');
-    if(opts.r2[idx])p.push('<span style="color:#ED8B00">&#9888; Shift (7+ same side)</span>');
-    if(opts.r3[idx])p.push('<span style="color:#ED8B00">&#9888; Trend (7+ ascending/descending)</span>');
+    if(opts.r2[idx])p.push('<span style="color:#ED8B00">&#9888; Shift (8+ same side)</span>');
+    if(opts.r3[idx])p.push('<span style="color:#ED8B00">&#9888; Trend (6+ ascending/descending)</span>');
     if(opts.r4&&opts.r4[idx])p.push('<span style="color:#ED8B00">&#9888; 2-in-3 in warning zone</span>');
     tip.innerHTML=p.join('<br>');tip.style.display='block';
   });

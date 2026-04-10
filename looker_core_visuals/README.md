@@ -110,8 +110,8 @@ Colours are applied automatically following the NHS identity:
 All four NHS MDC rules are applied automatically:
 
 1. **Astronomical Point** - single point beyond 3-sigma limits
-2. **Shift** - 7+ consecutive points on the same side of the centre line
-3. **Trend** - 7+ consecutive points all increasing or all decreasing
+2. **Shift** - 8+ consecutive points on the same side of the centre line
+3. **Trend** - 6+ consecutive points all increasing or all decreasing
 4. **Two-in-Three** - 2 out of 3 consecutive points in the warning zone
 
 ## File Structure

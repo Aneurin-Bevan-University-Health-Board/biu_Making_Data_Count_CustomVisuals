@@ -349,7 +349,7 @@ def plot_spc_chart(
             ]
     auto_rebase : bool, optional
         When ``True``, automatically detect sustained improvement shifts
-        (≥ 7 consecutive points in *improvement_direction*) and recalculate
+        (≥ 8 consecutive points in *improvement_direction*) and recalculate
         the mean and control limits for each new phase.  A dashed vertical
         line is drawn at each detected rebase boundary.  Default ``False``.
         Not supported for ``chart_type="run"``; pass ``"run"`` data to
@@ -623,8 +623,8 @@ def plot_run_chart(
 
     Signals are detected using run-chart rules:
 
-    * **Shift** – ≥ 7 consecutive points on the same side of the median.
-    * **Trend** – ≥ 7 consecutive points all increasing *or* all decreasing.
+    * **Shift** – ≥ 8 consecutive points on the same side of the median.
+    * **Trend** – ≥ 6 consecutive points all increasing *or* all decreasing.
 
     Signal points are coloured NHS Orange (concern) or NHS Blue (improvement)
     according to *improvement_direction*.  Common-cause points are grey.

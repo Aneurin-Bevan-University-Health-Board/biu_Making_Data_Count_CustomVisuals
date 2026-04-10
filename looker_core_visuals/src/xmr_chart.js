@@ -101,8 +101,8 @@ export function calculateXmRLimits(data, valueColumn = 'value') {
  */
 export function detectXmRSpecialCauses(values, meanArray, uclArray, lclArray, uwlArray, lwlArray) {
   const rule1 = rule1Astronomical(values, uclArray, lclArray);
-  const rule2 = rule2Shift(values, meanArray, 7);
-  const rule3 = rule3Trend(values, 7);
+  const rule2 = rule2Shift(values, meanArray, 8);
+  const rule3 = rule3Trend(values, 6);
   const rule4 = rule4TwoInThree(values, meanArray, uclArray, lclArray, uwlArray, lwlArray);
   
   const specialCause = rule1.map((r1, i) => r1 || rule2[i] || rule3[i] || rule4[i]);

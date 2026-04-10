@@ -118,9 +118,9 @@
     return vals.map(function(v,i){ return v > ucl[i] || v < lcl[i]; });
   }
 
-  // Rule 2 - Shift (7+ on same side of centre)
+  // Rule 2 - Shift (8+ on same side of centre)
   function rule2(vals, centre, run) {
-    run = run || 7;
+    run = run || 8;
     var flags = new Array(vals.length);
     for (var i = 0; i < flags.length; i++) flags[i] = false;
     for (var i = 0; i <= vals.length - run; i++) {
@@ -135,9 +135,9 @@
     return flags;
   }
 
-  // Rule 3 - Trend (7+ ascending or descending)
+  // Rule 3 - Trend (6+ ascending or descending)
   function rule3(vals, run) {
-    run = run || 7;
+    run = run || 6;
     var flags = new Array(vals.length);
     for (var i = 0; i < flags.length; i++) flags[i] = false;
     for (var i = 0; i <= vals.length - run; i++) {
@@ -242,8 +242,8 @@
 
     // Detect special causes using the (rephased) limit arrays
     var r1 = rule1(vals, uclArr, lclArr);
-    var r2 = rule2(vals, centreArr, 7);
-    var r3 = rule3(vals, 7);
+    var r2 = rule2(vals, centreArr, 8);
+    var r3 = rule3(vals, 6);
     var r4 = rule4(vals, centreArr, uclArr, lclArr, uwlArr, lwlArr);
     var sc = vals.map(function(_, i) { return r1[i] || r2[i] || r3[i] || r4[i]; });
 

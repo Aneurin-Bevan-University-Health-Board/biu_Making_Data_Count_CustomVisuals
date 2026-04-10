@@ -86,13 +86,13 @@ export function rule1Astronomical(values, ucl, lcl) {
 
 /**
  * NHS MDC Special Cause Rule 2: Shift
- * Seven or more consecutive points on same side of center line
+ * Eight or more consecutive points on same side of center line
  * @param {number[]} values - Data values
  * @param {number[]} centerLine - Center line values (mean or median)
- * @param {number} runLength - Required consecutive points (default: 7)
+ * @param {number} runLength - Required consecutive points (default: 8)
  * @returns {boolean[]} - Array indicating rule violations
  */
-export function rule2Shift(values, centerLine, runLength = 7) {
+export function rule2Shift(values, centerLine, runLength = 8) {
   const violations = new Array(values.length).fill(false);
   
   for (let i = 0; i <= values.length - runLength; i++) {
@@ -120,12 +120,12 @@ export function rule2Shift(values, centerLine, runLength = 7) {
 
 /**
  * NHS MDC Special Cause Rule 3: Trend
- * Seven or more consecutive points all increasing or all decreasing
+ * Six or more consecutive points all increasing or all decreasing
  * @param {number[]} values - Data values
- * @param {number} runLength - Required consecutive points (default: 7)
+ * @param {number} runLength - Required consecutive points (default: 6)
  * @returns {boolean[]} - Array indicating rule violations
  */
-export function rule3Trend(values, runLength = 7) {
+export function rule3Trend(values, runLength = 6) {
   const violations = new Array(values.length).fill(false);
   
   for (let i = 0; i <= values.length - runLength; i++) {
