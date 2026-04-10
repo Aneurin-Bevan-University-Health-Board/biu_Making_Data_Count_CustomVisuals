@@ -462,6 +462,8 @@ def rebase_control_limits(
         )
         if rel_idx is None:
             break  # No further improvement detected in this phase
+        if rel_idx == 0:
+            break  # Shift starts at current phase boundary — no forward progress
 
         abs_rebase = phase_start + rel_idx
         remaining = len(data) - abs_rebase
