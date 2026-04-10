@@ -29,6 +29,7 @@ from .spc import (
     determine_point_colours,
     determine_variation_type,
     determine_assurance_type,
+    show_summary,
     SPC_MIN_DATA_POINTS,
 )
 from .plot import plot_spc_chart, plot_run_chart, plot_mdc_summary_table
@@ -42,6 +43,7 @@ __all__ = [
     "determine_point_colours",
     "determine_variation_type",
     "determine_assurance_type",
+    "show_summary",
     "plot_spc_chart",
     "plot_run_chart",
     "plot_mdc_summary_table",

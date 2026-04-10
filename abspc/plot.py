@@ -31,6 +31,7 @@ from .spc import (
     determine_point_colours,
     determine_variation_type,
     determine_assurance_type,
+    show_summary as generate_summary_data,
     NHS_BLUE,
     NHS_DARK_BLUE,
     NHS_ORANGE,
@@ -221,6 +222,118 @@ def _add_mdc_icons(
         x_offset += icon_w_frac + 0.01
 
 
+def _render_summary_figure(
+    summary_data: dict,
+    figsize: tuple[float, float] = (10, 6),
+) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
+    """Render a summary analysis figure from show_summary output."""
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis("off")
+    
+    # Title
+    ax.text(5, 9.2, "Analysis Summary", fontsize=16, fontweight="bold",
+            ha="center", va="top")
+    
+    # Variation section
+    y = 8.3
+    ax.add_patch(mpatches.Rectangle((0.3, y-0.6), 9.4, 0.8, 
+                                     facecolor="#F0F0F0", edgecolor="#CCCCCC", linewidth=1))
+    ax.text(0.5, y-0.2, "VARIATION", fontsize=10, fontweight="bold", va="center")
+    # Determine color based on variation type
+    if "Concern" in summary_data["variation"]:
+        variation_color = NHS_ORANGE
+    elif "Improvement" in summary_data["variation"]:
+        variation_color = NHS_BLUE
+    else:
+        variation_color = COLOUR_COMMON_CAUSE
+    ax.text(9.5, y-0.2, summary_data["variation"], fontsize=10, ha="right", va="center",
+            color=variation_color, fontweight="bold")
+    
+    # Assurance section
+    y = 7.3
+    ax.add_patch(mpatches.Rectangle((0.3, y-0.6), 9.4, 0.8, 
+                                     facecolor="#F0F0F0", edgecolor="#CCCCCC", linewidth=1))
+    ax.text(0.5, y-0.2, "ASSURANCE", fontsize=10, fontweight="bold", va="center")
+    ax.text(9.5, y-0.2, summary_data["assurance"], fontsize=10, ha="right", va="center",
+            color=NHS_BLUE if "achieving" in summary_data["assurance"].lower() else "#666666")
+    
+    # Statistics section
+    y = 6.0
+    ax.text(0.5, y, "DATA POINTS", fontsize=9, va="center", color="#666666")
+    ax.text(3.0, y, str(summary_data["data_points"]), fontsize=9, va="center", fontweight="bold")
+    
+    y = 5.5
+    ax.text(0.5, y, "MEAN", fontsize=9, va="center", color="#666666")
+    ax.text(3.0, y, f"{summary_data['mean']:.2f}", fontsize=9, va="center", fontweight="bold")
+    
+    if summary_data["ucl"] is not None:
+        y = 5.0
+        ax.text(0.5, y, "UCL", fontsize=9, va="center", color="#666666")
+        ax.text(3.0, y, f"{summary_data['ucl']:.2f}", fontsize=9, va="center", fontweight="bold")
+        
+        y = 4.5
+        ax.text(0.5, y, "LCL", fontsize=9, va="center", color="#666666")
+        ax.text(3.0, y, f"{summary_data['lcl']:.2f}", fontsize=9, va="center", fontweight="bold")
+        y_rules = 3.8
+    else:
+        y_rules = 4.8
+    
+    # Rules triggered
+    ax.text(0.5, y_rules, "RULES TRIGGERED", fontsize=10, fontweight="bold", va="top")
+    y = y_rules - 0.5
+    if summary_data["rules_triggered"]:
+        for rule, count in summary_data["rules_triggered"].items():
+            ax.add_patch(mpatches.Rectangle((0.5, y-0.25), 0.8, 0.35, 
+                                           facecolor="#7A8C6E", edgecolor="#5A6C4E"))
+            ax.text(0.9, y-0.075, rule, fontsize=9, ha="center", va="center", 
+                   color="white", fontweight="bold")
+            ax.text(1.5, y-0.075, f"{count}×", fontsize=9, va="center")
+            y -= 0.45
+    else:
+        ax.text(0.5, y, "None", fontsize=9, va="top", color="#999999")
+        y -= 0.5
+    
+    # Signal points
+    y_signals = min(y - 0.3, 2.5)
+    ax.text(0.5, y_signals, f"SIGNAL POINTS ({summary_data['total_signals']})", 
+            fontsize=10, fontweight="bold", va="top")
+    y = y_signals - 0.4
+    
+    if summary_data["signal_points"]:
+        # Show up to 5 signal points
+        num_to_show = min(5, len(summary_data["signal_points"]))
+        for i in range(num_to_show):
+            point = summary_data["signal_points"][i]
+            rules_str = ", ".join(point["rules"])
+            if "x" in point:
+                x_val = point["x"]
+                if hasattr(x_val, "strftime"):
+                    x_str = x_val.strftime("%Y-%m-%d")
+                else:
+                    x_str = str(x_val)
+                point_label = f"{x_str}: {point['value']:.2f}"
+            else:
+                point_label = f"Index {point['index']}: {point['value']:.2f}"
+            
+            ax.add_patch(mpatches.Circle((0.6, y), 0.08, facecolor=NHS_BLUE))
+            ax.text(0.85, y, point_label, fontsize=8, va="center")
+            ax.text(9.5, y, f"[{rules_str}]", fontsize=8, va="center", ha="right",
+                   color="#666666")
+            y -= 0.35
+        
+        # Show "... and X more" if there are more than 5 signals
+        if summary_data["total_signals"] > 5:
+            ax.text(0.85, y, f"... and {summary_data['total_signals'] - 5} more", 
+                   fontsize=8, va="center", style="italic", color="#999999")
+    else:
+        ax.text(0.85, y, "None", fontsize=8, va="center", color="#999999")
+    
+    fig.tight_layout()
+    return fig, ax
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -261,6 +374,7 @@ def plot_spc_chart(
     logo_zoom: float = 0.07,
     show_icons: bool = False,
     icon_zoom: float = 0.06,
+    show_summary: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC SPC or run chart.
 
@@ -542,7 +656,17 @@ def plot_spc_chart(
             legend_handles.append(
                 mpatches.Patch(color=NHS_WARM_YELLOW, label="Target")
             )
-        ax.legend(handles=legend_handles, loc="upper right", fontsize=8)
+        ax.legend(
+            handles=legend_handles,
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.25),
+            ncol=len(legend_handles),
+            fontsize=9,
+            frameon=False,
+            columnspacing=2.0,
+            handlelength=1.5,
+            handletextpad=0.5,
+        )
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -570,7 +694,11 @@ def plot_spc_chart(
             zorder=10,
         )
 
-    fig.tight_layout()
+    # Add bottom padding for legend
+    if show_legend:
+        fig.tight_layout(rect=[0, 0.12, 1, 1])
+    else:
+        fig.tight_layout()
 
     # --- Logo (after tight_layout so ax.get_position() is finalised) --------
     if logo_path is not None:
@@ -593,6 +721,20 @@ def plot_spc_chart(
             icon_zoom=icon_zoom,
             improvement_direction=improvement_direction,
         )
+
+    # --- Summary visualization ----------------------------------------------
+    if show_summary:
+        summary_data = generate_summary_data(
+            data,
+            chart_type=chart_type,
+            value_col=value_col,
+            improvement_direction=improvement_direction,
+            target=target,
+            subgroup_col=subgroup_col,
+            x_col=x_col,
+        )
+        _render_summary_figure(summary_data)
+        plt.show()
 
     return fig, ax
 
@@ -618,6 +760,7 @@ def plot_run_chart(
     logo_zoom: float = 0.07,
     show_icons: bool = False,
     icon_zoom: float = 0.06,
+    show_summary: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Create an NHS MDC run chart with median centre line.
 
@@ -766,12 +909,26 @@ def plot_run_chart(
             legend_handles.append(
                 mpatches.Patch(color=NHS_WARM_YELLOW, label="Target")
             )
-        ax.legend(handles=legend_handles, loc="upper right", fontsize=8)
+        ax.legend(
+            handles=legend_handles,
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.28),
+            ncol=len(legend_handles),
+            fontsize=9,
+            frameon=False,
+            columnspacing=2.0,
+            handlelength=1.5,
+            handletextpad=0.5,
+        )
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    fig.tight_layout()
+    # Add bottom padding for legend
+    if show_legend:
+        fig.tight_layout(rect=[0, 0.13, 1, 1])
+    else:
+        fig.tight_layout()
 
     # --- Logo (after tight_layout so ax.get_position() is finalised) --------
     if logo_path is not None:
@@ -800,6 +957,19 @@ def plot_run_chart(
             icon_zoom=icon_zoom,
             improvement_direction=improvement_direction,
         )
+
+    # --- Summary visualization ----------------------------------------------
+    if show_summary:
+        summary_data = generate_summary_data(
+            data,
+            chart_type="run",
+            value_col=value_col,
+            improvement_direction=improvement_direction,
+            target=target,
+            x_col=x_col,
+        )
+        _render_summary_figure(summary_data)
+        plt.show()
 
     return fig, ax
 
@@ -869,11 +1039,6 @@ def plot_mdc_summary_table(
     if n == 0:
         raise ValueError("rows must contain at least one measure dict")
 
-    # 9 columns: Measure | Description | icon | Variation | icon | Assurance | icon | Improvement Direction | Value
-    col_labels = [
-        "Measure", "Description", "", "Variation", "", "Assurance",
-        "", "Improvement Direction", "Latest Value",
-    ]
     # 8 columns: Measure | Description | icon | Variation | icon | Assurance | Target | Value
     col_labels = ["Measure", "Description", "", "Variation", "", "Assurance", "Target", "Latest Value"]
     n_cols = len(col_labels)
@@ -944,12 +1109,6 @@ def plot_mdc_summary_table(
 
         variation_label = _VARIATION_LABELS.get(variation, variation)
         assurance_label = _ASSURANCE_LABELS.get(assurance, assurance)
-        direction_label = "Higher is better" if improvement_direction == "high" else "Lower is better"
-
-        # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | (icon) | Imp. Direction | Value
-        cell_text.append([
-            measure, description, "", variation_label, "", assurance_label,
-            "", direction_label, latest_str,
         target_str = f"{target:.4g}" if target is not None else ""
 
         # Columns: Measure | Description | (icon) | Variation | (icon) | Assurance | Target | Value
@@ -957,7 +1116,7 @@ def plot_mdc_summary_table(
             measure, description, "", variation_label, "", assurance_label, target_str, latest_str,
         ])
 
-        # Queue icon inserts — col 2 = variation, col 4 = assurance, col 6 = direction
+        # Queue icon inserts — col 2 = variation icon, col 4 = assurance icon
         var_path = _VARIATION_ICON_MAP.get(variation)
         if var_path and var_path.exists():
             icon_cells.append((i, 2, str(var_path)))
@@ -965,10 +1124,6 @@ def plot_mdc_summary_table(
         ass_path = _ASSURANCE_ICON_MAP.get(assurance)
         if ass_path and ass_path.exists():
             icon_cells.append((i, 4, str(ass_path)))
-
-        dir_path = _IMPROVEMENT_DIR_ICON_MAP.get(improvement_direction)
-        if dir_path and dir_path.exists():
-            icon_cells.append((i, 6, str(dir_path)))
 
     # ---- draw table ---------------------------------------------------------
     table = ax.table(
@@ -982,7 +1137,7 @@ def plot_mdc_summary_table(
     table.scale(1.0, 2.2)
 
     # Set relative column widths — icon columns narrow, text columns wider
-    col_widths = [0.11, 0.19, 0.04, 0.17, 0.04, 0.17, 0.04, 0.12, 0.07]
+    col_widths = [0.14, 0.24, 0.04, 0.20, 0.04, 0.20, 0.07, 0.07]
     for j, w in enumerate(col_widths):
         for r in range(n + 1):  # header + data rows
             table[r, j].set_width(w)

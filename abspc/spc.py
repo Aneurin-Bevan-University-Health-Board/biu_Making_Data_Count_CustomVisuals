@@ -890,3 +890,191 @@ def _find_improvement_shift_start(
         if in_direction[start : start + run_length].all():
             return start
     return None
+
+
+def show_summary(
+    data: pd.DataFrame,
+    chart_type: str = "XmR",
+    value_col: str = "value",
+    improvement_direction: str = "high",
+    target: float | None = None,
+    subgroup_col: str | None = "subgroup_size",
+    x_col: str | None = None,
+) -> dict:
+    """Generate an analysis summary for SPC charts.
+
+    Returns a structured dictionary with variation classification, assurance
+    status, statistics, triggered rules, and signal points — similar to the
+    NHS Making Data Count dashboard summary view.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The input data containing measurements.
+    chart_type : str, optional
+        The chart type (``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``),
+        default ``"XmR"``.
+    value_col : str, optional
+        Column name for the measured values (default ``"value"``).
+    improvement_direction : str, optional
+        Whether higher (``"high"``) or lower (``"low"``) values are better
+        (default ``"high"``).
+    target : float or None, optional
+        Optional target value for assurance classification (default ``None``).
+    subgroup_col : str or None, optional
+        Subgroup size column for p and u charts (default ``"subgroup_size"``).
+    x_col : str or None, optional
+        Column name for x-axis values (dates or indices, default ``None``).
+
+    Returns
+    -------
+    dict
+        Summary dictionary with keys:
+        
+        - ``"variation"``: Variation classification string
+        - ``"assurance"``: Assurance classification string
+        - ``"data_points"``: Number of data points
+        - ``"mean"``: Process mean
+        - ``"ucl"``: Upper control limit (or ``None`` for run charts)
+        - ``"lcl"``: Lower control limit (or ``None`` for run charts)
+        - ``"rules_triggered"``: Dict of rule names to trigger counts
+        - ``"signal_points"``: List of dicts with signal point details
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> from abspc import show_summary
+    >>> df = pd.DataFrame({"value": [50, 52, 48, 72, 51, 49, 50, 53]})
+    >>> summary = show_summary(df, chart_type="XmR")
+    >>> summary["variation"]
+    'Special-cause variation — Concern (high)'
+    >>> summary["rules_triggered"]
+    {'R1': 1}
+    """
+    validate_data(data, chart_type, value_col, subgroup_col)
+    
+    is_run = chart_type.lower() == "run"
+    
+    # Calculate control limits and detect signals
+    if is_run:
+        result = calculate_control_limits(data, chart_type="run", value_col=value_col)
+        result = detect_run_chart_signals(result, value_col=value_col)
+    else:
+        result = calculate_control_limits(
+            data,
+            chart_type=chart_type,
+            value_col=value_col,
+            subgroup_col=subgroup_col if chart_type.lower() in ("p", "u") else None,
+        )
+        result = detect_special_causes(result, value_col=value_col)
+    
+    # Gather statistics
+    n_points = len(result)
+    mean_val = float(result["mean"].iloc[0])
+    ucl_val = float(result["ucl"].iloc[0]) if "ucl" in result.columns else None
+    lcl_val = float(result["lcl"].iloc[0]) if "lcl" in result.columns else None
+    
+    # Determine variation
+    if is_run:
+        run_signal = result["run_signal"].to_numpy(dtype=bool)
+        if not run_signal.any():
+            variation = "Common-cause variation"
+        else:
+            values_arr = result[value_col].to_numpy(dtype=float)
+            median_arr = result["mean"].to_numpy(dtype=float)
+            last_sig = int(np.where(run_signal)[0][-1])
+            val_is_high = values_arr[last_sig] > median_arr[last_sig]
+            if improvement_direction == "high":
+                variation = "Special-cause variation — Improvement (high)" if val_is_high else "Special-cause variation — Concern (low)"
+            else:
+                variation = "Special-cause variation — Concern (high)" if val_is_high else "Special-cause variation — Improvement (low)"
+    else:
+        variation_type = determine_variation_type(
+            result, value_col=value_col, improvement_direction=improvement_direction
+        )
+        variation_labels = {
+            "common_cause": "Common-cause variation",
+            "improvement_low": "Special-cause variation — Improvement (low)",
+            "improvement_high": "Special-cause variation — Improvement (high)",
+            "concern_low": "Special-cause variation — Concern (low)",
+            "concern_high": "Special-cause variation — Concern (high)",
+        }
+        variation = variation_labels.get(variation_type, variation_type)
+    
+    # Determine assurance
+    if is_run or target is None:
+        assurance = "No target set"
+    else:
+        assurance_type = determine_assurance_type(
+            result, target=target, improvement_direction=improvement_direction
+        )
+        assurance_labels = {
+            "achieving": "Consistently achieving target",
+            "failing": "Consistently failing target",
+            "random": "Hit or miss — may or may not meet target",
+        }
+        assurance = assurance_labels.get(assurance_type, assurance_type)
+    
+    # Count rules triggered
+    rules_triggered = {}
+    signal_points = []
+    
+    if is_run:
+        # Run chart signals
+        run_shift_count = int(result["run_shift"].sum())
+        run_trend_count = int(result["run_trend"].sum())
+        if run_shift_count > 0:
+            rules_triggered["Shift"] = run_shift_count
+        if run_trend_count > 0:
+            rules_triggered["Trend"] = run_trend_count
+        
+        # Collect signal points
+        signal_mask = result["run_signal"].to_numpy(dtype=bool)
+        for idx in np.where(signal_mask)[0]:
+            point_info = {"index": int(idx)}
+            if x_col and x_col in result.columns:
+                point_info["x"] = result[x_col].iloc[idx]
+            point_info["value"] = float(result[value_col].iloc[idx])
+            rules = []
+            if result["run_shift"].iloc[idx]:
+                rules.append("Shift")
+            if result["run_trend"].iloc[idx]:
+                rules.append("Trend")
+            point_info["rules"] = rules
+            signal_points.append(point_info)
+    else:
+        # SPC chart rules
+        for rule_num in range(1, 5):
+            rule_col = f"rule{rule_num}"
+            if rule_col in result.columns:
+                count = int(result[rule_col].sum())
+                if count > 0:
+                    rules_triggered[f"R{rule_num}"] = count
+        
+        # Collect signal points
+        if "special_cause" in result.columns:
+            signal_mask = result["special_cause"].to_numpy(dtype=bool)
+            for idx in np.where(signal_mask)[0]:
+                point_info = {"index": int(idx)}
+                if x_col and x_col in result.columns:
+                    point_info["x"] = result[x_col].iloc[idx]
+                point_info["value"] = float(result[value_col].iloc[idx])
+                rules = []
+                for rule_num in range(1, 5):
+                    rule_col = f"rule{rule_num}"
+                    if rule_col in result.columns and result[rule_col].iloc[idx]:
+                        rules.append(f"R{rule_num}")
+                point_info["rules"] = rules
+                signal_points.append(point_info)
+    
+    return {
+        "variation": variation,
+        "assurance": assurance,
+        "data_points": n_points,
+        "mean": mean_val,
+        "ucl": ucl_val,
+        "lcl": lcl_val,
+        "rules_triggered": rules_triggered,
+        "signal_points": signal_points,
+        "total_signals": len(signal_points),
+    }

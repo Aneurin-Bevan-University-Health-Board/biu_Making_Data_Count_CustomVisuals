@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-10
+
+### Added
+- New `show_summary()` function to generate programmatic analysis summaries with variation, assurance, statistics, rules triggered, and signal points
+- Visual summary display when `show_summary=True` parameter is passed to `plot_spc_chart()` and `plot_run_chart()`
+- Summary visualization includes formatted display of variation type, assurance status, data statistics, triggered rules, and signal point details
+
+### Changed
+- Improved change point visualization with dashed lines, lighter color (#768692), and rounded label boxes
+- Repositioned legend to single-row layout below x-axis with improved spacing (bbox_to_anchor -0.25/-0.28)
+- Increased bottom padding for better legend clearance (rect 0.12/0.13)
+- Enhanced visual hierarchy and readability of all chart elements
+- Version bump to 0.2.0
+
+### Fixed
+- Resolved syntax error in `plot_mdc_summary_table()` (unclosed bracket)
+- Removed duplicate MDC summary table column definitions
+- Fixed name conflict between `show_summary` function and parameter using aliased import
+
 ## [0.1.6] - 2025-04-07
 
 ### Fixed

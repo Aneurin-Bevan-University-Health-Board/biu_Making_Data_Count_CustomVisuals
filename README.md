@@ -9,8 +9,8 @@ platforms:
 
 | Platform | Status | Location |
 |----------|--------|----------|
-| **Python** (`abspc` package) | ✅ Available | [`abspc/`](abspc/) |
-| **Looker** (custom visualizations) | ✅ Available | [`looker_core_visuals/`](looker_core_visuals/) |
+| **Python** (`abspc` package) | Available | [`abspc/`](abspc/) |
+| **Looker** (custom visualizations) | Available | [`looker_core_visuals/`](looker_core_visuals/) |
 | **Looker Studio** (community viz) | 🔜 Planned | — |
 
 SPC rules are aligned with the NHS-R community's

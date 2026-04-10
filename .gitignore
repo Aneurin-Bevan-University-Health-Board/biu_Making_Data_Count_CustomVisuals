@@ -37,6 +37,7 @@ yarn.lock
 .vscode/
 *.swp
 *~
+.vscode
 
 # OS
 .DS_Store

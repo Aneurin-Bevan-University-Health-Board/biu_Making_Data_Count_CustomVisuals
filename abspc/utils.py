@@ -126,10 +126,10 @@ def add_change_line(
     ax,
     x,
     label: str | None = None,
-    color: str = "#425563",
-    linestyle: str = ":",
-    linewidth: float = 1.5,
-    fontsize: int = 8,
+    color: str = "#768692",
+    linestyle: str = "--",
+    linewidth: float = 1.2,
+    fontsize: int = 7,
     label_rotation: int = 90,
     label_offset: float = 0.01,
 ) -> None:
@@ -167,19 +167,22 @@ def add_change_line(
         color=color,
         linestyle=linestyle,
         linewidth=linewidth,
+        alpha=0.7,
         zorder=5,
     )
     if label is not None:
-        y_top = ax.get_ylim()[1]
+        y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+        y_top = ax.get_ylim()[1] - (y_range * 0.02)
         ax.text(
             x,
             y_top,
-            f"  {label}",
+            f" {label} ",
             rotation=label_rotation,
             verticalalignment="top",
-            horizontalalignment="left",
+            horizontalalignment="center",
             fontsize=fontsize,
             color=color,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor=color, alpha=0.8, linewidth=0.8),
             zorder=6,
         )
 
