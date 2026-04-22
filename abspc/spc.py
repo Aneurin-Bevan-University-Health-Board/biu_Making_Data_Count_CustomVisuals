@@ -324,8 +324,15 @@ def determine_point_colours(
         )
 
         if target is not None:
-            # Override: classify based on proximity to target
-            is_improvement = _towards_target(values[i], mean[i], target)
+            # Target-aware classification: a special-cause point is an
+            # improvement if it sits on the favourable side of the target
+            # (per *improvement_direction*) OR moves in the favourable
+            # direction relative to the mean.  This avoids mis-colouring
+            # points that have already passed the target on the right side.
+            if improvement_direction == "high":
+                is_improvement = (values[i] >= target) or is_high
+            else:
+                is_improvement = (values[i] <= target) or (not is_high)
         elif improvement_direction == "high":
             is_improvement = is_high
         else:
@@ -475,6 +482,25 @@ def rebase_control_limits(
         remaining = len(data) - abs_rebase
         if remaining < min_phase_length:
             break  # Not enough data for a meaningful new phase
+
+        # Recalculate the previous (now-closed) phase's limits using only its
+        # own data.  Without this, baseline points retain the original
+        # full-dataset mean and may be wrongly flagged as special-cause
+        # against a centre line that was contaminated by the later shift.
+        prev_phase_raw = data.iloc[phase_start:abs_rebase].reset_index(drop=True)
+        if len(prev_phase_raw) >= 2:
+            prev_phase_result = calculate_control_limits(
+                prev_phase_raw,
+                chart_type=chart_type,
+                value_col=value_col,
+                subgroup_col=subgroup_col,
+                numerator_col=numerator_col,
+            )
+            for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
+                if col in prev_phase_result.columns:
+                    result.iloc[
+                        phase_start:abs_rebase, result.columns.get_loc(col)
+                    ] = prev_phase_result[col].to_numpy()
 
         # Recalculate limits for the new phase using the original raw data
         new_phase_raw = data.iloc[abs_rebase:].reset_index(drop=True)
@@ -671,18 +697,38 @@ def _calc_p(
     subgroup_col: str | None,
     numerator_col: str | None,
 ) -> pd.DataFrame:
-    """p-chart (proportion) calculations with varying subgroup sizes."""
+    """p-chart (proportion) calculations with varying subgroup sizes.
+
+    *value_col* may contain either pre-computed proportions (values in
+    ``[0, 1]``) or raw numerator counts (any value > 1, or integer dtype).
+    Raw counts are auto-detected and converted to proportions using
+    *subgroup_col* as the denominator so that points and limits are both
+    plotted on the proportion scale.
+    """
     if numerator_col is not None:
         # value_col is the denominator; numerator_col holds event counts
         n = df[value_col].to_numpy(dtype=float)
         numerator = df[numerator_col].to_numpy(dtype=float)
         p_i = numerator / n
         p_bar = np.nansum(numerator) / np.nansum(n)
+        df[value_col] = p_i
     else:
         n = df[subgroup_col].to_numpy(dtype=float)
-        p_i = df[value_col].to_numpy(dtype=float)
-        # Back-calculate totals from proportions and subgroup sizes
-        p_bar = np.nansum(p_i * n) / np.nansum(n)
+        raw = df[value_col].to_numpy(dtype=float)
+        # Auto-detect raw counts: integer dtype or any value > 1 (proportions
+        # cannot exceed 1). Convert to proportions using subgroup sizes.
+        is_count = (
+            pd.api.types.is_integer_dtype(df[value_col])
+            or np.any(raw[~np.isnan(raw)] > 1.0)
+        )
+        if is_count:
+            p_i = raw / n
+            p_bar = np.nansum(raw) / np.nansum(n)
+            df[value_col] = p_i
+        else:
+            p_i = raw
+            # Back-calculate totals from proportions and subgroup sizes
+            p_bar = np.nansum(p_i * n) / np.nansum(n)
 
     sigma_i = np.sqrt(p_bar * (1 - p_bar) / n)
 
@@ -692,10 +738,6 @@ def _calc_p(
     df["uwl"] = p_bar + 2 * sigma_i
     df["lwl"] = p_bar - 2 * sigma_i
 
-    # Update value_col if numerator was provided (use proportion)
-    if numerator_col is not None:
-        df[value_col] = p_i
-
     return df
 
 
@@ -704,10 +746,26 @@ def _calc_u(
     value_col: str,
     subgroup_col: str | None,
 ) -> pd.DataFrame:
-    """u-chart (counts per unit) calculations with varying subgroup sizes."""
+    """u-chart (counts per unit) calculations with varying subgroup sizes.
+
+    *value_col* may contain either pre-computed rates (per-unit counts as
+    floats) or raw event counts (integer dtype).  Raw counts are
+    auto-detected and divided by *subgroup_col* so that points and limits
+    are both plotted on the per-unit-rate scale.
+    """
     n = df[subgroup_col].to_numpy(dtype=float)
-    u_i = df[value_col].to_numpy(dtype=float)
-    u_bar = np.nansum(u_i * n) / np.nansum(n)
+    raw = df[value_col].to_numpy(dtype=float)
+
+    # Auto-detect raw counts: integer dtype implies counts (rates are
+    # generally fractional). Convert to per-unit rates.
+    is_count = pd.api.types.is_integer_dtype(df[value_col])
+    if is_count:
+        u_i = raw / n
+        u_bar = np.nansum(raw) / np.nansum(n)
+        df[value_col] = u_i
+    else:
+        u_i = raw
+        u_bar = np.nansum(u_i * n) / np.nansum(n)
 
     sigma_i = np.sqrt(u_bar / n)
 
@@ -1009,9 +1067,10 @@ def show_summary(
             result, target=target, improvement_direction=improvement_direction
         )
         assurance_labels = {
-            "achieving": "Consistently achieving target",
-            "failing": "Consistently failing target",
-            "random": "Hit or miss — may or may not meet target",
+            "pass": "Consistently achieving target",
+            "fail": "Consistently failing target",
+            "hit_or_miss": "Hit or miss — may or may not meet target",
+            "no_target": "No target set",
         }
         assurance = assurance_labels.get(assurance_type, assurance_type)
     

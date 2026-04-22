@@ -205,8 +205,8 @@ pip install -e ".[dev]"
 pytest
 ```
 
-125 unit tests covering all chart types, SPC rules, run-chart signals,
-auto-rebase, change-point annotations, and plotting.
+160 unit tests covering all chart types, SPC rules, run-chart signals,
+auto-rebase, change-point annotations, summary generation, and plotting.
 
 ### Looker
 

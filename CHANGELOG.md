@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-22
+
+### Fixed
+- Synced `__version__` in `abspc/__init__.py` with `pyproject.toml` / `setup.py` (was reporting `0.1.5` while the package version was `0.2.0`)
+
+### Changed
+- Refreshed README documentation to reflect the current public API (including `show_summary` and `plot_mdc_summary_table`)
+- Updated test-count references to match the current Python test suite (160 tests)
+- Repackaged for a fresh PyPI release
+
 ## [0.2.0] - 2026-04-10
 
 ### Added
@@ -79,5 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** - Bug fixes
 - **Security** - Vulnerability fixes
 
-[Unreleased]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/compare/v0.1.6...v0.2.0
+[0.1.6]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/releases/tag/v0.1.5

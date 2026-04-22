@@ -629,10 +629,6 @@ def plot_spc_chart(
                 alpha=ann.get("alpha", 0.15),
             )
 
-    # --- Optional NHS logo --------------------------------------------------
-    if nhs_logo_path is not None:
-        add_nhs_logo(ax, nhs_logo_path, position="lower right")
-
     # --- Labels & title -----------------------------------------------------
     default_title = _CHART_TYPE_LABELS.get(chart_type_key, "SPC Chart")
     ax.set_title(title if title is not None else default_title,

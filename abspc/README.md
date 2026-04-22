@@ -482,6 +482,25 @@ Returns the DataFrame extended with `run_shift`, `run_trend`, and `run_signal`.
 Returns the DataFrame with limits recalculated per improvement phase and a
 `rebase_phase` integer column.
 
+### `show_summary`
+
+Generates a programmatic summary dictionary for a chart, including variation
+type, assurance status, descriptive statistics, triggered SPC rules, and a
+list of signal points. Pass `show_summary=True` to `plot_spc_chart` or
+`plot_run_chart` to render the summary as an additional figure.
+
+```python
+from abspc import show_summary
+
+summary = show_summary(data, chart_type="XmR", improvement_direction="high", target=60)
+print(summary["variation"], summary["assurance"])
+```
+
+### `plot_mdc_summary_table`
+
+Renders an NHS MDC-style summary table for one or more measures (see the
+[MDC Summary Table](#mdc-summary-table) section above).
+
 ---
 
 ## Running Tests
@@ -491,5 +510,5 @@ pip install -e ".[dev]"
 pytest
 ```
 
-125 unit tests covering all chart types, SPC rules, run-chart signals,
-auto-rebase, change-point annotations, and plotting.
+160 unit tests covering all chart types, SPC rules, run-chart signals,
+auto-rebase, change-point annotations, summary generation, and plotting.
