@@ -10,6 +10,8 @@ Supported chart types
 * ``"p"``    – Proportion chart
 * ``"u"``    – Counts-per-unit chart
 * ``"c"``    – Counts in a fixed population
+* ``"t"``    – Time between rare events (Nelson transformation)
+* ``"g"``    – Opportunities between rare events (geometric distribution)
 * ``"run"``  – Basic run chart (median centre line, no control limits)
 
 Quick start

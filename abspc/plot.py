@@ -343,6 +343,8 @@ _CHART_TYPE_LABELS: dict[str, str] = {
     "p": "p Chart (Proportion)",
     "u": "u Chart (Counts per Unit)",
     "c": "c Chart (Counts)",
+    "t": "t Chart (Time Between Rare Events)",
+    "g": "g Chart (Opportunities Between Rare Events)",
     "run": "Run Chart",
 }
 

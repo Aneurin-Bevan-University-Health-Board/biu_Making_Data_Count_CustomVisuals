@@ -500,6 +500,68 @@ assert('20 points is above minimum', largeData.length < SPC_MIN_DATA_POINTS, fal
 
 
 // ═══════════════════════════════════════════════════════════════════════
+// TEST 8: t Chart — Time Between Rare Events (Nelson transformation)
+// ═══════════════════════════════════════════════════════════════════════
+heading('TEST 8: t Chart — Days Between Rare Adverse Events');
+
+var T_POW = 3.6;
+var tData = [35, 42, 18, 55, 77, 90, 21, 33, 40, 28, 60, 73, 15, 48, 55];
+var tTrans = tData.map(function (v) { return Math.pow(v, 1 / T_POW); });
+var tMeanT = mean(tTrans);
+var tMR = movingRange(tTrans);
+var tMRBar = mean(tMR);
+var tSigmaMul = 3 / D2;
+var tWarnMul = 2 * tSigmaMul / 3;
+var tBack = function (x) { return x > 0 ? Math.pow(x, T_POW) : 0; };
+var tCL = tBack(tMeanT);
+var tUCL = tBack(tMeanT + tSigmaMul * tMRBar);
+var tLCL = tBack(tMeanT - tSigmaMul * tMRBar);
+var tUWL = tBack(tMeanT + tWarnMul * tMRBar);
+var tLWL = tBack(tMeanT - tWarnMul * tMRBar);
+
+console.log('\nInput Data (days between events):');
+console.log('  Values:', tData.join(', '));
+console.log('\nCalculated Limits (back-transformed from Y^(1/3.6)):');
+console.log('  Mean:  ', tCL.toFixed(4));
+console.log('  UCL:   ', tUCL.toFixed(4));
+console.log('  UWL:   ', tUWL.toFixed(4));
+console.log('  LWL:   ', tLWL.toFixed(4));
+console.log('  LCL:   ', tLCL.toFixed(4));
+
+assert('t-chart LCL ≥ 0', tLCL >= 0, true);
+assert('t-chart UCL > mean', tUCL > tCL, true);
+assert('t-chart mean back-transform', +tCL.toFixed(6),
+  +Math.pow(tMeanT, T_POW).toFixed(6));
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEST 9: g Chart — Opportunities Between Rare Events (geometric)
+// ═══════════════════════════════════════════════════════════════════════
+heading('TEST 9: g Chart — Opportunities Between Rare Events');
+
+var gData = [12, 8, 20, 15, 3, 25, 18, 7, 11, 30, 14, 22, 9, 17, 13];
+var gBar = mean(gData);
+var gSigma = Math.sqrt(gBar * (gBar + 1));
+var gUCL = gBar + 3 * gSigma;
+var gLCL = Math.max(gBar - 3 * gSigma, 0);
+var gUWL = gBar + 2 * gSigma;
+var gLWL = Math.max(gBar - 2 * gSigma, 0);
+
+console.log('\nInput Data (opportunities between events):');
+console.log('  Values:', gData.join(', '));
+console.log('\nCalculated Limits (geometric distribution):');
+console.log('  ḡ:     ', gBar.toFixed(4));
+console.log('  σ:     ', gSigma.toFixed(4), '(= √(ḡ·(ḡ+1)))');
+console.log('  UCL:   ', gUCL.toFixed(4));
+console.log('  LCL:   ', gLCL.toFixed(4));
+
+assert('g-chart ḡ', +gBar.toFixed(4), +mean(gData).toFixed(4));
+assert('g-chart LCL ≥ 0', gLCL >= 0, true);
+assert('g-chart sigma uses geometric formula', +gSigma.toFixed(6),
+  +Math.sqrt(gBar * (gBar + 1)).toFixed(6));
+
+
+// ═══════════════════════════════════════════════════════════════════════
 // SUMMARY
 // ═══════════════════════════════════════════════════════════════════════
 heading('TEST SUMMARY');

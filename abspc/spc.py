@@ -11,6 +11,8 @@ Supported chart types
 * ``"p"``    – Proportion chart  (requires ``subgroup_sizes`` column)
 * ``"u"``    – Counts-per-unit chart (requires ``subgroup_sizes`` column)
 * ``"c"``    – Counts in a fixed population
+* ``"t"``    – Time-between rare events (Nelson Y^(1/3.6) transformation)
+* ``"g"``    – Opportunities-between rare events (geometric distribution)
 * ``"run"``  – Basic run chart (median centre line, no control limits)
 
 NHS MDC Special-Cause rules implemented (SPC charts)
@@ -91,7 +93,7 @@ def calculate_control_limits(
         ``"p"`` charts where ``value`` is the raw numerator count rather than
         the pre-computed proportion.
     chart_type : str
-        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``.
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"t"``, ``"g"``, ``"run"``.
     value_col : str, optional
         Name of the column containing the measured values (default
         ``"value"``).
@@ -122,7 +124,7 @@ def calculate_control_limits(
         If *chart_type* is not one of the supported types.
     """
     chart_type = chart_type.strip().lower() if chart_type else chart_type
-    _SUPPORTED = {"xmr", "p", "u", "c", "run"}
+    _SUPPORTED = {"xmr", "p", "u", "c", "t", "g", "run"}
     if chart_type not in _SUPPORTED:
         raise ValueError(
             f"Unsupported chart_type '{chart_type}'. "
@@ -153,11 +155,15 @@ def calculate_control_limits(
         result = _calc_u(result, value_col, subgroup_col)
     elif chart_type == "c":
         result = _calc_c(result, value_col)
+    elif chart_type == "t":
+        result = _calc_t(result, value_col)
+    elif chart_type == "g":
+        result = _calc_g(result, value_col)
     elif chart_type == "run":
         result = _calc_run(result, value_col)
 
     # Ensure LCL is non-negative for count / proportion charts
-    if chart_type in {"p", "u", "c"}:
+    if chart_type in {"p", "u", "c", "t", "g"}:
         result["lcl"] = result["lcl"].clip(lower=0)
         result["lwl"] = result["lwl"].clip(lower=0)
 
@@ -410,8 +416,8 @@ def rebase_control_limits(
     data : pd.DataFrame
         Input data — same requirements as :func:`calculate_control_limits`.
     chart_type : str
-        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"`` (case-insensitive).
-        ``"run"`` is not supported.
+        One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"t"``, ``"g"``
+        (case-insensitive).  ``"run"`` is not supported.
     improvement_direction : str, optional
         ``"high"`` (default) or ``"low"`` — direction in which improvement
         lies.
@@ -444,7 +450,7 @@ def rebase_control_limits(
     if chart_type_key == "run":
         raise ValueError(
             "Auto-rebasing is not supported for run charts.  "
-            "Use chart_type one of 'xmr', 'p', 'u', 'c'."
+            "Use chart_type one of 'xmr', 'p', 'u', 'c', 't', 'g'."
         )
     if improvement_direction not in {"high", "low"}:
         raise ValueError(
@@ -796,6 +802,86 @@ def _calc_run(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     values = df[value_col].to_numpy(dtype=float)
     median_val = float(np.nanmedian(values))
     df["mean"] = median_val
+    return df
+
+
+def _calc_t(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """t-chart (time between rare events) calculations.
+
+    Uses Nelson's transformation ``Y' = Y ** (1 / 3.6)`` to symmetrise the
+    skewed distribution of times between rare events.  Standard XmR control
+    limits are computed on the transformed scale and then back-transformed
+    (raised to the power ``3.6``) so that limits and points are plotted on
+    the original time scale.
+
+    Reference: R. Lloyd, *Quality Health Care: A Guide to Developing and
+    Using Indicators*, Chapter 9 (Shewhart charts for rare events) and
+    L.S. Nelson (1994).
+    """
+    POW = 3.6
+    values = df[value_col].to_numpy(dtype=float)
+    if (values < 0).any():
+        raise ValueError(
+            "t-chart values represent times between events and must be >= 0"
+        )
+
+    transformed = np.power(values, 1.0 / POW)
+    mean_t = np.nanmean(transformed)
+    moving_range = np.abs(np.diff(transformed))
+    mean_mr = np.nanmean(moving_range) if len(moving_range) else 0.0
+
+    d2 = 1.128
+    sigma_multiplier = 3.0 / d2          # ≈ 2.66
+    warn_multiplier = 2.0 * sigma_multiplier / 3.0  # ≈ 1.77
+
+    ucl_t = mean_t + sigma_multiplier * mean_mr
+    lcl_t = mean_t - sigma_multiplier * mean_mr
+    uwl_t = mean_t + warn_multiplier * mean_mr
+    lwl_t = mean_t - warn_multiplier * mean_mr
+
+    # Back-transform to the original time scale.  Negative transformed
+    # limits map to 0 (times cannot be negative).
+    def _back(x: float) -> float:
+        return float(np.power(x, POW)) if x > 0 else 0.0
+
+    df["mean"] = _back(mean_t)
+    df["ucl"] = _back(ucl_t)
+    df["lcl"] = _back(lcl_t)
+    df["uwl"] = _back(uwl_t)
+    df["lwl"] = _back(lwl_t)
+    return df
+
+
+def _calc_g(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """g-chart (opportunities between rare events) calculations.
+
+    Treats the count between consecutive rare events as following a
+    geometric distribution.  Standard formulas (Provost & Murray,
+    *The Health Care Data Guide*; R. Lloyd, *QHC* Chapter 9):
+
+    * centre line  ``CL = g_bar`` (mean opportunities between events)
+    * standard deviation ``σ = sqrt(g_bar * (g_bar + 1))``
+    * ``UCL = g_bar + 3σ`` ; ``LCL = max(0, g_bar - 3σ)`` (typically 0)
+
+    Warning limits at 2σ are also returned (clipped to ≥ 0) to support
+    NHS MDC Rule 4.
+    """
+    values = df[value_col].to_numpy(dtype=float)
+    if (values < 0).any():
+        raise ValueError(
+            "g-chart values are non-negative counts of opportunities "
+            "between rare events"
+        )
+
+    g_bar = np.nanmean(values)
+    # Geometric-distribution standard deviation
+    sigma = np.sqrt(g_bar * (g_bar + 1.0))
+
+    df["mean"] = g_bar
+    df["ucl"] = g_bar + 3 * sigma
+    df["lcl"] = g_bar - 3 * sigma
+    df["uwl"] = g_bar + 2 * sigma
+    df["lwl"] = g_bar - 2 * sigma
     return df
 
 

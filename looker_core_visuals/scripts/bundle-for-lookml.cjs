@@ -27,6 +27,8 @@ const CHART_FILES = [
   'p_chart.js',
   'u_chart.js',
   'c_chart.js',
+  't_chart.js',
+  'g_chart.js',
   'run_chart.js',
   'auto_chart.js',
   'summary_table.js'
