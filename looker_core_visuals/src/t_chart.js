@@ -101,7 +101,7 @@ export function calculateTChartLimits(data, valueColumn = 'value') {
 }
 
 /**
- * Looker Core c Chart Visualization
+ * Looker Core t Chart Visualization
  */
 export const TChart = {
   
@@ -240,7 +240,7 @@ export const TChart = {
       
       done();
     } catch (error) {
-      console.error('c Chart Error:', error);
+      console.error('t Chart Error:', error);
       this._container.innerHTML = `<div style="padding: 20px; color: red;">Error: ${error.message}</div>`;
       done();
     }

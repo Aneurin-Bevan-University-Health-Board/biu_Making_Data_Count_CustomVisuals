@@ -91,7 +91,7 @@ export function calculateGChartLimits(data, valueColumn = 'value') {
 }
 
 /**
- * Looker Core c Chart Visualization
+ * Looker Core g Chart Visualization
  */
 export const GChart = {
   
@@ -230,7 +230,7 @@ export const GChart = {
       
       done();
     } catch (error) {
-      console.error('c Chart Error:', error);
+      console.error('g Chart Error:', error);
       this._container.innerHTML = `<div style="padding: 20px; color: red;">Error: ${error.message}</div>`;
       done();
     }
