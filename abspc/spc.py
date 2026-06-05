@@ -879,11 +879,14 @@ def _calc_g(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     # Geometric-distribution standard deviation
     sigma = np.sqrt(g_bar * (g_bar + 1.0))
 
+    lcl = max(g_bar - 3 * sigma, 0.0)
+    lwl = max(g_bar - 2 * sigma, 0.0)
+
     df["mean"] = g_bar
     df["ucl"] = g_bar + 3 * sigma
-    df["lcl"] = g_bar - 3 * sigma
+    df["lcl"] = lcl
     df["uwl"] = g_bar + 2 * sigma
-    df["lwl"] = g_bar - 2 * sigma
+    df["lwl"] = lwl
     return df
 
 
