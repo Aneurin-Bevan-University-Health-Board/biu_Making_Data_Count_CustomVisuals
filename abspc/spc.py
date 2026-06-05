@@ -842,6 +842,8 @@ def _calc_t(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     # Back-transform to the original time scale.  Negative transformed
     # limits map to 0 (times cannot be negative).
     def _back(x: float) -> float:
+        if np.isnan(x):
+            return float("nan")
         return float(np.power(x, POW)) if x > 0 else 0.0
 
     df["mean"] = _back(mean_t)
