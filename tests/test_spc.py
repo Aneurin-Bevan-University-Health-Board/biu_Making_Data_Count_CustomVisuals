@@ -59,6 +59,22 @@ def c_data():
     return pd.DataFrame({"value": [3, 5, 2, 6, 4, 3, 7, 5, 4, 6]})
 
 
+@pytest.fixture
+def t_data():
+    """t-chart dataset: days between rare adverse events."""
+    return pd.DataFrame(
+        {"value": [35, 42, 18, 55, 77, 90, 21, 33, 40, 28, 60, 73, 15, 48, 55]}
+    )
+
+
+@pytest.fixture
+def g_data():
+    """g-chart dataset: opportunities between rare events."""
+    return pd.DataFrame(
+        {"value": [12, 8, 20, 15, 3, 25, 18, 7, 11, 30, 14, 22, 9, 17, 13]}
+    )
+
+
 # ---------------------------------------------------------------------------
 # calculate_control_limits – SPC charts
 # ---------------------------------------------------------------------------
@@ -176,6 +192,81 @@ class TestCalculateControlLimitsC:
     def test_adds_warning_limits(self, c_data):
         result = calculate_control_limits(c_data, chart_type="c")
         assert "uwl" in result.columns
+
+
+class TestCalculateControlLimitsT:
+    def test_returns_dataframe(self, t_data):
+        result = calculate_control_limits(t_data, chart_type="t")
+        assert isinstance(result, pd.DataFrame)
+
+    def test_adds_required_columns(self, t_data):
+        result = calculate_control_limits(t_data, chart_type="t")
+        for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
+            assert col in result.columns
+
+    def test_lcl_non_negative(self, t_data):
+        result = calculate_control_limits(t_data, chart_type="t")
+        assert (result["lcl"] >= 0).all()
+        assert (result["lwl"] >= 0).all()
+
+    def test_ucl_gt_mean(self, t_data):
+        result = calculate_control_limits(t_data, chart_type="t")
+        assert (result["ucl"] > result["mean"]).all()
+
+    def test_uwl_between_mean_and_ucl(self, t_data):
+        result = calculate_control_limits(t_data, chart_type="t")
+        assert (result["uwl"] > result["mean"]).all()
+        assert (result["uwl"] < result["ucl"]).all()
+
+    def test_back_transform_matches_known_values(self):
+        """For Y' = Y^(1/3.6), back-transformed mean equals (mean Y')^3.6."""
+        df = pd.DataFrame({"value": [10.0, 20.0, 30.0, 40.0, 50.0]})
+        result = calculate_control_limits(df, chart_type="t")
+        transformed = df["value"].to_numpy() ** (1 / 3.6)
+        expected_mean = transformed.mean() ** 3.6
+        assert result["mean"].iloc[0] == pytest.approx(expected_mean)
+
+    def test_negative_values_raise(self):
+        df = pd.DataFrame({"value": [10, 20, -5, 40, 50]})
+        with pytest.raises(ValueError, match=">= 0"):
+            calculate_control_limits(df, chart_type="t")
+
+    def test_case_insensitive(self, t_data):
+        result_lower = calculate_control_limits(t_data, chart_type="t")
+        result_upper = calculate_control_limits(t_data, chart_type="T")
+        pd.testing.assert_frame_equal(result_lower, result_upper)
+
+
+class TestCalculateControlLimitsG:
+    def test_returns_dataframe(self, g_data):
+        result = calculate_control_limits(g_data, chart_type="g")
+        assert isinstance(result, pd.DataFrame)
+
+    def test_mean_equals_average(self, g_data):
+        result = calculate_control_limits(g_data, chart_type="g")
+        assert result["mean"].iloc[0] == pytest.approx(g_data["value"].mean())
+
+    def test_lcl_non_negative(self, g_data):
+        result = calculate_control_limits(g_data, chart_type="g")
+        assert (result["lcl"] >= 0).all()
+        assert (result["lwl"] >= 0).all()
+
+    def test_ucl_uses_geometric_sigma(self, g_data):
+        result = calculate_control_limits(g_data, chart_type="g")
+        g_bar = g_data["value"].mean()
+        expected_sigma = np.sqrt(g_bar * (g_bar + 1.0))
+        expected_ucl = g_bar + 3 * expected_sigma
+        assert result["ucl"].iloc[0] == pytest.approx(expected_ucl)
+
+    def test_negative_values_raise(self):
+        df = pd.DataFrame({"value": [1, 5, 10, -2, 8]})
+        with pytest.raises(ValueError, match="non-negative"):
+            calculate_control_limits(df, chart_type="g")
+
+    def test_case_insensitive(self, g_data):
+        result_lower = calculate_control_limits(g_data, chart_type="g")
+        result_upper = calculate_control_limits(g_data, chart_type="G")
+        pd.testing.assert_frame_equal(result_lower, result_upper)
 
 
 class TestCalculateControlLimitsRun:

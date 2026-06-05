@@ -11,6 +11,8 @@ import { XmRChart } from './src/xmr_chart.js';
 import { PChart } from './src/p_chart.js';
 import { UChart } from './src/u_chart.js';
 import { CChart } from './src/c_chart.js';
+import { TChart } from './src/t_chart.js';
+import { GChart } from './src/g_chart.js';
 import { RunChart } from './src/run_chart.js';
 
 // Chart metadata
@@ -39,6 +41,16 @@ const chartInfo = {
     id: 'nhs_mdc_c_chart',
     label: 'NHS MDC c Chart',
     description: 'Count (c) chart following NHS MDC methodology'
+  },
+  t: {
+    id: 'nhs_mdc_t_chart',
+    label: 'NHS MDC t Chart',
+    description: 'Time-between rare events (t) chart following NHS MDC methodology'
+  },
+  g: {
+    id: 'nhs_mdc_g_chart',
+    label: 'NHS MDC g Chart',
+    description: 'Opportunities-between rare events (g) chart following NHS MDC methodology'
   },
   run: {
     id: 'nhs_mdc_run_chart',
@@ -88,6 +100,20 @@ if (typeof looker !== 'undefined' && looker.plugins && looker.plugins.visualizat
   });
   
   looker.plugins.visualizations.add({
+    ...TChart,
+    id: chartInfo.t.id,
+    label: chartInfo.t.label,
+    description: chartInfo.t.description
+  });
+
+  looker.plugins.visualizations.add({
+    ...GChart,
+    id: chartInfo.g.id,
+    label: chartInfo.g.label,
+    description: chartInfo.g.description
+  });
+
+  looker.plugins.visualizations.add({
     ...RunChart,
     id: chartInfo.run.id,
     label: chartInfo.run.label,
@@ -104,6 +130,8 @@ export {
   PChart, 
   UChart,
   CChart,
+  TChart,
+  GChart,
   RunChart,
   chartInfo
 };

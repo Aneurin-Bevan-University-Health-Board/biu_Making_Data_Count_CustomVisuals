@@ -17,6 +17,8 @@ import { XmRChart } from './xmr_chart.js';
 import { PChart } from './p_chart.js';
 import { UChart } from './u_chart.js';
 import { CChart } from './c_chart.js';
+import { TChart } from './t_chart.js';
+import { GChart } from './g_chart.js';
 import { RunChart } from './run_chart.js';
 import { NHS_COLORS, formatNumber } from './spc_utils.js';
 
@@ -159,6 +161,8 @@ export const AutoChart = {
         { 'p Chart (Proportion)': 'p' },
         { 'u Chart (Rate)': 'u' },
         { 'c Chart (Count)': 'c' },
+        { 't Chart (Time Between Rare Events)': 't' },
+        { 'g Chart (Opportunities Between Rare Events)': 'g' },
         { 'Run Chart': 'run' }
       ],
       default: 'auto',
@@ -315,6 +319,8 @@ export const AutoChart = {
       p: 'p Chart - Proportions',
       u: 'u Chart - Rates per Unit',
       c: 'c Chart - Count of Events',
+      t: 't Chart - Time Between Rare Events',
+      g: 'g Chart - Opportunities Between Rare Events',
       run: 'Run Chart - Median Center Line'
     };
     
@@ -358,6 +364,12 @@ export const AutoChart = {
         break;
       case 'c':
         chart = CChart;
+        break;
+      case 't':
+        chart = TChart;
+        break;
+      case 'g':
+        chart = GChart;
         break;
       case 'run':
         chart = RunChart;
