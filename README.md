@@ -30,14 +30,16 @@ affiliated with or endorsed by NHS England.
 - [MDC Icons & Assurance](#mdc-icons--assurance)
 - [NHS Colour Scheme](#nhs-colour-scheme)
 - [Running Tests](#running-tests)
+- [Documentation Map](#documentation-map)
 - [Licence & Attribution](#licence--attribution)
 
 ---
 
 ## Python — `abspc`
 
-The [`abspc`](https://pypi.org/project/abspc/) Python package provides
-publication-ready SPC charts via matplotlib. Install from PyPI:
+The [`abspc`](https://pypi.org/project/abspc/) Python package (current
+release: **v1.0.0**) provides publication-ready SPC charts via matplotlib.
+Install from PyPI:
 
 ```bash
 pip install abspc
@@ -60,12 +62,20 @@ Key features include date-axis auto-detection, logo placement, change-point
 annotations, auto-rebase on sustained improvement, MDC variation & assurance
 icons, and an MDC summary table.
 
-**Full documentation:** [`abspc/README.md`](abspc/README.md)
+**More:**
+
+- [`abspc/README.md`](abspc/README.md) — full API reference
+- [`docs/quick_start.ipynb`](docs/quick_start.ipynb) — 5-minute interactive quick-start notebook
+- [`docs/QI_GUIDE.md`](docs/QI_GUIDE.md) — how to use `abspc` in a Quality Improvement project
+- [`docs/screenshots.ipynb`](docs/screenshots.ipynb) — reproducible chart-gallery notebook (regenerates every image below on `abspc` 1.0.0 with fake data)
 
 ### Chart Gallery
 
-These are taken from the interactive test notebook (`tests/test_notebook.ipynb`),
-which walks through every chart type and feature.
+These are taken from the chart-gallery notebook
+([`docs/screenshots.ipynb`](docs/screenshots.ipynb)), which spins up the
+latest version of `abspc` and regenerates every image below with synthetic
+(fake) data. An interactive walk-through of every feature lives in
+[`tests/test_notebook.ipynb`](tests/test_notebook.ipynb).
 
 **Auto-Rebase** — detects sustained shifts and recalculates control limits per phase:
 
@@ -205,13 +215,27 @@ pip install -e ".[dev]"
 pytest
 ```
 
-160 unit tests covering all chart types, SPC rules, run-chart signals,
+174 unit tests covering all chart types, SPC rules, run-chart signals,
 auto-rebase, change-point annotations, summary generation, and plotting.
 
 ### Looker
 
 See [`looker_core_visuals/README.md`](looker_core_visuals/README.md) for
 browser-based testing instructions.
+
+---
+
+## Documentation Map
+
+| Resource | Purpose |
+|----------|---------|
+| [`abspc/README.md`](abspc/README.md) | Full Python API reference (every parameter, every function). |
+| [`docs/quick_start.ipynb`](docs/quick_start.ipynb) | 5-minute hands-on quick start for QI users — load data, pick a chart, render it. |
+| [`docs/QI_GUIDE.md`](docs/QI_GUIDE.md) | How to use `abspc` in a Quality Improvement project end-to-end. |
+| [`docs/screenshots.ipynb`](docs/screenshots.ipynb) | Reproducible notebook that regenerates every image in `docs/images/` on the latest `abspc` release using fake data. |
+| [`tests/test_notebook.ipynb`](tests/test_notebook.ipynb) | Interactive deep-dive notebook covering every chart type and option. |
+| [`looker_core_visuals/README.md`](looker_core_visuals/README.md) | Looker custom visualisation guide. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release notes (current release: 1.0.0). |
 
 ---
 

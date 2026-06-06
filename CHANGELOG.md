@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Refreshed chart-gallery screenshots in `docs/images/` against `abspc` 1.0.0 using fake data
+- New `docs/screenshots.ipynb` notebook that reproducibly regenerates every gallery image
+- New `docs/quick_start.ipynb` — 5-minute hands-on quick-start notebook for QI users
+- New `docs/QI_GUIDE.md` — guide for using `abspc` in a Quality Improvement project
+- Updated `README.md` and `abspc/README.md` for the v1.0.0 release (current test count: 174)
+
 ## [1.0.0] - 2026-06-05
 
 ### Changed

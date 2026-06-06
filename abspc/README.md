@@ -1,12 +1,17 @@
 # abspc — Python SPC Charts
 
-The `abspc` Python package provides publication-ready Statistical Process
-Control (SPC) charts following the NHS
+The `abspc` Python package (current release: **v1.0.0**) provides
+publication-ready Statistical Process Control (SPC) charts following the NHS
 [Making Data Count](https://www.england.nhs.uk/publication/making-data-count/)
 methodology.
 
 Built on **matplotlib**, it produces high-quality static images suitable for
 board reports, dashboards, and quality-improvement publications.
+
+> **New here?** Open [`../docs/quick_start.ipynb`](../docs/quick_start.ipynb)
+> for a 5-minute hands-on tour, or read
+> [`../docs/QI_GUIDE.md`](../docs/QI_GUIDE.md) for the full Quality
+> Improvement workflow.
 
 ---
 
@@ -37,6 +42,11 @@ data = pd.DataFrame({"value": [48, 52, 49, 55, 47, 51, 53, 50, 48, 54]})
 fig, ax = plot_spc_chart(data, chart_type="XmR")
 fig.savefig("my_xmr_chart.png")
 ```
+
+For a runnable, **end-to-end** quick start (loading data, picking a chart
+type, rendering with target line and MDC icons, getting the underlying
+numbers, and a SQL-query template), open
+[`../docs/quick_start.ipynb`](../docs/quick_start.ipynb).
 
 ---
 
@@ -510,5 +520,19 @@ pip install -e ".[dev]"
 pytest
 ```
 
-160 unit tests covering all chart types, SPC rules, run-chart signals,
+174 unit tests covering all chart types, SPC rules, run-chart signals,
 auto-rebase, change-point annotations, summary generation, and plotting.
+
+---
+
+## See Also
+
+- [`../docs/quick_start.ipynb`](../docs/quick_start.ipynb) — runnable
+  5-minute quick start.
+- [`../docs/QI_GUIDE.md`](../docs/QI_GUIDE.md) — using `abspc` in a Quality
+  Improvement project.
+- [`../docs/screenshots.ipynb`](../docs/screenshots.ipynb) — the notebook
+  that regenerates every gallery image on the latest release using fake data.
+- [`../tests/test_notebook.ipynb`](../tests/test_notebook.ipynb) — interactive
+  deep-dive notebook covering every chart type and option.
+- [`../CHANGELOG.md`](../CHANGELOG.md) — release notes.
