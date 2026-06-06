@@ -1,12 +1,17 @@
 # abspc — Python SPC Charts
 
-The `abspc` Python package provides publication-ready Statistical Process
-Control (SPC) charts following the NHS
+The `abspc` Python package (current release: **v1.0.0**) provides
+publication-ready Statistical Process Control (SPC) charts following the NHS
 [Making Data Count](https://www.england.nhs.uk/publication/making-data-count/)
 methodology.
 
 Built on **matplotlib**, it produces high-quality static images suitable for
 board reports, dashboards, and quality-improvement publications.
+
+> **New here?** Open [`../docs/quick_start.ipynb`](../docs/quick_start.ipynb)
+> for a 5-minute hands-on tour, or read
+> [`../docs/QI_GUIDE.md`](../docs/QI_GUIDE.md) for the full Quality
+> Improvement workflow.
 
 ---
 
@@ -37,6 +42,11 @@ data = pd.DataFrame({"value": [48, 52, 49, 55, 47, 51, 53, 50, 48, 54]})
 fig, ax = plot_spc_chart(data, chart_type="XmR")
 fig.savefig("my_xmr_chart.png")
 ```
+
+For a runnable, **end-to-end** quick start (loading data, picking a chart
+type, rendering with target line and MDC icons, getting the underlying
+numbers, and a SQL-query template), open
+[`../docs/quick_start.ipynb`](../docs/quick_start.ipynb).
 
 ---
 
@@ -133,6 +143,80 @@ fig, ax = plot_spc_chart(
 ```
 
 ![c Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_c.png)
+
+---
+
+### u Chart
+
+The u chart plots a count of events normalised to a *variable* exposure
+(e.g., infections per 1,000 bed-days). Limits widen / narrow with subgroup size.
+
+```python
+data = pd.DataFrame({
+    "value": [4, 6, 3, 7, 5, 4, 8, 6],            # event counts
+    "subgroup_size": [2800, 3100, 2700, 3300,     # exposure (e.g. bed-days)
+                      2900, 3000, 3500, 3200],
+})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="u",
+    title="u Chart – Infections per Bed-Day",
+    xlabel="Month",
+    ylabel="Rate per bed-day",
+    improvement_direction="low",
+)
+```
+
+![u Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_u.png)
+
+---
+
+### t Chart
+
+The t chart is for **time between rare events** (e.g., days between never-events).
+It applies Nelson's transformation `Y' = Y ** (1 / 3.6)` to symmetrise the
+distribution before computing XmR-style limits, then back-transforms them
+to the original time scale.
+
+```python
+data = pd.DataFrame({"value": [21, 5, 92, 12, 23, 20, 13, 30, 15, 55,
+                                 1, 108, 36, 12, 27, 56, 44, 95, 102, 43]})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="t",
+    title="t Chart – Days Between Serious Incidents",
+    xlabel="Incident #",
+    ylabel="Days since previous incident",
+    improvement_direction="high",
+)
+```
+
+![t Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_t.png)
+
+---
+
+### g Chart
+
+The g chart plots the **opportunities between rare events** (e.g., surgeries
+between surgical-site infections), modelled as a geometric distribution.
+
+```python
+data = pd.DataFrame({"value": [38, 17, 3, 14, 8, 49, 6, 32, 56, 4,
+                                 24, 64, 26, 25, 33, 11, 9, 154, 119, 30]})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="g",
+    title="g Chart – Surgeries Between SSIs",
+    xlabel="Infection #",
+    ylabel="Surgeries since previous infection",
+    improvement_direction="high",
+)
+```
+
+![g Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_g.png)
 
 ---
 
@@ -510,5 +594,19 @@ pip install -e ".[dev]"
 pytest
 ```
 
-160 unit tests covering all chart types, SPC rules, run-chart signals,
+174 unit tests covering all chart types, SPC rules, run-chart signals,
 auto-rebase, change-point annotations, summary generation, and plotting.
+
+---
+
+## See Also
+
+- [`../docs/quick_start.ipynb`](../docs/quick_start.ipynb) — runnable
+  5-minute quick start.
+- [`../docs/QI_GUIDE.md`](../docs/QI_GUIDE.md) — using `abspc` in a Quality
+  Improvement project.
+- [`../docs/screenshots.ipynb`](../docs/screenshots.ipynb) — the notebook
+  that regenerates every gallery image on the latest release using fake data.
+- [`../tests/test_notebook.ipynb`](../tests/test_notebook.ipynb) — interactive
+  deep-dive notebook covering every chart type and option.
+- [`../CHANGELOG.md`](../CHANGELOG.md) — release notes.
