@@ -146,6 +146,80 @@ fig, ax = plot_spc_chart(
 
 ---
 
+### u Chart
+
+The u chart plots a count of events normalised to a *variable* exposure
+(e.g., infections per 1,000 bed-days). Limits widen / narrow with subgroup size.
+
+```python
+data = pd.DataFrame({
+    "value": [4, 6, 3, 7, 5, 4, 8, 6],            # event counts
+    "subgroup_size": [2800, 3100, 2700, 3300,     # exposure (e.g. bed-days)
+                      2900, 3000, 3500, 3200],
+})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="u",
+    title="u Chart – Infections per Bed-Day",
+    xlabel="Month",
+    ylabel="Rate per bed-day",
+    improvement_direction="low",
+)
+```
+
+![u Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_u.png)
+
+---
+
+### t Chart
+
+The t chart is for **time between rare events** (e.g., days between never-events).
+It applies Nelson's transformation `Y' = Y ** (1 / 3.6)` to symmetrise the
+distribution before computing XmR-style limits, then back-transforms them
+to the original time scale.
+
+```python
+data = pd.DataFrame({"value": [21, 5, 92, 12, 23, 20, 13, 30, 15, 55,
+                                 1, 108, 36, 12, 27, 56, 44, 95, 102, 43]})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="t",
+    title="t Chart – Days Between Serious Incidents",
+    xlabel="Incident #",
+    ylabel="Days since previous incident",
+    improvement_direction="high",
+)
+```
+
+![t Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_t.png)
+
+---
+
+### g Chart
+
+The g chart plots the **opportunities between rare events** (e.g., surgeries
+between surgical-site infections), modelled as a geometric distribution.
+
+```python
+data = pd.DataFrame({"value": [38, 17, 3, 14, 8, 49, 6, 32, 56, 4,
+                                 24, 64, 26, 25, 33, 11, 9, 154, 119, 30]})
+
+fig, ax = plot_spc_chart(
+    data,
+    chart_type="g",
+    title="g Chart – Surgeries Between SSIs",
+    xlabel="Infection #",
+    ylabel="Surgeries since previous infection",
+    improvement_direction="high",
+)
+```
+
+![g Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_g.png)
+
+---
+
 ### Run Chart
 
 The run chart plots data against time with a **median** centre line and no
