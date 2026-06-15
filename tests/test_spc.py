@@ -14,6 +14,8 @@ from abspc.spc import (
     detect_run_chart_signals,
     rebase_control_limits,
     determine_point_colours,
+    show_summary,
+    _find_improvement_shift_start,
     COLOUR_COMMON_CAUSE,
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
@@ -473,7 +475,7 @@ class TestRebaseControlLimits:
         values = [5.0] * 10 + [30.0] * 10
         df = pd.DataFrame({"value": values})
         result = rebase_control_limits(
-            df, chart_type="XmR", improvement_direction="high"
+            df, chart_type="XmR", improvement_direction="high", baseline=0
         )
         assert result["rebase_phase"].max() >= 1
         assert result["rebase_phase"].iloc[10] == 1
@@ -483,7 +485,7 @@ class TestRebaseControlLimits:
         values = [30.0] * 10 + [5.0] * 10
         df = pd.DataFrame({"value": values})
         result = rebase_control_limits(
-            df, chart_type="XmR", improvement_direction="low"
+            df, chart_type="XmR", improvement_direction="low", baseline=0
         )
         assert result["rebase_phase"].max() >= 1
 
@@ -492,7 +494,7 @@ class TestRebaseControlLimits:
         values = [5.0] * 10 + [30.0] * 10
         df = pd.DataFrame({"value": values})
         result = rebase_control_limits(
-            df, chart_type="XmR", improvement_direction="high"
+            df, chart_type="XmR", improvement_direction="high", baseline=0
         )
         mean_phase0 = result.loc[result["rebase_phase"] == 0, "mean"].iloc[0]
         mean_phase1 = result.loc[result["rebase_phase"] == 1, "mean"].iloc[0]
@@ -651,3 +653,183 @@ class TestDeterminePointColours:
         flags = detect_special_causes(result)
         colours = determine_point_colours(flags, target=110, improvement_direction="high")
         assert colours[-1] == COLOUR_IMPROVEMENT
+
+
+# ---------------------------------------------------------------------------
+# Feature 1 – "I" chart as an alias of XmR
+# ---------------------------------------------------------------------------
+
+
+class TestIChartAlias:
+    def test_i_lower_equals_xmr(self, xmr_data):
+        """chart_type='i' produces output identical to chart_type='XmR'."""
+        result_i = calculate_control_limits(xmr_data, chart_type="i")
+        result_xmr = calculate_control_limits(xmr_data, chart_type="XmR")
+        pd.testing.assert_frame_equal(result_i, result_xmr)
+
+    def test_i_upper_equals_xmr(self, xmr_data):
+        """chart_type='I' produces output identical to chart_type='XmR'."""
+        result_i = calculate_control_limits(xmr_data, chart_type="I")
+        result_xmr = calculate_control_limits(xmr_data, chart_type="XmR")
+        pd.testing.assert_frame_equal(result_i, result_xmr)
+
+    def test_i_with_surrounding_whitespace(self, xmr_data):
+        result_i = calculate_control_limits(xmr_data, chart_type="  I  ")
+        result_xmr = calculate_control_limits(xmr_data, chart_type="XmR")
+        pd.testing.assert_frame_equal(result_i, result_xmr)
+
+    def test_rebase_accepts_i(self):
+        """rebase_control_limits accepts 'i' and matches 'XmR' output."""
+        values = [5.0] * 10 + [30.0] * 10
+        df = pd.DataFrame({"value": values})
+        result_i = rebase_control_limits(
+            df, chart_type="i", improvement_direction="high", baseline=0
+        )
+        result_xmr = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high", baseline=0
+        )
+        pd.testing.assert_frame_equal(result_i, result_xmr)
+
+    def test_show_summary_accepts_i(self, xmr_data):
+        """show_summary accepts chart_type='i' and matches 'XmR' output."""
+        summary_i = show_summary(xmr_data, chart_type="i")
+        summary_xmr = show_summary(xmr_data, chart_type="XmR")
+        assert summary_i == summary_xmr
+
+
+# ---------------------------------------------------------------------------
+# Feature 2 – rebase_on ("improvement" | "worsening" | "any")
+# ---------------------------------------------------------------------------
+
+
+class TestRebaseOn:
+    def test_invalid_rebase_on_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="rebase_on"):
+            rebase_control_limits(
+                xmr_data, chart_type="XmR", rebase_on="sideways"
+            )
+
+    @pytest.fixture
+    def two_shift_series(self):
+        """20 points: short neutral baseline, an upward shift, then a downward shift.
+
+        Full-dataset mean ≈ 22, so points split as:
+        * idx 0-1   – just below mean (short worsening, < run length)
+        * idx 2-9   – well above mean (sustained improvement shift)
+        * idx 10-11 – just below mean
+        * idx 12-19 – well below mean (sustained worsening shift)
+        """
+        return pd.DataFrame({"value": [20, 20] + [40] * 8 + [20, 20] + [5] * 8})
+
+    def test_improvement_only_rebases_on_upward_shift(self, two_shift_series):
+        result = rebase_control_limits(
+            two_shift_series, chart_type="XmR",
+            improvement_direction="high", rebase_on="improvement", baseline=0,
+        )
+        phases = result["rebase_phase"].to_numpy()
+        # Boundary at the upward shift (index 2); nothing before it.
+        assert (phases[:2] == 0).all()
+        assert phases[2] == 1
+        # The downward shift does not create a further phase.
+        assert phases.max() == 1
+
+    def test_worsening_only_rebases_on_downward_shift(self, two_shift_series):
+        result = rebase_control_limits(
+            two_shift_series, chart_type="XmR",
+            improvement_direction="high", rebase_on="worsening", baseline=0,
+        )
+        phases = result["rebase_phase"].to_numpy()
+        # No rebase at the upward shift; first boundary at the downward shift.
+        assert (phases[:10] == 0).all()
+        assert phases[10] >= 1
+
+    def test_any_rebases_on_earliest_shift(self, two_shift_series):
+        result = rebase_control_limits(
+            two_shift_series, chart_type="XmR",
+            improvement_direction="high", rebase_on="any", baseline=0,
+        )
+        phases = result["rebase_phase"].to_numpy()
+        # Earliest sustained shift is the upward one at index 2.
+        assert (phases[:2] == 0).all()
+        assert phases[2] == 1
+
+    def test_any_picks_worsening_when_it_comes_first(self):
+        """When a worsening shift precedes the improvement shift, 'any' picks it."""
+        v = np.array([20.0, 20] + [5] * 8 + [20, 20] + [40] * 8)
+        mean = np.full(len(v), 20.0)
+        # 'improvement' would pick the later upward run (index 12)…
+        assert _find_improvement_shift_start(
+            v, mean, "high", 8, rebase_on="improvement", min_start=0
+        ) == 12
+        # …whereas 'any' picks the earlier downward run (index 2).
+        assert _find_improvement_shift_start(
+            v, mean, "high", 8, rebase_on="any", min_start=0
+        ) == 2
+        # 'worsening' also picks the downward run.
+        assert _find_improvement_shift_start(
+            v, mean, "high", 8, rebase_on="worsening", min_start=0
+        ) == 2
+
+
+# ---------------------------------------------------------------------------
+# Feature 3 – baseline (minimum points before a rebase is permitted)
+# ---------------------------------------------------------------------------
+
+
+class TestBaseline:
+    def test_invalid_baseline_negative_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="baseline"):
+            rebase_control_limits(xmr_data, chart_type="XmR", baseline=-1)
+
+    def test_invalid_baseline_type_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="baseline"):
+            rebase_control_limits(xmr_data, chart_type="XmR", baseline=3.5)
+
+    def test_baseline_absorbs_early_shift(self):
+        """A large baseline absorbs an early shift so no rebase occurs."""
+        values = [5.0] * 10 + [30.0] * 10  # shift at index 10
+        df = pd.DataFrame({"value": values})
+        result = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high", baseline=15
+        )
+        # The shift (index 10) falls within the 15-point baseline → no rebase.
+        assert (result["rebase_phase"] == 0).all()
+
+    def test_baseline_zero_allows_early_shift(self):
+        """baseline=0 permits the earliest possible rebase (edge case)."""
+        values = [5.0] * 10 + [30.0] * 10
+        df = pd.DataFrame({"value": values})
+        result = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high", baseline=0
+        )
+        assert result["rebase_phase"].max() >= 1
+        assert result["rebase_phase"].iloc[10] == 1
+
+    def test_larger_baseline_delays_first_rebase(self):
+        """A shift starting after the baseline is still detected."""
+        # Neutral baseline of 16 points, then a sustained upward shift.
+        values = [10.0, 12.0] * 8 + [40.0] * 10
+        df = pd.DataFrame({"value": values})
+        result_small = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high", baseline=0
+        )
+        result_large = rebase_control_limits(
+            df, chart_type="XmR", improvement_direction="high", baseline=15
+        )
+        # The shift at/after index 16 lies beyond a baseline of 15, so it is
+        # still detected.
+        assert result_large["rebase_phase"].max() >= 1
+        assert result_small["rebase_phase"].max() >= 1
+
+    def test_find_shift_min_start_offset(self):
+        """min_start skips runs that begin before the offset."""
+        v = np.array([20.0, 20] + [40] * 8 + [5] * 8 + [20, 20])
+        mean = np.full(len(v), 20.0)
+        # Improvement run begins at index 2.
+        assert _find_improvement_shift_start(
+            v, mean, "high", 8, rebase_on="improvement", min_start=0
+        ) == 2
+        # With min_start past the run, it is no longer detected.
+        assert _find_improvement_shift_start(
+            v, mean, "high", 8, rebase_on="improvement", min_start=5
+        ) is None

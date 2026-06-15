@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-15
+
+### Added
+- **I (Individuals) chart** as an alias of XmR. `chart_type="i"` / `"I"` is now
+  accepted everywhere XmR is accepted (`calculate_control_limits`,
+  `rebase_control_limits`, `plot_spc_chart`, `show_summary`) and is normalised
+  to `"xmr"` internally. The I chart shares the XmR maths (`mean ± 2.66·MRbar`
+  for 3-sigma limits, `± 1.77·MRbar` for 2-sigma warning limits) and is drawn
+  with an *"I Chart (Individuals)"* title.
+- **`rebase_on` parameter** on `rebase_control_limits()` and `plot_spc_chart()`
+  controlling which direction of sustained shift triggers an auto-rebase:
+  `"improvement"` (default — shifts in `improvement_direction`), `"worsening"`
+  (shifts away from it), or `"any"` (a sustained run on either side of the mean,
+  using the earliest qualifying shift). Invalid values raise `ValueError`.
+- **`baseline` parameter** (default `15`) on `rebase_control_limits()` and
+  `plot_spc_chart()` setting the minimum number of points that must accumulate
+  within a phase before an auto-rebase is permitted. A larger baseline absorbs
+  early shifts; `baseline=0` permits the earliest possible rebase. Must be a
+  non-negative integer (otherwise `ValueError`).
+
+### Changed
+- `rebase_control_limits()` now auto-rebases on the configurable `rebase_on`
+  direction (previously improvement-only) and respects the `baseline` offset.
+  The default `baseline=15` means short series no longer rebase on very early
+  shifts unless `baseline` is lowered.
+- Documented the control-chart rules, the full parameter/variable reference,
+  and a worked I-chart example in the README files; expanded NumPy-style
+  docstrings for the modified functions.
+
+### Fixed
+- Added the required `version` field to `pyproject.toml` so the package builds
+  under PEP 621 / setuptools.
+
 ## [1.0.0] - 2026-06-05
 
 ### Changed

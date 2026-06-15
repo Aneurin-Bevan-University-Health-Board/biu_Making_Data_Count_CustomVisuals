@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="abspc",
-    version="1.0.0",
+    version="1.1.0",
     author="Aneurin Bevan University Health Board, Daniel Westwood",
     author_email="daniel.westwood@wales.nhs.uk",
     description=(

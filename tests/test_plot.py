@@ -276,7 +276,7 @@ class TestPlotSpcChartAutoRebase:
         )
         fig_yes, ax_yes = plot_spc_chart(
             rebase_data, chart_type="XmR",
-            auto_rebase=True, improvement_direction="high",
+            auto_rebase=True, improvement_direction="high", baseline=0,
         )
         assert len(ax_yes.lines) > len(ax_no.lines)
 
@@ -291,9 +291,35 @@ class TestPlotSpcChartAutoRebase:
         fig, ax = plot_spc_chart(
             rebase_data, chart_type="XmR",
             auto_rebase=True, improvement_direction="high",
-            change_points=change_points,
+            change_points=change_points, baseline=0,
         )
         assert isinstance(fig, matplotlib.figure.Figure)
+
+    def test_invalid_rebase_on_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="rebase_on"):
+            plot_spc_chart(xmr_data, chart_type="XmR", rebase_on="sideways")
+
+    def test_invalid_baseline_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="baseline"):
+            plot_spc_chart(xmr_data, chart_type="XmR", baseline=-5)
+
+    def test_i_chart_auto_rebase_any_baseline(self):
+        """I chart with auto_rebase/rebase_on='any'/baseline runs headless.
+
+        The title/label must reflect the I chart even though the limits are
+        computed exactly as for an XmR chart.
+        """
+        data = pd.DataFrame({"value": [5.0] * 12 + [30.0] * 12})
+        fig, ax = plot_spc_chart(
+            data, chart_type="I", auto_rebase=True,
+            rebase_on="any", baseline=15,
+        )
+        assert isinstance(fig, matplotlib.figure.Figure)
+        assert ax.get_title() == "I Chart (Individuals)"
+
+    def test_i_chart_default_title(self, xmr_data):
+        fig, ax = plot_spc_chart(xmr_data, chart_type="i")
+        assert ax.get_title() == "I Chart (Individuals)"
 
 
 # ---------------------------------------------------------------------------

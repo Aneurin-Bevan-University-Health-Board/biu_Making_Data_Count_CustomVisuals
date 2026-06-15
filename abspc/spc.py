@@ -94,6 +94,9 @@ def calculate_control_limits(
         the pre-computed proportion.
     chart_type : str
         One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"t"``, ``"g"``, ``"run"``.
+        ``"i"`` / ``"I"`` are accepted as aliases of ``"XmR"`` (an Individuals
+        chart is mathematically identical to an XmR chart) and are normalised
+        to ``"xmr"`` internally.
     value_col : str, optional
         Name of the column containing the measured values (default
         ``"value"``).
@@ -124,6 +127,9 @@ def calculate_control_limits(
         If *chart_type* is not one of the supported types.
     """
     chart_type = chart_type.strip().lower() if chart_type else chart_type
+    # An I (Individuals) chart is mathematically identical to an XmR chart.
+    if chart_type == "i":
+        chart_type = "xmr"
     _SUPPORTED = {"xmr", "p", "u", "c", "t", "g", "run"}
     if chart_type not in _SUPPORTED:
         raise ValueError(
@@ -402,14 +408,18 @@ def rebase_control_limits(
     subgroup_col: str | None = "subgroup_size",
     numerator_col: str | None = None,
     min_phase_length: int = 8,
+    rebase_on: str = "improvement",
+    baseline: int = 15,
 ) -> pd.DataFrame:
-    """Calculate control limits with automatic phase rebasing on improvement.
+    """Calculate control limits with automatic phase rebasing on a sustained shift.
 
-    When a sustained improvement shift (≥ *min_phase_length* consecutive
-    points in the *improvement_direction* relative to the current mean) is
-    detected, control limits are recalculated from the start of that shift
-    forward.  The process repeats iteratively so that multiple successive
-    phases of improvement are all captured.
+    When a sustained shift (≥ *min_phase_length* consecutive points on one
+    side of the current mean) is detected, control limits are recalculated
+    from the start of that shift forward.  The process repeats iteratively so
+    that multiple successive phases are all captured.  The *rebase_on*
+    parameter controls which direction of shift triggers a rebase and
+    *baseline* sets how many points must accumulate within a phase before a
+    rebase is permitted.
 
     Parameters
     ----------
@@ -417,7 +427,9 @@ def rebase_control_limits(
         Input data — same requirements as :func:`calculate_control_limits`.
     chart_type : str
         One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"t"``, ``"g"``
-        (case-insensitive).  ``"run"`` is not supported.
+        (case-insensitive).  ``"i"`` / ``"I"`` are accepted as aliases of
+        ``"XmR"`` and normalised to ``"xmr"`` internally.  ``"run"`` is not
+        supported.
     improvement_direction : str, optional
         ``"high"`` (default) or ``"low"`` — direction in which improvement
         lies.
@@ -429,8 +441,21 @@ def rebase_control_limits(
         For ``"p"`` charts: column with event counts when *value_col* is the
         denominator.
     min_phase_length : int, optional
-        Minimum consecutive points in the improvement direction required to
-        trigger a rebase (default ``8``, aligned with Rule 2 / shift).
+        Minimum consecutive points on one side of the mean required to trigger
+        a rebase (default ``8``, aligned with Rule 2 / the NHS MDC shift rule).
+    rebase_on : str, optional
+        Which direction of sustained shift triggers a rebase (default
+        ``"improvement"``):
+
+        * ``"improvement"`` – only shifts in *improvement_direction*.
+        * ``"worsening"``   – only shifts away from *improvement_direction*.
+        * ``"any"``         – a sustained run on *either* side of the mean
+          (the earliest qualifying shift is used).
+    baseline : int, optional
+        Minimum number of points that must accumulate within a phase before an
+        auto-rebase is permitted (default ``15``).  Implemented as a search
+        offset: a shift starting before *baseline* points into a phase is
+        absorbed into the baseline rather than triggering a new phase.
 
     Returns
     -------
@@ -444,9 +469,15 @@ def rebase_control_limits(
     Raises
     ------
     ValueError
-        If *chart_type* is ``"run"`` or *improvement_direction* is invalid.
+        If *chart_type* is ``"run"``, *improvement_direction* is invalid,
+        *rebase_on* is not one of ``{"improvement", "worsening", "any"}``, or
+        *baseline* is not a non-negative integer.
     """
     chart_type_key = chart_type.strip().lower() if chart_type else chart_type
+    # An I (Individuals) chart is mathematically identical to an XmR chart.
+    if chart_type_key == "i":
+        chart_type_key = "xmr"
+        chart_type = "xmr"
     if chart_type_key == "run":
         raise ValueError(
             "Auto-rebasing is not supported for run charts.  "
@@ -456,6 +487,15 @@ def rebase_control_limits(
         raise ValueError(
             "improvement_direction must be 'high' or 'low', "
             f"got '{improvement_direction}'"
+        )
+    if rebase_on not in {"improvement", "worsening", "any"}:
+        raise ValueError(
+            "rebase_on must be one of 'improvement', 'worsening', 'any', "
+            f"got '{rebase_on}'"
+        )
+    if isinstance(baseline, bool) or not isinstance(baseline, (int, np.integer)) or baseline < 0:
+        raise ValueError(
+            f"baseline must be a non-negative integer, got '{baseline}'"
         )
 
     # Baseline limits over the full dataset
@@ -477,7 +517,8 @@ def rebase_control_limits(
         mean_arr = phase_slice["mean"].to_numpy(dtype=float)
 
         rel_idx = _find_improvement_shift_start(
-            values, mean_arr, improvement_direction, min_phase_length
+            values, mean_arr, improvement_direction, min_phase_length,
+            rebase_on=rebase_on, min_start=baseline,
         )
         if rel_idx is None:
             break  # No further improvement detected in this phase
@@ -1026,18 +1067,64 @@ def _find_improvement_shift_start(
     mean: np.ndarray,
     improvement_direction: str,
     run_length: int = 8,
+    rebase_on: str = "improvement",
+    min_start: int = 0,
 ) -> int | None:
-    """Return the index of the first point in an improvement shift, or ``None``.
+    """Return the index of the first point in a sustained shift, or ``None``.
 
-    An improvement shift is *run_length* or more consecutive points in the
-    *improvement_direction* relative to *mean*.
+    A shift is *run_length* or more consecutive points on one side of *mean*.
+    Which side qualifies depends on *rebase_on*:
+
+    * ``"improvement"`` – a run in *improvement_direction* relative to *mean*.
+    * ``"worsening"``   – a run away from *improvement_direction*.
+    * ``"any"``         – a run on *either* side of *mean*; the earliest
+      qualifying start (across both sides) is returned.
+
+    Parameters
+    ----------
+    values : np.ndarray
+        Measured values.
+    mean : np.ndarray
+        Per-point centre line.
+    improvement_direction : str
+        ``"high"`` if higher values are better, ``"low"`` otherwise.
+    run_length : int, optional
+        Number of consecutive points required to constitute a shift
+        (default ``8``).
+    rebase_on : str, optional
+        One of ``"improvement"`` (default), ``"worsening"``, or ``"any"``.
+    min_start : int, optional
+        Minimum start index for the search; runs that begin before this
+        offset are ignored (default ``0``).  Used to enforce a *baseline*
+        number of points within a phase before a rebase is permitted.
+
+    Returns
+    -------
+    int or None
+        Index of the first point of the earliest qualifying shift, or
+        ``None`` if no shift is found.
     """
     n = len(values)
-    in_direction = (values > mean) if improvement_direction == "high" else (values < mean)
+    high_side = values > mean
+    low_side = values < mean
+    if improvement_direction == "high":
+        improvement_side = high_side
+        worsening_side = low_side
+    else:
+        improvement_side = low_side
+        worsening_side = high_side
 
-    for start in range(n - run_length + 1):
-        if in_direction[start : start + run_length].all():
-            return start
+    if rebase_on == "improvement":
+        masks = (improvement_side,)
+    elif rebase_on == "worsening":
+        masks = (worsening_side,)
+    else:  # "any"
+        masks = (improvement_side, worsening_side)
+
+    for start in range(max(min_start, 0), n - run_length + 1):
+        for mask in masks:
+            if mask[start : start + run_length].all():
+                return start
     return None
 
 
@@ -1062,7 +1149,8 @@ def show_summary(
         The input data containing measurements.
     chart_type : str, optional
         The chart type (``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``),
-        default ``"XmR"``.
+        default ``"XmR"``.  ``"i"`` / ``"I"`` are accepted as aliases of
+        ``"XmR"``.
     value_col : str, optional
         Column name for the measured values (default ``"value"``).
     improvement_direction : str, optional

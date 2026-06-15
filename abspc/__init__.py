@@ -55,4 +55,4 @@ __all__ = [
     "SPC_MIN_DATA_POINTS",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

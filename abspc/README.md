@@ -67,6 +67,11 @@ fig, ax = plot_spc_chart(
 
 ![XmR Chart](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/docs/images/chart_xmr.png)
 
+> **I (Individuals) chart** — `chart_type="i"` or `"I"` is an alias of XmR and
+> produces identical control limits (`mean ± 2.66·MRbar` for the 3-sigma
+> limits, `± 1.77·MRbar` for the 2-sigma warning limits). Only the default
+> title changes to *"I Chart (Individuals)"*.
+
 ---
 
 ### p Chart
@@ -241,17 +246,20 @@ fig, ax = plot_spc_chart(
 
 ---
 
-### Auto-Rebase on Sustained Improvement
+### Auto-Rebase on a Sustained Shift
 
-When ≥ 8 consecutive points show sustained improvement, control limits can be
+When a run of `min_phase_length` (default **8**) consecutive points falls on
+one side of the mean — the NHS MDC **shift** rule — control limits can be
 automatically recalculated for the new phase:
 
 ```python
 fig, ax = plot_spc_chart(
     data,
-    chart_type="XmR",
+    chart_type="XmR",          # or "I" — the Individuals chart, an alias of XmR
     improvement_direction="high",
     auto_rebase=True,
+    rebase_on="any",            # "improvement" (default) | "worsening" | "any"
+    baseline=15,                # min points per phase before a rebase is allowed
 )
 ```
 
@@ -262,10 +270,20 @@ Use `rebase_control_limits` for programmatic access without plotting:
 ```python
 from abspc import rebase_control_limits
 
-result = rebase_control_limits(data, chart_type="XmR", improvement_direction="high")
+result = rebase_control_limits(
+    data, chart_type="XmR", improvement_direction="high",
+    rebase_on="any", baseline=15,
+)
 ```
 
-> Auto-rebase is supported for XmR, p, u, and c charts (not run charts).
+* **`rebase_on`** — which direction of sustained shift triggers a rebase:
+  `"improvement"` (in `improvement_direction`), `"worsening"` (away from it),
+  or `"any"` (either side; the earliest qualifying shift is used).
+* **`baseline`** — the minimum number of points that must accumulate within a
+  phase before a rebase is permitted (default `15`). A larger baseline
+  absorbs early shifts.
+
+> Auto-rebase is supported for XmR / I, p, u, and c charts (not run charts).
 
 ---
 
@@ -371,7 +389,7 @@ print(flags[["value", "mean", "ucl", "lcl", "rule1", "rule2", "rule3", "rule4", 
 ```python
 fig, ax = plot_spc_chart(
     data,
-    chart_type,                     # "XmR" | "p" | "u" | "c" | "run"
+    chart_type,                     # "XmR" | "I" | "p" | "u" | "c" | "run"
     value_col="value",
     subgroup_col="subgroup_size",
     numerator_col=None,
@@ -390,6 +408,8 @@ fig, ax = plot_spc_chart(
     show_legend=True,
     change_points=None,
     auto_rebase=False,
+    rebase_on="improvement",        # "improvement" | "worsening" | "any"
+    baseline=15,                    # min points per phase before rebasing
     date_format=None,
     logo_path=None,
     logo_zoom=0.07,
@@ -401,7 +421,7 @@ fig, ax = plot_spc_chart(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `data` | `pd.DataFrame` | *(required)* | Input DataFrame with at least the `value_col` column. |
-| `chart_type` | `str` | *(required)* | `"XmR"`, `"p"`, `"u"`, `"c"`, or `"run"` (case-insensitive). |
+| `chart_type` | `str` | *(required)* | `"XmR"`, `"i"` / `"I"` (alias of XmR), `"p"`, `"u"`, `"c"`, or `"run"` (case-insensitive). |
 | `value_col` | `str` | `"value"` | Column containing the measured values. |
 | `subgroup_col` | `str \| None` | `"subgroup_size"` | Column with subgroup sizes. Required for `"p"` and `"u"`. |
 | `numerator_col` | `str \| None` | `None` | For `"p"` charts: column with event counts when `value_col` holds the denominator. |
@@ -419,7 +439,9 @@ fig, ax = plot_spc_chart(
 | `figsize` | `tuple` | `(12, 5)` | Figure size in inches. Ignored when `ax` is provided. |
 | `show_legend` | `bool` | `True` | Add a colour legend. |
 | `change_points` | `list[dict] \| None` | `None` | Vertical annotation lines. Each dict needs `"x"` and `"label"`. |
-| `auto_rebase` | `bool` | `False` | Auto-detect sustained improvement and recalculate limits. |
+| `auto_rebase` | `bool` | `False` | Auto-detect a sustained shift and recalculate limits. |
+| `rebase_on` | `str` | `"improvement"` | Shift direction that triggers a rebase: `"improvement"`, `"worsening"`, or `"any"`. |
+| `baseline` | `int` | `15` | Minimum points per phase before a rebase is permitted. |
 | `date_format` | `str \| None` | `None` | `strftime`-style format for datetime x-axis. |
 | `logo_path` | `str \| None` | `None` | Logo image at top-right of figure. |
 | `logo_zoom` | `float` | `0.07` | Logo height as fraction of figure height. |

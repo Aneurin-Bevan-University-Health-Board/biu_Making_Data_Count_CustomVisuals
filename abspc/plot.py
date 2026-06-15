@@ -340,6 +340,7 @@ def _render_summary_figure(
 
 _CHART_TYPE_LABELS: dict[str, str] = {
     "xmr": "XmR Chart",
+    "i": "I Chart (Individuals)",
     "p": "p Chart (Proportion)",
     "u": "u Chart (Counts per Unit)",
     "c": "c Chart (Counts)",
@@ -371,6 +372,8 @@ def plot_spc_chart(
     change_points: list[dict] | None = None,
     annotations: list[dict] | None = None,
     auto_rebase: bool = False,
+    rebase_on: str = "improvement",
+    baseline: int = 15,
     date_format: str | None = None,
     logo_path: str | None = None,
     logo_zoom: float = 0.07,
@@ -391,7 +394,8 @@ def plot_spc_chart(
         subgroup-size column.
     chart_type : str
         One of ``"XmR"``, ``"p"``, ``"u"``, ``"c"``, ``"run"``
-        (case-insensitive).
+        (case-insensitive).  ``"i"`` / ``"I"`` are accepted as aliases of
+        ``"XmR"`` (an Individuals chart) and display an "I Chart" title.
     value_col : str, optional
         Name of the column containing measured values (default ``"value"``).
     subgroup_col : str or None, optional
@@ -470,6 +474,16 @@ def plot_spc_chart(
         line is drawn at each detected rebase boundary.  Default ``False``.
         Not supported for ``chart_type="run"``; pass ``"run"`` data to
         :func:`plot_run_chart` instead.
+    rebase_on : str, optional
+        Which direction of sustained shift triggers an auto-rebase when
+        *auto_rebase* is ``True`` (default ``"improvement"``).  One of
+        ``"improvement"`` (shifts in *improvement_direction*), ``"worsening"``
+        (shifts away from *improvement_direction*), or ``"any"`` (a sustained
+        run on either side of the mean).
+    baseline : int, optional
+        Minimum number of points that must accumulate within a phase before an
+        auto-rebase is permitted (default ``15``).  Only used when
+        *auto_rebase* is ``True``.
     date_format : str or None, optional
         A ``strftime``-style format string applied to the x-axis when datetime
         values are detected (e.g. ``"%b %Y"`` for *Jan 2024*).  When ``None``
@@ -496,6 +510,16 @@ def plot_spc_chart(
     ax  : matplotlib.axes.Axes
     """
     chart_type_key = chart_type.strip().lower()
+
+    if rebase_on not in {"improvement", "worsening", "any"}:
+        raise ValueError(
+            "rebase_on must be one of 'improvement', 'worsening', 'any', "
+            f"got '{rebase_on}'"
+        )
+    if isinstance(baseline, bool) or not isinstance(baseline, (int, np.integer)) or baseline < 0:
+        raise ValueError(
+            f"baseline must be a non-negative integer, got '{baseline}'"
+        )
 
     # Delegate run charts to the dedicated function
     if chart_type_key == "run":
@@ -531,6 +555,8 @@ def plot_spc_chart(
             value_col=value_col,
             subgroup_col=subgroup_col,
             numerator_col=numerator_col,
+            rebase_on=rebase_on,
+            baseline=baseline,
         )
     else:
         result = calculate_control_limits(
