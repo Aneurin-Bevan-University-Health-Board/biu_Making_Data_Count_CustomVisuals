@@ -1,4 +1,9 @@
 # biu_Making_Data_Count_CustomVisuals
+[![PyPI version](https://badge.fury.io/py/abspc.svg)](https://pypi.org/project/abspc/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/abspc?label=downloads%2Fmonth)](https://pypistats.org/packages/abspc)
+[![Python Versions](https://img.shields.io/pypi/pyversions/abspc)](https://pypi.org/project/abspc/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![NHS Wales](https://img.shields.io/badge/NHS%20Wales-ABUHB-005EB8?logo=data:image/svg+xml;base64,...)](https://abuhb.nhs.wales)
 
 Custom visuals implementing the NHS
 [Making Data Count](https://www.england.nhs.uk/publication/making-data-count/) (MDC)
