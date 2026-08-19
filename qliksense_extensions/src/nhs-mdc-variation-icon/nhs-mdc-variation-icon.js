@@ -42,6 +42,7 @@ define([
         useTarget: false,
         target: 0,
         autoRebase: false,
+        rebaseOn: 'improvement',
         title: '',
         decimals: 2,
         showLabels: true,

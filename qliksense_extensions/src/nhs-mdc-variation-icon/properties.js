@@ -67,6 +67,19 @@ define([], function () {
                 label: 'Auto-rebase on sustained shift',
                 ref: 'props.autoRebase',
                 defaultValue: false
+              },
+              rebaseOn: {
+                type: 'string',
+                component: 'dropdown',
+                label: 'Rebase on',
+                ref: 'props.rebaseOn',
+                options: [
+                  { value: 'improvement', label: 'Improvement only' },
+                  { value: 'worsening', label: 'Worsening only' },
+                  { value: 'any', label: 'Any sustained shift' }
+                ],
+                defaultValue: 'improvement',
+                show: function (data) { return data.props && data.props.autoRebase; }
               }
             }
           },

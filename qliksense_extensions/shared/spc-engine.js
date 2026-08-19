@@ -816,6 +816,11 @@
       ? detectRunChartSignals(result)
       : detectSpecialCauses(result);
 
+    var variationType = determineVariationType(result, signals, direction);
+    var assuranceType = chartType === 'run'
+      ? 'no_target'
+      : determineAssuranceType(result, target, direction);
+
     return {
       chartType: chartType,
       requestedChartType: requested,
@@ -829,14 +834,10 @@
       rebasePhase: result.rebasePhase,
       signals: signals,
       colours: determinePointColours(result, signals, direction, target),
-      variation: determineVariationType(result, signals, direction),
-      variationLabel: VARIATION_LABELS[determineVariationType(result, signals, direction)],
-      assurance: chartType === 'run'
-        ? 'no_target'
-        : determineAssuranceType(result, target, direction),
-      assuranceLabel: ASSURANCE_LABELS[
-        chartType === 'run' ? 'no_target' : determineAssuranceType(result, target, direction)
-      ],
+      variation: variationType,
+      variationLabel: VARIATION_LABELS[variationType],
+      assurance: assuranceType,
+      assuranceLabel: ASSURANCE_LABELS[assuranceType],
       improvementDirection: direction,
       target: target,
       rulesTriggered: {
