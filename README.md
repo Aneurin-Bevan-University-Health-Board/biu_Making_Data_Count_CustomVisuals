@@ -16,6 +16,7 @@ platforms:
 |----------|--------|----------|
 | **Python** (`abspc` package) | Available | [`abspc/`](abspc/) |
 | **Looker** (custom visualizations) | Available | [`looker_core_visuals/`](looker_core_visuals/) |
+| **Qlik Sense** (on-premise extensions) | Available | [`qliksense_extensions/`](qliksense_extensions/) |
 | **Looker Studio** (community viz) | 🔜 Planned | — |
 
 SPC rules are aligned with the NHS-R community's
@@ -31,6 +32,7 @@ affiliated with or endorsed by NHS England.
 
 - [Python — `abspc`](#python--abspc)
 - [Looker — Custom Visualizations](#looker--custom-visualizations)
+- [Qlik Sense — Extensions](#qlik-sense--extensions)
 - [Chart Types](#chart-types)
 - [MDC Icons & Assurance](#mdc-icons--assurance)
 - [NHS Colour Scheme](#nhs-colour-scheme)
@@ -124,6 +126,32 @@ MDC variation & assurance icons with tooltips, optional auto-rephasing, and
 configurable improvement direction and targets.
 
 **Full documentation:** [`looker_core_visuals/README.md`](looker_core_visuals/README.md)
+
+---
+
+## Qlik Sense — Extensions
+
+The [`qliksense_extensions/`](qliksense_extensions/) directory contains three
+visualisation extensions for **Qlik Sense Enterprise on Windows
+(client-managed / on-premise)**, sharing a JavaScript port of the Python SPC
+logic:
+
+| Extension | Purpose |
+|-----------|---------|
+| `nhs-mdc-spc-chart` | SPC chart (XmR/I, p, u, c, t, g, run) with auto-detection, rules 1–4, auto-rebasing, target line and MDC icons |
+| `nhs-mdc-summary-table` | MDC summary table — variation and assurance icons per measure |
+| `nhs-mdc-variation-icon` | KPI tile with the latest value and MDC icons |
+
+Build the importable packages with Node.js (no npm dependencies):
+
+```bash
+cd qliksense_extensions
+npm run build   # writes dist/<extension>.zip for QMC import
+npm test        # verifies the SPC calculations
+```
+
+**Installation guide:** [`qliksense_extensions/implementation.md`](qliksense_extensions/implementation.md)
+**Full documentation:** [`qliksense_extensions/README.md`](qliksense_extensions/README.md)
 
 ---
 

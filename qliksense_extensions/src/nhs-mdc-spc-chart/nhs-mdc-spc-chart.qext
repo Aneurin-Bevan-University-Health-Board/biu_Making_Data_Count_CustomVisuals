@@ -1,0 +1,14 @@
+{
+  "name": "NHS MDC SPC Chart",
+  "description": "NHS Making Data Count statistical process control chart (XmR, p, u, c, t, g and run charts) with special-cause rules, auto-rebasing and MDC variation/assurance icons.",
+  "icon": "linechart",
+  "type": "visualization",
+  "version": "1.0.0",
+  "author": "Aneurin Bevan University Health Board",
+  "homepage": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals",
+  "keywords": "nhs, making data count, spc, statistical process control, healthcare",
+  "license": "MIT",
+  "dependencies": {
+    "qlik-sense": ">=3.1.x"
+  }
+}

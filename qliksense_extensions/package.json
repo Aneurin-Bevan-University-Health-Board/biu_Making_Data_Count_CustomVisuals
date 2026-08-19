@@ -1,0 +1,29 @@
+{
+  "name": "@aneurin-bevan-uhb/qliksense-mdc-visuals",
+  "version": "1.0.0",
+  "description": "NHS Making Data Count SPC visualisation extensions for Qlik Sense Enterprise on Windows (client-managed)",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node tests/test_spc_engine.js"
+  },
+  "keywords": [
+    "nhs",
+    "making-data-count",
+    "spc",
+    "statistical-process-control",
+    "qlik",
+    "qlik-sense",
+    "healthcare"
+  ],
+  "author": "Aneurin Bevan University Health Board",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals.git",
+    "directory": "qliksense_extensions"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

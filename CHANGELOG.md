@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Qlik Sense custom visual set** (`qliksense_extensions/`) for Qlik Sense
+  Enterprise on Windows (client-managed / on-premise, 2024 releases):
+  `nhs-mdc-spc-chart`, `nhs-mdc-summary-table` and `nhs-mdc-variation-icon`.
+  The extensions share `shared/spc-engine.js`, a JavaScript port of
+  `abspc/spc.py` covering XmR/I, p, u, c, t, g and run charts, MDC special-cause
+  rules 1–4, run-chart signals, auto-rebasing (`rebaseOn` / `baseline`),
+  variation and assurance classification, and chart-type auto-detection.
+  Rendering is dependency-free SVG with NHS colours and MDC icons.
+- **`qliksense_extensions/implementation.md`** — QMC/Dev Hub installation,
+  configuration, upgrade, uninstall and troubleshooting guide for the
+  on-premise Qlik Sense deployment.
+- **Zero-dependency build (`npm run build`) and tests (`npm test`)** for the
+  Qlik Sense extensions, producing importable `.zip` packages.
+
 ## [1.1.0] - 2026-06-15
 
 ### Added
