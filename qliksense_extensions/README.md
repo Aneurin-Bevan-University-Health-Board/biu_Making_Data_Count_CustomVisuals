@@ -16,7 +16,7 @@ Python or Looker.
 
 | Extension | Description |
 |-----------|-------------|
-| `nhs-mdc-spc-chart` | SPC chart supporting XmR (I), p, u, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
+| `nhs-mdc-spc-chart` | SPC chart supporting XmR (I), p, p′, u, u′, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
 | `nhs-mdc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, target, latest period and latest value. Mirrors `abspc.plot.plot_mdc_summary_table`. |
 | `nhs-mdc-variation-icon` | Compact KPI tile showing the latest value with the MDC variation and assurance icons. |
 
@@ -35,6 +35,7 @@ qliksense_extensions/
 │   ├── spc-render.js          <- dependency-free SVG rendering + MDC icons
 │   ├── qlik-data.js           <- hypercube paging, series and number formatting
 │   ├── props-ui.js            <- fixed/expression property panel helpers
+│   ├── qlik-context.js        <- current user and app name for the generated stamp
 │   └── build-info.js          <- version + build date (rewritten at build time)
 ├── src/
 │   ├── nhs-mdc-spc-chart/
@@ -44,7 +45,7 @@ qliksense_extensions/
 └── tests/test_spc_engine.js   <- unit tests for the SPC engine
 ```
 
-The build copies all five shared modules into each extension's `lib/` folder,
+The build copies all six shared modules into each extension's `lib/` folder,
 so every package is self-contained — which also means a change under `shared/`
 requires **all three** extensions to be rebuilt and re-imported.
 
@@ -107,11 +108,26 @@ visual.
 |-------|-------------|--------|
 | XmR (alias `i`) | Mean | `mean ± 2.66 · MRbar` (3σ), `± 1.77 · MRbar` (2σ) |
 | p | Pooled proportion | `p̄ ± 3√(p̄(1−p̄)/n)` — varies with denominator |
+| p′ (`pprime`) | Pooled proportion | as p, then each σ scaled by Laney's σ(z) |
 | u | Pooled rate | `ū ± 3√(ū/n)` — varies with denominator |
+| u′ (`uprime`) | Pooled rate | as u, then each σ scaled by Laney's σ(z) |
 | c | Mean count | `c̄ ± 3√c̄` |
 | t | Back-transformed mean | XmR limits on `Y^(1/3.6)`, back-transformed |
 | g | Mean opportunities | `ḡ ± 3√(ḡ(ḡ+1))` |
 | run | Median | none (shift and trend signals only) |
+
+### When to use p′ and u′
+
+With large denominators — bed days, contacts, whole-population activity — the
+binomial or Poisson σ becomes tiny and ordinary p and u charts flag almost every
+point as special cause. Laney's p′ and u′ charts measure the actual dispersion
+between subgroups and widen the limits accordingly, so only genuine signals
+remain. When the data is not overdispersed, σ(z) resolves to 1 and p′/u′ give
+the same limits as p/u, so nothing is lost by choosing them.
+
+Auto-detect never selects p′ or u′ — pick them explicitly. Alongside `pprime`
+and `uprime`, the expression form also accepts `p'`, `p-prime`, `p_prime` and
+the `u` equivalents.
 
 Special-cause rules (aligned with
 [NHSRplotthedots](https://github.com/nhs-r-community/NHSRplotthedots)):

@@ -48,7 +48,21 @@
   // Minimum number of data points recommended for reliable SPC analysis
   var SPC_MIN_DATA_POINTS = 15;
 
-  var SUPPORTED_CHART_TYPES = ['xmr', 'p', 'u', 'c', 't', 'g', 'run'];
+  var SUPPORTED_CHART_TYPES = ['xmr', 'p', 'pprime', 'u', 'uprime', 'c', 't', 'g', 'run'];
+
+  // Spellings a user might reasonably type into a Qlik expression
+  var CHART_TYPE_ALIASES = {
+    i: 'xmr',
+    "p'": 'pprime',
+    'p-prime': 'pprime',
+    'p_prime': 'pprime',
+    "u'": 'uprime',
+    'u-prime': 'uprime',
+    'u_prime': 'uprime'
+  };
+
+  // Charts whose limits are derived from a denominator per data point
+  var DENOMINATOR_CHART_TYPES = ['p', 'pprime', 'u', 'uprime'];
 
   // XmR / t chart constants: 3 / d2 with d2 = 1.128 (subgroup size of 2)
   var D2 = 1.128;
@@ -111,7 +125,9 @@
   function normaliseChartType(chartType) {
     var key = (chartType === null || chartType === undefined ? '' : chartType)
       .toString().trim().toLowerCase();
-    if (key === 'i') { key = 'xmr'; }
+    if (Object.prototype.hasOwnProperty.call(CHART_TYPE_ALIASES, key)) {
+      key = CHART_TYPE_ALIASES[key];
+    }
     if (SUPPORTED_CHART_TYPES.indexOf(key) === -1) {
       throw new Error(
         "Unsupported chartType '" + chartType + "'. Must be one of: " +
@@ -147,11 +163,11 @@
   }
 
   /**
-   * p chart. `values` may already be proportions, or raw numerator counts
-   * (auto-detected exactly as in Python: any value > 1 implies counts).
+   * Centre line and per-point binomial sigma for p / p-prime charts. `values`
+   * may already be proportions, or raw numerator counts (auto-detected exactly
+   * as in Python: any value > 1 implies counts).
    */
-  function calcP(values, subgroupSizes) {
-    var n = values.length;
+  function proportionStats(values, subgroupSizes) {
     var proportions;
     var pBar;
     var isCount = values.some(function (v) { return isNum(v) && v > 1.0; });
@@ -165,30 +181,21 @@
         nanSum(subgroupSizes);
     }
 
-    var ucl = [], lcl = [], uwl = [], lwl = [];
-    for (var i = 0; i < n; i++) {
-      var sigmaI = Math.sqrt(pBar * (1 - pBar) / subgroupSizes[i]);
-      ucl.push(pBar + 3 * sigmaI);
-      lcl.push(pBar - 3 * sigmaI);
-      uwl.push(pBar + 2 * sigmaI);
-      lwl.push(pBar - 2 * sigmaI);
-    }
     return {
-      values: proportions,
-      mean: filled(n, pBar),
-      ucl: ucl,
-      lcl: lcl,
-      uwl: uwl,
-      lwl: lwl
+      series: proportions,
+      centre: pBar,
+      sigma: subgroupSizes.map(function (size) {
+        return Math.sqrt(pBar * (1 - pBar) / size);
+      })
     };
   }
 
   /**
-   * u chart. `values` may be per-unit rates, or raw counts (auto-detected as
-   * whole numbers, mirroring the Python integer-dtype check).
+   * Centre line and per-point Poisson sigma for u / u-prime charts. `values`
+   * may be per-unit rates, or raw counts (auto-detected as whole numbers,
+   * mirroring the Python integer-dtype check).
    */
-  function calcU(values, subgroupSizes) {
-    var n = values.length;
+  function rateStats(values, subgroupSizes) {
     var isCount = validValues(values).every(function (v) { return v % 1 === 0; });
     var rates, uBar;
 
@@ -201,22 +208,62 @@
         nanSum(subgroupSizes);
     }
 
+    return {
+      series: rates,
+      centre: uBar,
+      sigma: subgroupSizes.map(function (size) { return Math.sqrt(uBar / size); })
+    };
+  }
+
+  /**
+   * Laney's sigma(z): how far the observed point-to-point variation exceeds
+   * what the binomial / Poisson model alone predicts. Returns 1 when the data
+   * matches the model, so a p-prime chart collapses back to a plain p chart.
+   */
+  function laneySigmaZ(stats) {
+    var z = stats.series.map(function (v, i) {
+      return isNum(v) && stats.sigma[i] > 0 ? (v - stats.centre) / stats.sigma[i] : NaN;
+    });
+    var meanMr = nanMean(movingRanges(z));
+    return isNum(meanMr) && meanMr > 0 ? meanMr / D2 : 1.0;
+  }
+
+  function attributeLimits(stats, sigmaZ) {
+    var n = stats.series.length;
     var ucl = [], lcl = [], uwl = [], lwl = [];
     for (var i = 0; i < n; i++) {
-      var sigmaI = Math.sqrt(uBar / subgroupSizes[i]);
-      ucl.push(uBar + 3 * sigmaI);
-      lcl.push(uBar - 3 * sigmaI);
-      uwl.push(uBar + 2 * sigmaI);
-      lwl.push(uBar - 2 * sigmaI);
+      var sigmaI = stats.sigma[i] * sigmaZ;
+      ucl.push(stats.centre + 3 * sigmaI);
+      lcl.push(stats.centre - 3 * sigmaI);
+      uwl.push(stats.centre + 2 * sigmaI);
+      lwl.push(stats.centre - 2 * sigmaI);
     }
     return {
-      values: rates,
-      mean: filled(n, uBar),
+      values: stats.series,
+      mean: filled(n, stats.centre),
       ucl: ucl,
       lcl: lcl,
       uwl: uwl,
       lwl: lwl
     };
+  }
+
+  function calcP(values, subgroupSizes) {
+    return attributeLimits(proportionStats(values, subgroupSizes), 1.0);
+  }
+
+  function calcU(values, subgroupSizes) {
+    return attributeLimits(rateStats(values, subgroupSizes), 1.0);
+  }
+
+  function calcPPrime(values, subgroupSizes) {
+    var stats = proportionStats(values, subgroupSizes);
+    return attributeLimits(stats, laneySigmaZ(stats));
+  }
+
+  function calcUPrime(values, subgroupSizes) {
+    var stats = rateStats(values, subgroupSizes);
+    return attributeLimits(stats, laneySigmaZ(stats));
   }
 
   function calcC(values) {
@@ -291,8 +338,9 @@
    * Calculate the centre line and 3-sigma / 2-sigma limits for a series.
    *
    * @param {number[]} values Measured values.
-   * @param {string} chartType One of xmr|i|p|u|c|t|g|run.
-   * @param {Object} [options] `subgroupSizes` (array, required for p/u charts).
+   * @param {string} chartType One of xmr|i|p|pprime|u|uprime|c|t|g|run.
+   * @param {Object} [options] `subgroupSizes` (array, required for p/u and
+   *   their Laney p'/u' variants).
    * @returns {Object} `{values, mean, ucl, lcl, uwl, lwl}` — limit arrays are
    *   omitted for run charts. `values` may be rescaled (p/u charts).
    */
@@ -305,7 +353,7 @@
     }
 
     var subgroupSizes = opts.subgroupSizes;
-    if (key === 'p' || key === 'u') {
+    if (DENOMINATOR_CHART_TYPES.indexOf(key) !== -1) {
       if (!subgroupSizes || subgroupSizes.length !== values.length) {
         throw new Error(
           "Chart type '" + key + "' requires a denominator (subgroup size) " +
@@ -322,14 +370,16 @@
     var result;
     if (key === 'xmr') { result = calcXmr(values); }
     else if (key === 'p') { result = calcP(values, subgroupSizes); }
+    else if (key === 'pprime') { result = calcPPrime(values, subgroupSizes); }
     else if (key === 'u') { result = calcU(values, subgroupSizes); }
+    else if (key === 'uprime') { result = calcUPrime(values, subgroupSizes); }
     else if (key === 'c') { result = calcC(values); }
     else if (key === 't') { result = calcT(values); }
     else if (key === 'g') { result = calcG(values); }
     else { result = calcRun(values); }
 
     // Counts / proportions cannot go below zero
-    if (['p', 'u', 'c', 't', 'g'].indexOf(key) !== -1) {
+    if (['p', 'pprime', 'u', 'uprime', 'c', 't', 'g'].indexOf(key) !== -1) {
       result.lcl = clipLower(result.lcl, 0);
       result.lwl = clipLower(result.lwl, 0);
     }
@@ -809,9 +859,10 @@
     }
     chartType = normaliseChartType(chartType);
 
-    if ((chartType === 'p' || chartType === 'u') && !hasDenominator) {
+    if (DENOMINATOR_CHART_TYPES.indexOf(chartType) !== -1 && !hasDenominator) {
       // Mirror the Python / Looker default assumptions rather than failing
-      subgroupSizes = filled(values.length, chartType === 'p' ? 100 : 1);
+      var isProportion = chartType === 'p' || chartType === 'pprime';
+      subgroupSizes = filled(values.length, isProportion ? 100 : 1);
       hasDenominator = true;
     }
 

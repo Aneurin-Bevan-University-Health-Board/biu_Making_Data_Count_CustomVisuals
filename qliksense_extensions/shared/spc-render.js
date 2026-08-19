@@ -27,7 +27,9 @@
   var CHART_TYPE_LABELS = {
     xmr: 'XmR chart',
     p: 'p chart',
+    pprime: "p' chart",
     u: 'u chart',
+    uprime: "u' chart",
     c: 'c chart',
     t: 't chart',
     g: 'g chart',
@@ -55,13 +57,22 @@
     return el;
   }
 
-  // Shows which build of the extension is loaded, so it can be checked against
-  // the zip that was imported into the QMC.
+  // Shows when the visual was generated, by whom and in which app. Falls back
+  // to the build label so a visual still identifies itself if the Qlik context
+  // cannot be resolved.
+  function stampFor(opts) {
+    var stamp = (opts && opts.stampText) || BUILD_LABEL;
+    if (!stamp || (opts && opts.showBuildStamp === false)) { return ''; }
+    return stamp;
+  }
+
   function buildStampElement(opts) {
-    if (!BUILD_LABEL || (opts && opts.showBuildStamp === false)) { return null; }
+    var label = stampFor(opts);
+    if (!label) { return null; }
     var el = document.createElement('div');
     el.className = 'nhs-mdc-build-stamp';
-    el.textContent = BUILD_LABEL;
+    el.textContent = label;
+    el.title = (opts && opts.stampTooltip) || BUILD_LABEL;
     el.style.fontFamily = 'Arial, Helvetica, sans-serif';
     el.style.fontSize = '9px';
     el.style.color = '#768692';
@@ -265,6 +276,42 @@
     return g;
   }
 
+  /**
+   * Build an improvement-direction icon: a circle containing a plain up or
+   * down arrow, mirroring improvement_direction_high/low.png in abspc.
+   */
+  function improvementDirectionIcon(direction, size) {
+    var s = size || 34;
+    var g = svgEl('g', { class: 'nhs-mdc-icon nhs-mdc-icon--direction' });
+    var colour = COLOURS.BLUE;
+    var r = s / 2;
+    var up = direction !== 'low';
+    var tipY = up ? s * 0.22 : s * 0.78;
+    var tailY = up ? s * 0.78 : s * 0.22;
+    var headOffset = up ? s * 0.14 : -s * 0.14;
+
+    g.appendChild(svgEl('circle', {
+      cx: r, cy: r, r: r - 1, fill: COLOURS.PALE_GREY, stroke: colour, 'stroke-width': 2
+    }));
+    g.appendChild(svgEl('path', {
+      d: 'M ' + r + ' ' + tailY + ' L ' + r + ' ' + tipY,
+      stroke: colour, 'stroke-width': 2.2, 'stroke-linecap': 'round'
+    }));
+    g.appendChild(svgEl('path', {
+      d: 'M ' + (r - s * 0.13) + ' ' + (tipY + headOffset) +
+         ' L ' + r + ' ' + tipY +
+         ' L ' + (r + s * 0.13) + ' ' + (tipY + headOffset),
+      fill: 'none', stroke: colour, 'stroke-width': 2.2,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+    }));
+
+    return g;
+  }
+
+  function directionLabel(direction) {
+    return direction === 'low' ? 'Lower is better' : 'Higher is better';
+  }
+
   // -------------------------------------------------------------------------
   // SPC chart
   // -------------------------------------------------------------------------
@@ -356,12 +403,13 @@
       });
     }
 
-    if (BUILD_LABEL && opts.showBuildStamp !== false) {
-      text(svg, BUILD_LABEL, {
+    var chartStamp = stampFor(opts);
+    if (chartStamp) {
+      tooltip(text(svg, chartStamp, {
         x: width - 4, y: 11, 'text-anchor': 'end',
         'font-family': 'Arial, Helvetica, sans-serif',
         'font-size': 9, fill: '#768692'
-      });
+      }), opts.stampTooltip || BUILD_LABEL);
     }
 
     var plot = svgEl('g', { transform: 'translate(' + margin.left + ',' + margin.top + ')' });
@@ -529,12 +577,17 @@
       var icons = svgEl('g', { transform: 'translate(0,20)' });
       footer.appendChild(icons);
 
+      var direction = improvementDirectionIcon(analysis.improvementDirection, 30);
+      direction.setAttribute('transform', 'translate(0,0)');
+      tooltip(direction, directionLabel(analysis.improvementDirection));
+      icons.appendChild(direction);
+
       var variation = variationIcon(analysis.variation, 30);
-      variation.setAttribute('transform', 'translate(0,0)');
+      variation.setAttribute('transform', 'translate(40,0)');
       tooltip(variation, analysis.variationLabel);
       icons.appendChild(variation);
       text(icons, analysis.variationLabel, {
-        x: 38, y: 20, 'font-family': 'Arial, Helvetica, sans-serif',
+        x: 78, y: 20, 'font-family': 'Arial, Helvetica, sans-serif',
         'font-size': 11, fill: '#425563'
       });
 
@@ -736,8 +789,13 @@
     iconRow.style.gap = '14px';
 
     [
-      { type: analysis.variation, label: analysis.variationLabel, variation: true },
-      { type: analysis.assurance, label: analysis.assuranceLabel, variation: false }
+      {
+        type: analysis.improvementDirection,
+        label: directionLabel(analysis.improvementDirection),
+        kind: 'direction'
+      },
+      { type: analysis.variation, label: analysis.variationLabel, kind: 'variation' },
+      { type: analysis.assurance, label: analysis.assuranceLabel, kind: 'assurance' }
     ].forEach(function (item) {
       var cell = document.createElement('div');
       cell.style.display = 'flex';
@@ -746,10 +804,16 @@
       cell.title = item.label;
 
       var svg = svgEl('svg', { width: 34, height: 34, viewBox: '0 0 34 34' });
-      svg.appendChild(item.variation ? variationIcon(item.type, 34) : assuranceIcon(item.type, 34));
+      if (item.kind === 'variation') {
+        svg.appendChild(variationIcon(item.type, 34));
+      } else if (item.kind === 'assurance') {
+        svg.appendChild(assuranceIcon(item.type, 34));
+      } else {
+        svg.appendChild(improvementDirectionIcon(item.type, 34));
+      }
       cell.appendChild(svg);
 
-      if (opts.showLabels !== false) {
+      if (opts.showLabels !== false && item.kind !== 'direction') {
         var caption = document.createElement('span');
         caption.textContent = item.label;
         caption.style.fontSize = '11px';

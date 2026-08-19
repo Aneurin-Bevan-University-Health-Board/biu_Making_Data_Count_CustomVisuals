@@ -23,7 +23,7 @@ const SRC_DIR = path.join(ROOT, 'src');
 const SHARED_DIR = path.join(ROOT, 'shared');
 const DIST_DIR = path.join(ROOT, 'dist');
 
-const SHARED_FILES = ['spc-engine.js', 'spc-render.js', 'qlik-data.js', 'props-ui.js', 'build-info.js'];
+const SHARED_FILES = ['spc-engine.js', 'spc-render.js', 'qlik-data.js', 'props-ui.js', 'qlik-context.js', 'build-info.js'];
 
 const PKG_VERSION = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')

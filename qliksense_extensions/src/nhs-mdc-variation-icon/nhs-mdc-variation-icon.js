@@ -14,8 +14,9 @@ define([
   './lib/spc-render',
   './lib/qlik-data',
   './lib/props-ui',
+  './lib/qlik-context',
   './properties'
-], function (engine, render, qlikData, propsUi, properties) {
+], function (engine, render, qlikData, propsUi, qlikContext, properties) {
   'use strict';
 
   function elementOf($element) {
@@ -96,8 +97,13 @@ define([
         return Promise.resolve();
       }
 
-      return qlikData.fetchRows(self.backendApi, layout, numberOr(props.maxRows, 5000))
-        .then(function (rows) {
+      return Promise.all([
+        qlikData.fetchRows(self.backendApi, layout, numberOr(props.maxRows, 5000)),
+        qlikContext.load(self)
+      ])
+        .then(function (replies) {
+          var rows = replies[0];
+          var context = replies[1];
           if (!rows.length) {
             render.renderMessage(element, 'No data to display.');
             return;
@@ -143,7 +149,8 @@ define([
             decimals: numberOr(props.decimals, 2),
             formatValue: qlikData.measureFormatter(layout, 0, numberOr(props.decimals, 2)),
             showLabels: props.showLabels !== false,
-            showBuildStamp: props.showBuildStamp !== false
+            showBuildStamp: props.showBuildStamp !== false,
+            stampText: qlikContext.stampText(context)
           });
         })
         .catch(function (error) {

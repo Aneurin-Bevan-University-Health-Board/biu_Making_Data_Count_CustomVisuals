@@ -208,13 +208,17 @@
       { value: 'auto', label: 'Auto-detect' },
       { value: 'xmr', label: 'XmR (individuals)' },
       { value: 'p', label: 'p (proportion)' },
+      { value: 'pprime', label: "p' (proportion, large denominators)" },
       { value: 'u', label: 'u (rate per unit)' },
+      { value: 'uprime', label: "u' (rate, large denominators)" },
       { value: 'c', label: 'c (count)' },
       { value: 't', label: 't (time between rare events)' },
       { value: 'g', label: 'g (opportunities between rare events)' },
       { value: 'run', label: 'Run chart' }
     ],
-    CHART_TYPE_VALUES: ['auto', 'xmr', 'p', 'u', 'c', 't', 'g', 'run'],
+    CHART_TYPE_VALUES: [
+      'auto', 'xmr', 'p', 'pprime', 'u', 'uprime', 'c', 't', 'g', 'run'
+    ],
     DIRECTION_OPTIONS: [
       { value: 'high', label: 'Higher is better' },
       { value: 'low', label: 'Lower is better' }

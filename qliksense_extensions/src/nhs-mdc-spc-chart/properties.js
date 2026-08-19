@@ -157,7 +157,7 @@ define(['./lib/props-ui'], function (propsUi) {
       },
       showBuildStamp: {
         type: 'boolean',
-        label: 'Show extension build date',
+        label: 'Show generated stamp (time, user, app)',
         ref: 'props.showBuildStamp',
         defaultValue: true
       },

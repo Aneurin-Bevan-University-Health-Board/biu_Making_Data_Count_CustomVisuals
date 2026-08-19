@@ -9,7 +9,7 @@ Three visualisation extensions are provided:
 
 | Extension | Folder / package | Purpose |
 |-----------|------------------|---------|
-| **NHS MDC SPC Chart** | `nhs-mdc-spc-chart` | Full SPC chart (XmR, p, u, c, t, g, run) |
+| **NHS MDC SPC Chart** | `nhs-mdc-spc-chart` | Full SPC chart (XmR, p, p′, u, u′, c, t, g, run) |
 | **NHS MDC Summary Table** | `nhs-mdc-summary-table` | Variation & assurance icons per measure |
 | **NHS MDC Variation Icon** | `nhs-mdc-variation-icon` | Single-measure KPI tile with MDC icons |
 
@@ -52,10 +52,10 @@ qliksense_extensions/dist/nhs-mdc-variation-icon.zip
 ```
 
 The build copies the shared modules (`spc-engine.js`, `spc-render.js`,
-`qlik-data.js`, `props-ui.js` and `build-info.js`) from `shared/` into each
-extension's `lib/` folder, so every package is completely self-contained. The
-real version and build date are written into `lib/build-info.js` at this point
-and shown in the corner of each visual.
+`qlik-data.js`, `props-ui.js`, `qlik-context.js` and `build-info.js`) from
+`shared/` into each extension's `lib/` folder, so every package is completely
+self-contained. The real version and build date are written into
+`lib/build-info.js` at this point and shown in the stamp tooltip on each visual.
 
 Optionally verify the SPC maths first:
 
@@ -69,7 +69,7 @@ For each extension folder under `qliksense_extensions/src/`:
 
 1. Copy the folder (for example `nhs-mdc-spc-chart`) to a working directory.
 2. Create a `lib` sub-folder inside it.
-3. Copy all five files from `qliksense_extensions/shared/` into that `lib`
+3. Copy all six files from `qliksense_extensions/shared/` into that `lib`
    folder.
 4. Zip the extension folder so the archive contains the folder itself, e.g.
    `nhs-mdc-spc-chart/nhs-mdc-spc-chart.qext`, `nhs-mdc-spc-chart/lib/...`.
@@ -87,6 +87,7 @@ nhs-mdc-spc-chart/
     ├── spc-render.js          <- SVG renderer and MDC icons
     ├── qlik-data.js           <- hypercube paging and number formatting
     ├── props-ui.js            <- fixed/expression property helpers
+    ├── qlik-context.js        <- current user and app name for the generated stamp
     └── build-info.js          <- version and build date stamp
 ```
 
@@ -192,7 +193,7 @@ true; the extensions handle this for the boolean settings.
 
 | Property | Default | Notes |
 |----------|---------|-------|
-| Chart type | Auto-detect | `auto`, XmR, p, u, c, t, g, run |
+| Chart type | Auto-detect | `auto`, XmR, p, p′, u, u′, c, t, g, run |
 | Improvement direction | Higher is better | Drives improvement/concern colouring and the variation icon |
 | Use target / Target value | Off | Adds a target line and enables the assurance icon |
 | Auto-rebase on sustained shift | Off | Recalculates limits from the start of a sustained shift |
@@ -211,8 +212,18 @@ true; the extensions handle this for the boolean settings.
 | Show variation & assurance icons | on | Chart |
 | Show icon captions | on | Icon |
 | Allow selections on click | on | Chart, Summary table |
-| Show extension build date | on | All |
+| Show generated stamp (time, user, app) | on | All |
 | Maximum data points / rows | 5000 | All |
+
+The generated stamp records when the visual was rendered, the signed-in user
+and the app it sits in, for example
+`Generated 19/08/2026 15:50 • ABUHB\jsmith • Emergency Department SPC`. Hover
+it to see the extension version and build date. If the Qlik context cannot be
+read the stamp falls back to the version alone.
+
+An improvement-direction arrow (blue, up or down) is drawn beside the
+variation and assurance icons so a reader can see which way is good without
+opening the properties.
 
 ### Chart type notes
 
@@ -222,6 +233,14 @@ true; the extensions handle this for the boolean settings.
 * **u chart** — supply the denominator as the second measure. Whole-number
   first measures are treated as counts and converted to rates per unit;
   fractional values are treated as rates that are already calculated.
+* **p′ / u′ charts** — same inputs as p and u. Use them when the denominators
+  are large (bed days, contacts, whole-population activity) and an ordinary
+  p or u chart flags nearly every point: Laney's σ(z) correction widens the
+  limits to match the dispersion actually present between subgroups. Where the
+  data is not overdispersed σ(z) resolves to 1 and the limits match p/u
+  exactly. Auto-detect never picks them — choose them explicitly. The
+  expression form also accepts `p'`, `p-prime`, `p_prime` and the `u`
+  equivalents.
 * **t / g charts** — values must be non-negative (times or opportunities
   between rare events).
 * **run chart** — median centre line, no control limits, shift and trend
@@ -283,7 +302,7 @@ extension is re-imported.
 | Extension missing from **Custom objects** | Import failed, or the user lacks the extension security rule. Re-check QMC > Extensions and the `Extension` rule in **Security rules**. |
 | "Add one dimension … and at least one measure" | The object has no dimension/measure yet — add them in the property panel. |
 | "Add two dimensions … and at least one measure" | Summary table only: it needs the measure name **and** the time period as dimensions. |
-| "requires a denominator (subgroup size) for every data point" | p/u chart selected without a valid second measure. Add the denominator measure or switch chart type. |
+| "requires a denominator (subgroup size) for every data point" | p/u (or p′/u′) chart selected without a valid second measure. Add the denominator measure or switch chart type. |
 | Chart is empty but data exists | The measure returns null for every row, or the dimension is not sorted; check **Sorting**. |
 | Limits look wrong and the periods are out of order | The time dimension is text (`Aug-25`) and sorting alphabetically. Sort on a date field or by load order. |
 | "Latest period" is not the most recent period | Same cause — the last row in Qlik's sort order is treated as the latest. |

@@ -92,6 +92,67 @@ test('u chart converts counts to rates', () => {
   closeTo(result.ucl[0], uBar + 3 * Math.sqrt(uBar / 100), 1e-12);
 });
 
+test("p' chart applies Laney's sigma(z) correction", () => {
+  const numerators = [120, 180, 130, 200, 140, 190, 125, 205];
+  const denominators = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
+  const plain = engine.calculateControlLimits(numerators, 'p', {
+    subgroupSizes: denominators
+  });
+  const prime = engine.calculateControlLimits(numerators, 'pprime', {
+    subgroupSizes: denominators
+  });
+
+  // Same centre line, but overdispersed data widens the limits
+  closeTo(prime.mean[0], plain.mean[0], 1e-12);
+  assert.ok(prime.ucl[0] > plain.ucl[0], "p' limits should be wider than p");
+
+  const pBar = plain.mean[0];
+  const sigma = denominators.map((n) => Math.sqrt((pBar * (1 - pBar)) / n));
+  const z = prime.values.map((v, i) => (v - pBar) / sigma[i]);
+  let mrSum = 0;
+  for (let i = 1; i < z.length; i += 1) { mrSum += Math.abs(z[i] - z[i - 1]); }
+  const sigmaZ = mrSum / (z.length - 1) / 1.128;
+  closeTo(prime.ucl[0], pBar + 3 * sigma[0] * sigmaZ, 1e-12);
+});
+
+test("p' collapses back to p when the data is not overdispersed", () => {
+  // Points sitting exactly one binomial sigma apart give sigma(z) = 1 / 1.128 * 1
+  const denominators = [500, 500, 500, 500, 500, 500];
+  const pBar = 0.2;
+  const sigma = Math.sqrt((pBar * (1 - pBar)) / 500);
+  const proportions = [0, 1, 0, 1, 0, 1].map((k) => pBar + (k ? 1.128 / 2 : -1.128 / 2) * sigma);
+  const plain = engine.calculateControlLimits(proportions, 'p', {
+    subgroupSizes: denominators
+  });
+  const prime = engine.calculateControlLimits(proportions, 'pprime', {
+    subgroupSizes: denominators
+  });
+  closeTo(prime.ucl[0], plain.ucl[0], 1e-9);
+});
+
+test("u' chart widens u limits for overdispersed rates", () => {
+  const counts = [20, 60, 25, 70, 30, 65, 22, 75];
+  const denominators = [500, 500, 500, 500, 500, 500, 500, 500];
+  const plain = engine.calculateControlLimits(counts, 'u', { subgroupSizes: denominators });
+  const prime = engine.calculateControlLimits(counts, 'uprime', {
+    subgroupSizes: denominators
+  });
+  closeTo(prime.mean[0], plain.mean[0], 1e-12);
+  assert.ok(prime.ucl[0] > plain.ucl[0], "u' limits should be wider than u");
+  assert.ok(prime.lcl.every((v) => v >= 0), "u' LCL is clipped at zero");
+});
+
+test("prime chart aliases are accepted", () => {
+  const denominators = [200, 200, 200, 200];
+  const opts = { subgroupSizes: denominators };
+  assert.strictEqual(
+    engine.calculateControlLimits([10, 20, 15, 25], "p'", opts).chartType, 'pprime'
+  );
+  assert.strictEqual(
+    engine.calculateControlLimits([10, 20, 15, 25], 'U-Prime', opts).chartType, 'uprime'
+  );
+});
+
 test('c chart uses sqrt(c-bar) sigma with a non-negative LCL', () => {
   const counts = [3, 5, 2, 4, 6, 3, 4, 5];
   const result = engine.calculateControlLimits(counts, 'c');
