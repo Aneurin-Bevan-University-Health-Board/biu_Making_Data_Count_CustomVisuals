@@ -217,7 +217,8 @@
       { value: 'run', label: 'Run chart' }
     ],
     CHART_TYPE_VALUES: [
-      'auto', 'xmr', 'p', 'pprime', 'u', 'uprime', 'c', 't', 'g', 'run'
+      'auto', 'xmr', 'i', 'p', 'pprime', "p'", 'p-prime', 'p_prime',
+      'u', 'uprime', "u'", 'u-prime', 'u_prime', 'c', 't', 'g', 'run'
     ],
     DIRECTION_OPTIONS: [
       { value: 'high', label: 'Higher is better' },
