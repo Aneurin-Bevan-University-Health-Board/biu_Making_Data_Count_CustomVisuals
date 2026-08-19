@@ -11,17 +11,18 @@
 (function (root, factory) {
   'use strict';
   if (typeof define === 'function' && define.amd) {
-    define(['./spc-engine'], factory);
+    define(['./spc-engine', './build-info'], factory);
   } else if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./spc-engine'));
+    module.exports = factory(require('./spc-engine'), require('./build-info'));
   } else {
-    root.NhsMdcSpcRender = factory(root.NhsMdcSpcEngine);
+    root.NhsMdcSpcRender = factory(root.NhsMdcSpcEngine, root.NhsMdcBuildInfo);
   }
-}(typeof self !== 'undefined' ? self : this, function (engine) {
+}(typeof self !== 'undefined' ? self : this, function (engine, buildInfo) {
   'use strict';
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var COLOURS = engine.NHS_COLOURS;
+  var BUILD_LABEL = (buildInfo && buildInfo.label) || '';
 
   var CHART_TYPE_LABELS = {
     xmr: 'XmR chart',
@@ -54,6 +55,21 @@
     return el;
   }
 
+  // Shows which build of the extension is loaded, so it can be checked against
+  // the zip that was imported into the QMC.
+  function buildStampElement(opts) {
+    if (!BUILD_LABEL || (opts && opts.showBuildStamp === false)) { return null; }
+    var el = document.createElement('div');
+    el.className = 'nhs-mdc-build-stamp';
+    el.textContent = BUILD_LABEL;
+    el.style.fontFamily = 'Arial, Helvetica, sans-serif';
+    el.style.fontSize = '9px';
+    el.style.color = '#768692';
+    el.style.textAlign = 'right';
+    el.style.padding = '2px 4px';
+    return el;
+  }
+
   function tooltip(el, content) {
     var title = svgEl('title');
     title.textContent = content;
@@ -67,6 +83,24 @@
     }
     var dp = (decimals === null || decimals === undefined) ? 2 : decimals;
     return Number(value).toFixed(dp);
+  }
+
+  /**
+   * Resolve the value formatter for a render call: `opts.formatValue` when the
+   * caller has one (built from the measure's own number format), otherwise a
+   * plain fixed-decimal formatter.
+   */
+  function formatterFor(opts) {
+    if (opts && typeof opts.formatValue === 'function') {
+      return function (value) {
+        if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+          return 'n/a';
+        }
+        return opts.formatValue(value);
+      };
+    }
+    var decimals = opts ? opts.decimals : undefined;
+    return function (value) { return formatNumber(value, decimals); };
   }
 
   function niceTicks(min, max, count) {
@@ -281,7 +315,7 @@
    * @param {HTMLElement} element Container element (emptied before drawing).
    * @param {Object} analysis Output of `engine.analyse`.
    * @param {Object} options Rendering options:
-   *   labels, width, height, title, decimals, showControlLimits,
+   *   labels, width, height, title, decimals, formatValue, showControlLimits,
    *   showWarningLimits, showCentreLine, showTargetLine, showLegend,
    *   showIcons, onPointClick, valueLabel.
    */
@@ -290,7 +324,7 @@
     clearElement(element);
 
     var labels = opts.labels || [];
-    var decimals = opts.decimals;
+    var fmt = formatterFor(opts);
     var width = Math.max(opts.width || element.clientWidth || 600, 240);
     var height = Math.max(opts.height || element.clientHeight || 360, 180);
     var isRun = analysis.chartType === 'run';
@@ -322,6 +356,14 @@
       });
     }
 
+    if (BUILD_LABEL && opts.showBuildStamp !== false) {
+      text(svg, BUILD_LABEL, {
+        x: width - 4, y: 11, 'text-anchor': 'end',
+        'font-family': 'Arial, Helvetica, sans-serif',
+        'font-size': 9, fill: '#768692'
+      });
+    }
+
     var plot = svgEl('g', { transform: 'translate(' + margin.left + ',' + margin.top + ')' });
     svg.appendChild(plot);
 
@@ -336,7 +378,7 @@
       candidates = candidates.concat(analysis.uwl || [], analysis.lwl || []);
     }
     if (opts.showTargetLine !== false && analysis.target !== null) {
-      candidates.push(analysis.target);
+      candidates = candidates.concat(analysis.target);
     }
     candidates = candidates.filter(function (v) { return typeof v === 'number' && isFinite(v); });
 
@@ -356,7 +398,7 @@
       plot.appendChild(svgEl('line', {
         x1: 0, y1: y, x2: plotWidth, y2: y, stroke: COLOURS.PALE_GREY, 'stroke-width': 1
       }));
-      text(plot, formatNumber(tick, decimals), {
+      text(plot, fmt(tick), {
         x: -8, y: y + 4, 'text-anchor': 'end',
         'font-family': 'Arial, Helvetica, sans-serif', 'font-size': 11, fill: '#425563'
       });
@@ -397,11 +439,15 @@
       drawLimitSeries(plot, xScale, yScale, analysis.mean, COLOURS.BLUE, null, 2);
     }
     if (opts.showTargetLine !== false && analysis.target !== null) {
-      var ty = yScale(analysis.target);
-      plot.appendChild(svgEl('line', {
-        x1: 0, y1: ty, x2: plotWidth, y2: ty,
-        stroke: COLOURS.WARM_YELLOW, 'stroke-width': 1.6, 'stroke-dasharray': '8,4'
-      }));
+      if (Array.isArray(analysis.target)) {
+        drawLimitSeries(plot, xScale, yScale, analysis.target, COLOURS.WARM_YELLOW, '8,4', 1.6);
+      } else {
+        var ty = yScale(analysis.target);
+        plot.appendChild(svgEl('line', {
+          x1: 0, y1: ty, x2: plotWidth, y2: ty,
+          stroke: COLOURS.WARM_YELLOW, 'stroke-width': 1.6, 'stroke-dasharray': '8,4'
+        }));
+      }
     }
 
     // ---- series -----------------------------------------------------------
@@ -436,10 +482,10 @@
       var labelText = labels[index] === undefined || labels[index] === null
         ? 'Point ' + (index + 1)
         : String(labels[index]);
-      tooltip(point, labelText + ': ' + formatNumber(value, decimals) +
-        '\nCentre line: ' + formatNumber(analysis.mean[index], decimals) +
-        (analysis.ucl ? '\nUCL: ' + formatNumber(analysis.ucl[index], decimals) : '') +
-        (analysis.lcl ? '\nLCL: ' + formatNumber(analysis.lcl[index], decimals) : '') +
+      tooltip(point, labelText + ': ' + fmt(value) +
+        '\nCentre line: ' + fmt(analysis.mean[index]) +
+        (analysis.ucl ? '\nUCL: ' + fmt(analysis.ucl[index]) : '') +
+        (analysis.lcl ? '\nLCL: ' + fmt(analysis.lcl[index]) : '') +
         (triggered.length ? '\nSignals: ' + triggered.join(', ') : ''));
 
       if (typeof opts.onPointClick === 'function') {
@@ -538,16 +584,28 @@
     return cell;
   }
 
+  // A dynamic target is an array, in which case the last period's target applies.
+  function latestTarget(analysis, fmt) {
+    var target = analysis.target;
+    if (Array.isArray(target)) { target = target[target.length - 1]; }
+    return (target === null || target === undefined || !isFinite(target)) ? '' : fmt(target);
+  }
+
   /**
    * Render an NHS MDC summary table.
    *
+   * Columns mirror `abspc.plot.plot_mdc_summary_table`, with the addition of
+   * the latest period so the data behind each row can be checked.
+   *
    * @param {HTMLElement} element Container element.
-   * @param {Array} rows Array of `{label, analysis, error}` objects.
-   * @param {Object} options `decimals`, `onRowClick`, `showTarget`.
+   * @param {Array} rows Array of `{label, description, latestLabel, analysis, error}` objects.
+   * @param {Object} options `decimals`, `formatValue`, `onRowClick`, `showDescription`.
    */
   function renderSummaryTable(element, rows, options) {
     var opts = options || {};
     clearElement(element);
+
+    var fmt = formatterFor(opts);
 
     var table = document.createElement('table');
     table.className = 'nhs-mdc-summary-table';
@@ -556,9 +614,15 @@
     table.style.fontFamily = 'Arial, Helvetica, sans-serif';
     table.style.fontSize = '12px';
 
+    var headings = ['Measure'];
+    if (opts.showDescription) { headings.push('Description'); }
+    headings = headings.concat([
+      '', 'Variation', '', 'Assurance', 'Target', 'Latest period', 'Latest value'
+    ]);
+
     var thead = document.createElement('thead');
     var headRow = document.createElement('tr');
-    ['Measure', 'Variation', 'Assurance', 'Latest', 'Mean', 'Points', 'Chart'].forEach(function (heading) {
+    headings.forEach(function (heading) {
       var th = document.createElement('th');
       th.textContent = heading;
       th.style.textAlign = 'left';
@@ -576,19 +640,21 @@
       tr.style.borderBottom = '1px solid ' + COLOURS.PALE_GREY;
 
       textCell(tr, row.label);
+      if (opts.showDescription) { textCell(tr, row.description || ''); }
 
       if (row.error || !row.analysis) {
         var errorCell = textCell(tr, row.error || 'No data');
-        errorCell.colSpan = 6;
+        errorCell.colSpan = headings.length - (opts.showDescription ? 2 : 1);
         errorCell.style.color = COLOURS.ORANGE;
       } else {
         var analysis = row.analysis;
         iconCell(tr, analysis.variation, analysis.variationLabel, true);
+        textCell(tr, analysis.variationLabel);
         iconCell(tr, analysis.assurance, analysis.assuranceLabel, false);
-        textCell(tr, formatNumber(analysis.latestValue, opts.decimals), 'right');
-        textCell(tr, formatNumber(analysis.mean[analysis.mean.length - 1], opts.decimals), 'right');
-        textCell(tr, String(analysis.pointCount), 'right');
-        textCell(tr, CHART_TYPE_LABELS[analysis.chartType] || analysis.chartType);
+        textCell(tr, analysis.assuranceLabel);
+        textCell(tr, latestTarget(analysis, fmt), 'right');
+        textCell(tr, row.latestLabel || '', 'right');
+        textCell(tr, fmt(analysis.latestValue), 'right');
       }
 
       if (typeof opts.onRowClick === 'function' && row.elemNumber !== undefined) {
@@ -604,6 +670,8 @@
     wrapper.style.width = '100%';
     wrapper.style.height = '100%';
     wrapper.style.overflow = 'auto';
+    var stamp = buildStampElement(opts);
+    if (stamp) { wrapper.appendChild(stamp); }
     wrapper.appendChild(table);
     element.appendChild(wrapper);
     return table;
@@ -621,12 +689,20 @@
     var opts = options || {};
     clearElement(element);
 
+    var fmt = formatterFor(opts);
+
     var wrapper = document.createElement('div');
     wrapper.className = 'nhs-mdc-kpi';
     wrapper.style.fontFamily = 'Arial, Helvetica, sans-serif';
     wrapper.style.padding = '10px';
     wrapper.style.height = '100%';
     wrapper.style.boxSizing = 'border-box';
+
+    var kpiStamp = buildStampElement(opts);
+    if (kpiStamp) {
+      kpiStamp.style.padding = '0';
+      wrapper.appendChild(kpiStamp);
+    }
 
     if (opts.title) {
       var titleEl = document.createElement('div');
@@ -639,7 +715,7 @@
     }
 
     var valueEl = document.createElement('div');
-    valueEl.textContent = formatNumber(analysis.latestValue, opts.decimals);
+    valueEl.textContent = fmt(analysis.latestValue);
     valueEl.style.fontSize = '28px';
     valueEl.style.fontWeight = 'bold';
     valueEl.style.color = '#231F20';
@@ -649,7 +725,7 @@
     meta.style.fontSize = '11px';
     meta.style.color = '#425563';
     meta.style.marginBottom = '8px';
-    meta.textContent = 'Mean ' + formatNumber(analysis.mean[analysis.mean.length - 1], opts.decimals) +
+    meta.textContent = 'Mean ' + fmt(analysis.mean[analysis.mean.length - 1]) +
       ' \u2022 ' + analysis.pointCount + ' points \u2022 ' +
       (CHART_TYPE_LABELS[analysis.chartType] || analysis.chartType);
     wrapper.appendChild(meta);

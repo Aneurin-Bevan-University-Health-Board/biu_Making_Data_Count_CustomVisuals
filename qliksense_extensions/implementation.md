@@ -51,9 +51,11 @@ qliksense_extensions/dist/nhs-mdc-summary-table.zip
 qliksense_extensions/dist/nhs-mdc-variation-icon.zip
 ```
 
-The build copies the shared modules (`shared/spc-engine.js`,
-`shared/spc-render.js`, `shared/qlik-data.js`) into each extension's `lib/`
-folder, so every package is completely self-contained.
+The build copies the shared modules (`spc-engine.js`, `spc-render.js`,
+`qlik-data.js`, `props-ui.js` and `build-info.js`) from `shared/` into each
+extension's `lib/` folder, so every package is completely self-contained. The
+real version and build date are written into `lib/build-info.js` at this point
+and shown in the corner of each visual.
 
 Optionally verify the SPC maths first:
 
@@ -67,8 +69,8 @@ For each extension folder under `qliksense_extensions/src/`:
 
 1. Copy the folder (for example `nhs-mdc-spc-chart`) to a working directory.
 2. Create a `lib` sub-folder inside it.
-3. Copy `qliksense_extensions/shared/spc-engine.js`, `spc-render.js` and
-   `qlik-data.js` into that `lib` folder.
+3. Copy all five files from `qliksense_extensions/shared/` into that `lib`
+   folder.
 4. Zip the extension folder so the archive contains the folder itself, e.g.
    `nhs-mdc-spc-chart/nhs-mdc-spc-chart.qext`, `nhs-mdc-spc-chart/lib/...`.
 
@@ -83,8 +85,13 @@ nhs-mdc-spc-chart/
 └── lib/
     ├── spc-engine.js          <- SPC maths (port of the Python abspc package)
     ├── spc-render.js          <- SVG renderer and MDC icons
-    └── qlik-data.js           <- hypercube paging helpers
+    ├── qlik-data.js           <- hypercube paging and number formatting
+    ├── props-ui.js            <- fixed/expression property helpers
+    └── build-info.js          <- version and build date stamp
 ```
+
+Built by hand, `build-info.js` keeps its placeholder values and the visuals
+report `v dev (unbuilt)`.
 
 ---
 
@@ -113,7 +120,7 @@ the repository database stays in step.
 1. Browse to `https://<your-server>/dev-hub/`.
 2. Open the **Extension editor**.
 3. Create a new extension with the same name as the folder, then paste in the
-   file contents (including a `lib` folder for the three shared modules).
+   file contents (including a `lib` folder for the five shared modules).
 
 Dev Hub is convenient for testing changes, but QMC import is the supported
 route for production.
@@ -142,14 +149,42 @@ chart type that needs a denominator).
 
 ### Data model
 
-| Extension | Dimension 1 | Dimension 2 | Measure 1 | Measure 2 (optional) |
-|-----------|-------------|-------------|-----------|----------------------|
-| SPC Chart | Time period | — | Value | Denominator (p / u charts) |
-| Summary Table | Measure / service name | Time period | Value | Denominator (p / u charts) |
-| Variation Icon | Time period | — | Value | Denominator (p / u charts) |
+| Extension | Dimensions | Measures |
+|-----------|------------|----------|
+| SPC Chart | 1: time period | 1: value · 2: denominator · 3: target |
+| Summary Table | 1: measure / service name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
+| Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
+
+Only the first dimension and the first measure are required.
+
+* **Denominator** (measure 2) — the subgroup size for p and u charts.
+* **Target** (measure 3) — overrides the fixed **Target value** property and
+  lets the target line change over time. Assurance is judged against the target
+  in the latest period.
+* **Description** (summary table dimension 3) — shown as a column beside the
+  measure name. It must be one-to-one with the measure name, otherwise Qlik
+  splits that measure into several rows.
 
 **Sort the time dimension ascending** (Sorting section of the property panel).
-SPC rules are sequence-sensitive, so the row order controls the analysis.
+SPC rules are sequence-sensitive, so the row order controls the analysis. A
+text period such as `Aug-25` sorts alphabetically, which silently produces the
+wrong limits and the wrong "latest period" — sort on a real date field, or by
+load order.
+
+### Number formatting
+
+Values use the measure's own Qlik number format, so percentages, currency and
+durations display as they do elsewhere in the app. Where a measure has no
+format, the **Decimal places** property applies. Setting the format on a
+**master measure** is the simplest way to keep every visual consistent.
+
+### Fixed values or expressions
+
+Each analysis property has a **Fixed / Expression** switch. In expression mode
+the value is evaluated at render time, so chart type, improvement direction and
+target can be driven by a variable or a configuration table — useful when one
+sheet object serves many measures. Note that Qlik expressions return `-1` for
+true; the extensions handle this for the boolean settings.
 
 ### Property panel options (Appearance)
 
@@ -167,14 +202,17 @@ SPC rules are sequence-sensitive, so the row order controls the analysis.
 
 **Display**
 
-| Property | Default |
-|----------|---------|
-| Chart title (expression allowed) | measure name + chart type |
-| Decimal places | 2 |
-| Show control limits / warning limits / centre line / target line | on / off / on / on |
-| Show legend, Show variation & assurance icons | on |
-| Allow selections on click | on |
-| Maximum data points | 5000 |
+| Property | Default | Available on |
+|----------|---------|--------------|
+| Chart title (expression allowed) | measure name + chart type | Chart, Icon |
+| Decimal places | 2 | All |
+| Show control limits / warning limits / centre line / target line | on / off / on / on | Chart |
+| Show legend | on | Chart |
+| Show variation & assurance icons | on | Chart |
+| Show icon captions | on | Icon |
+| Allow selections on click | on | Chart, Summary table |
+| Show extension build date | on | All |
+| Maximum data points / rows | 5000 | All |
 
 ### Chart type notes
 
@@ -188,6 +226,15 @@ SPC rules are sequence-sensitive, so the row order controls the analysis.
   between rare events).
 * **run chart** — median centre line, no control limits, shift and trend
   signals only.
+
+### Summary table columns
+
+`Measure | Description | Variation | Assurance | Target | Latest period |
+Latest value`
+
+The columns follow `abspc.plot.plot_mdc_summary_table`, with **Description**
+appearing only when the third dimension is supplied, and **Latest period**
+added so the row can be traced back to the data.
 
 ---
 
@@ -208,6 +255,11 @@ SPC rules are sequence-sensitive, so the row order controls the analysis.
 2. QMC > **Extensions** > **Import**, tick **Overwrite existing extension**.
 3. Ask users to hard-refresh the browser (`Ctrl` + `F5`) to clear cached
    JavaScript.
+
+Re-import **all three** extensions together: they each carry their own copy of
+the shared modules, so a change to the SPC engine or renderer affects all of
+them. Confirm the upgrade landed by checking the build date shown in the
+corner of a visual.
 
 Existing sheet objects keep their settings: property names are stable across
 versions.
@@ -230,9 +282,13 @@ extension is re-imported.
 |---------|--------------------|
 | Extension missing from **Custom objects** | Import failed, or the user lacks the extension security rule. Re-check QMC > Extensions and the `Extension` rule in **Security rules**. |
 | "Add one dimension … and at least one measure" | The object has no dimension/measure yet — add them in the property panel. |
+| "Add two dimensions … and at least one measure" | Summary table only: it needs the measure name **and** the time period as dimensions. |
 | "requires a denominator (subgroup size) for every data point" | p/u chart selected without a valid second measure. Add the denominator measure or switch chart type. |
 | Chart is empty but data exists | The measure returns null for every row, or the dimension is not sorted; check **Sorting**. |
+| Limits look wrong and the periods are out of order | The time dimension is text (`Aug-25`) and sorting alphabetically. Sort on a date field or by load order. |
+| "Latest period" is not the most recent period | Same cause — the last row in Qlik's sort order is treated as the latest. |
 | Points look wrong / limits jump | Auto-rebase is enabled — turn it off, or raise the baseline. |
+| Build date in the corner is older than expected | The browser cached the previous version, or only some extensions were re-imported. Hard-refresh and re-import all three. |
 | 404 on `lib/spc-engine.js` in the browser console | The package was zipped without the `lib` folder. Rebuild with `npm run build`. |
 | Import rejected by the QMC | The archive root must be the extension folder containing the `.qext` file, and the `.qext` name must match the folder name. |
 

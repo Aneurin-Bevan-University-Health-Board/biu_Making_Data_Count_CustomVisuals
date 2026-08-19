@@ -16,9 +16,13 @@ Python or Looker.
 
 | Extension | Description |
 |-----------|-------------|
-| `nhs-mdc-spc-chart` | SPC chart supporting XmR (I), p, u, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, target line, and variation/assurance icons. |
-| `nhs-mdc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, latest value, mean, point count and chart type. |
+| `nhs-mdc-spc-chart` | SPC chart supporting XmR (I), p, u, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
+| `nhs-mdc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, target, latest period and latest value. Mirrors `abspc.plot.plot_mdc_summary_table`. |
 | `nhs-mdc-variation-icon` | Compact KPI tile showing the latest value with the MDC variation and assurance icons. |
+
+Every analysis setting can be entered as a **fixed value** or driven by a
+**Qlik expression**, so chart type, improvement direction and target can come
+from a variable or a configuration table instead of being set object by object.
 
 ## Repository layout
 
@@ -29,7 +33,9 @@ qliksense_extensions/
 ├── shared/
 │   ├── spc-engine.js          <- SPC calculations (port of abspc/spc.py)
 │   ├── spc-render.js          <- dependency-free SVG rendering + MDC icons
-│   └── qlik-data.js           <- hypercube paging and series helpers
+│   ├── qlik-data.js           <- hypercube paging, series and number formatting
+│   ├── props-ui.js            <- fixed/expression property panel helpers
+│   └── build-info.js          <- version + build date (rewritten at build time)
 ├── src/
 │   ├── nhs-mdc-spc-chart/
 │   ├── nhs-mdc-summary-table/
@@ -37,6 +43,10 @@ qliksense_extensions/
 ├── scripts/build.js           <- packages each extension into dist/<name>.zip
 └── tests/test_spc_engine.js   <- unit tests for the SPC engine
 ```
+
+The build copies all five shared modules into each extension's `lib/` folder,
+so every package is self-contained — which also means a change under `shared/`
+requires **all three** extensions to be rebuilt and re-imported.
 
 ## Build and test
 
@@ -48,15 +58,48 @@ npm test        # runs the SPC engine unit tests
 Both commands use only Node.js (14+) and its standard library — nothing is
 downloaded, which keeps the packages usable inside restricted NHS networks.
 
+Each visual prints its version and build date in the bottom corner (switch it
+off with **Show extension build date**), so the build running in Qlik can be
+checked against the `.zip` that was imported.
+
 ## Data model
 
-| Extension | Dimension 1 | Dimension 2 | Measure 1 | Measure 2 (optional) |
-|-----------|-------------|-------------|-----------|----------------------|
-| SPC Chart | Time period | — | Value | Denominator (p/u charts) |
-| Summary Table | Measure name | Time period | Value | Denominator (p/u charts) |
-| Variation Icon | Time period | — | Value | Denominator (p/u charts) |
+| Extension | Dimensions | Measures |
+|-----------|------------|----------|
+| SPC Chart | 1: time period | 1: value · 2: denominator · 3: target |
+| Summary Table | 1: measure name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
+| Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
 
-Sort the time dimension ascending — SPC rules depend on the row order.
+Only the first dimension and first measure are required.
+
+* **Denominator** — the subgroup size for p and u charts.
+* **Target** — a third measure overrides the fixed target and lets the target
+  line change over time; assurance is judged against the latest period.
+* **Description** — optional third dimension on the summary table, shown as a
+  column beside the measure name. It must be one-to-one with the measure name,
+  otherwise Qlik splits the measure across several rows.
+
+**Sort the time dimension ascending.** SPC rules are sequence-sensitive, so the
+row order *is* the analysis. A text period such as `Aug-25` sorts
+alphabetically and will silently produce the wrong answer — use a real date
+field, or sort by load order.
+
+Values are formatted with the measure's own Qlik number format (percentages and
+durations included), falling back to the **Decimal places** property when no
+format is available. Use a master measure to set the format once for every
+visual.
+
+## Summary table columns
+
+| Column | Contents |
+|--------|----------|
+| Measure | Dimension 1 |
+| Description | Dimension 3, when supplied |
+| Variation | MDC icon and label |
+| Assurance | MDC icon and label |
+| Target | Target in the latest period, blank when no target is set |
+| Latest period | Last value of dimension 2 — shows which period the row describes |
+| Latest value | Measure 1 in that period |
 
 ## Chart types and rules
 
@@ -83,6 +126,9 @@ Special-cause rules (aligned with
 Point colours: NHS Blue `#005EB8` (improvement), NHS Orange `#ED8B00`
 (concern), Grey `#768692` (common cause).
 
+SPC needs history: aim for 15–100 points. Below 15 the chart shows a warning,
+because limits calculated from fewer points are unreliable.
+
 ## Notes on parity with the Python package
 
 * Qlik measures are always numeric, so counts are detected by value rather
@@ -94,6 +140,10 @@ Point colours: NHS Blue `#005EB8` (improvement), NHS Orange `#ED8B00`
   failing, matching the Looker visuals.
 * Auto-rebasing uses the same phase logic, `rebase_on` options and `baseline`
   offset as `abspc.rebase_control_limits`.
+* Numbers follow the Qlik measure format rather than the Python `%.4g`
+  formatting, so a value shown in the visual matches the rest of the app.
+* The summary table adds a **Latest period** column that the Python table does
+  not have, so the data behind each row can be traced back.
 
 ## Licence
 

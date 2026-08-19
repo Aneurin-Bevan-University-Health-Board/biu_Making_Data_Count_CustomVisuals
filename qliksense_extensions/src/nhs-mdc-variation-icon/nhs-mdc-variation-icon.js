@@ -13,8 +13,9 @@ define([
   './lib/spc-engine',
   './lib/spc-render',
   './lib/qlik-data',
+  './lib/props-ui',
   './properties'
-], function (engine, render, qlikData, properties) {
+], function (engine, render, qlikData, propsUi, properties) {
   'use strict';
 
   function elementOf($element) {
@@ -26,26 +27,47 @@ define([
     return isFinite(num) ? num : fallback;
   }
 
+  function settingNumber(props, key, fallback) {
+    return numberOr(propsUi.settingValue(props, key, fallback), fallback);
+  }
+
   return {
     initialProperties: {
       version: 1.0,
       qHyperCubeDef: {
         qDimensions: [],
         qMeasures: [],
-        qInitialDataFetch: [{ qWidth: 3, qHeight: 3333 }],
+        qInitialDataFetch: [{ qWidth: 4, qHeight: 2500 }],
         qSuppressZero: false,
         qSuppressMissing: true
       },
       props: {
+        chartTypeMode: 'fixed',
         chartType: 'auto',
+        chartTypeExpression: '',
+        improvementDirectionMode: 'fixed',
         improvementDirection: 'high',
+        improvementDirectionExpression: '',
+        useTargetMode: 'fixed',
         useTarget: false,
+        useTargetExpression: '',
+        targetMode: 'fixed',
         target: 0,
+        targetExpression: '',
         autoRebase: false,
+        rebaseOnMode: 'fixed',
         rebaseOn: 'improvement',
+        rebaseOnExpression: '',
+        baselineMode: 'fixed',
+        baseline: 15,
+        baselineExpression: '',
+        minPhaseLengthMode: 'fixed',
+        minPhaseLength: 8,
+        minPhaseLengthExpression: '',
         title: '',
         decimals: 2,
         showLabels: true,
+        showBuildStamp: true,
         maxRows: 5000
       }
     },
@@ -81,10 +103,16 @@ define([
             return;
           }
 
+          // Measure 3 (or 2 without a denominator) is an optional target per time period
+          var hasDenominator = measureCount > 1;
+          var hasDynamicTarget = measureCount > (hasDenominator ? 2 : 1);
+
           var series = qlikData.toSeries(rows, {
             labelIndex: 0,
             valueIndex: dimensionCount,
-            denominatorIndex: measureCount > 1 ? dimensionCount + 1 : null
+            denominatorIndex: hasDenominator ? dimensionCount + 1 : null,
+            targetIndex: hasDynamicTarget
+              ? dimensionCount + (hasDenominator ? 2 : 1) : null
           });
 
           if (!series.values.length) {
@@ -92,19 +120,30 @@ define([
             return;
           }
 
+          var targetValue = series.targets
+            ? series.targets
+            : (propsUi.settingBoolean(props, 'useTarget', false)
+              ? settingNumber(props, 'target', null) : null);
+
           var analysis = engine.analyse(series.values, {
-            chartType: props.chartType || 'auto',
+            chartType: propsUi.settingText(props, 'chartType', 'auto', propsUi.CHART_TYPE_VALUES),
             subgroupSizes: series.denominators,
-            improvementDirection: props.improvementDirection,
-            target: props.useTarget ? numberOr(props.target, null) : null,
+            improvementDirection: propsUi.settingText(
+              props, 'improvementDirection', 'high', propsUi.DIRECTION_VALUES
+            ),
+            target: targetValue,
             autoRebase: !!props.autoRebase,
-            rebaseOn: props.rebaseOn
+            rebaseOn: propsUi.settingText(props, 'rebaseOn', 'improvement', propsUi.REBASE_VALUES),
+            baseline: settingNumber(props, 'baseline', 15),
+            minPhaseLength: settingNumber(props, 'minPhaseLength', 8)
           });
 
           render.renderIconKpi(element, analysis, {
             title: props.title || hyperCube.qMeasureInfo[0].qFallbackTitle || '',
             decimals: numberOr(props.decimals, 2),
-            showLabels: props.showLabels !== false
+            formatValue: qlikData.measureFormatter(layout, 0, numberOr(props.decimals, 2)),
+            showLabels: props.showLabels !== false,
+            showBuildStamp: props.showBuildStamp !== false
           });
         })
         .catch(function (error) {

@@ -3,15 +3,94 @@
  * =============
  * Property panel definition for the NHS MDC Variation Icon Qlik Sense extension.
  */
-define([], function () {
+define(['./lib/props-ui'], function (propsUi) {
   'use strict';
+
+  // In expression mode the panel cannot evaluate the expression, so the target
+  // inputs stay visible and the runtime decides whether to use them.
+  function whenUseTarget(data) {
+    var props = data.props || {};
+    return props.useTargetMode === 'expression' || !!props.useTarget;
+  }
+  function whenAutoRebase(data) { return !!(data.props && data.props.autoRebase); }
+
+  function merge(target, source) {
+    Object.keys(source).forEach(function (key) { target[key] = source[key]; });
+    return target;
+  }
+
+  var analysisItems = {};
+
+  merge(analysisItems, propsUi.choiceItems({
+    key: 'chartType',
+    label: 'Chart type',
+    options: propsUi.CHART_TYPE_OPTIONS,
+    defaultValue: 'auto',
+    allowed: propsUi.CHART_TYPE_VALUES
+  }));
+
+  merge(analysisItems, propsUi.choiceItems({
+    key: 'improvementDirection',
+    label: 'Improvement direction',
+    options: propsUi.DIRECTION_OPTIONS,
+    defaultValue: 'high',
+    allowed: propsUi.DIRECTION_VALUES
+  }));
+
+  merge(analysisItems, propsUi.booleanItems({
+    key: 'useTarget',
+    label: 'Use target',
+    defaultValue: false
+  }));
+
+  merge(analysisItems, propsUi.numberItems({
+    key: 'target',
+    label: 'Target value',
+    defaultValue: 0,
+    extraShow: whenUseTarget
+  }));
+
+  analysisItems.autoRebase = {
+    type: 'boolean',
+    label: 'Auto-rebase on sustained shift',
+    ref: 'props.autoRebase',
+    defaultValue: false
+  };
+
+  merge(analysisItems, propsUi.choiceItems({
+    key: 'rebaseOn',
+    label: 'Rebase on',
+    options: propsUi.REBASE_OPTIONS,
+    defaultValue: 'improvement',
+    allowed: propsUi.REBASE_VALUES,
+    extraShow: whenAutoRebase
+  }));
+
+  merge(analysisItems, propsUi.numberItems({
+    key: 'baseline',
+    label: 'Baseline points before rebasing',
+    defaultValue: 15,
+    extraShow: whenAutoRebase
+  }));
+
+  merge(analysisItems, propsUi.numberItems({
+    key: 'minPhaseLength',
+    label: 'Points required to confirm a shift',
+    defaultValue: 8,
+    extraShow: whenAutoRebase
+  }));
 
   return {
     type: 'items',
     component: 'accordion',
     items: {
       dimensions: { uses: 'dimensions', min: 1, max: 1 },
-      measures: { uses: 'measures', min: 1, max: 2 },
+      measures: {
+        uses: 'measures',
+        min: 1,
+        max: 3,
+        description: '1: value (required). 2: denominator for p/u charts. 3: target per time period.'
+      },
       sorting: { uses: 'sorting' },
       addons: { uses: 'addons' },
       appearance: {
@@ -20,68 +99,7 @@ define([], function () {
           nhsMdcAnalysis: {
             type: 'items',
             label: 'NHS MDC analysis',
-            items: {
-              chartType: {
-                type: 'string',
-                component: 'dropdown',
-                label: 'Chart type',
-                ref: 'props.chartType',
-                options: [
-                  { value: 'auto', label: 'Auto-detect' },
-                  { value: 'xmr', label: 'XmR (individuals)' },
-                  { value: 'p', label: 'p (proportion)' },
-                  { value: 'u', label: 'u (rate per unit)' },
-                  { value: 'c', label: 'c (count)' },
-                  { value: 't', label: 't (time between rare events)' },
-                  { value: 'g', label: 'g (opportunities between rare events)' },
-                  { value: 'run', label: 'Run chart' }
-                ],
-                defaultValue: 'auto'
-              },
-              improvementDirection: {
-                type: 'string',
-                component: 'dropdown',
-                label: 'Improvement direction',
-                ref: 'props.improvementDirection',
-                options: [
-                  { value: 'high', label: 'Higher is better' },
-                  { value: 'low', label: 'Lower is better' }
-                ],
-                defaultValue: 'high'
-              },
-              useTarget: {
-                type: 'boolean',
-                label: 'Use target',
-                ref: 'props.useTarget',
-                defaultValue: false
-              },
-              target: {
-                type: 'number',
-                label: 'Target value',
-                ref: 'props.target',
-                defaultValue: 0,
-                show: function (data) { return data.props && data.props.useTarget; }
-              },
-              autoRebase: {
-                type: 'boolean',
-                label: 'Auto-rebase on sustained shift',
-                ref: 'props.autoRebase',
-                defaultValue: false
-              },
-              rebaseOn: {
-                type: 'string',
-                component: 'dropdown',
-                label: 'Rebase on',
-                ref: 'props.rebaseOn',
-                options: [
-                  { value: 'improvement', label: 'Improvement only' },
-                  { value: 'worsening', label: 'Worsening only' },
-                  { value: 'any', label: 'Any sustained shift' }
-                ],
-                defaultValue: 'improvement',
-                show: function (data) { return data.props && data.props.autoRebase; }
-              }
-            }
+            items: analysisItems
           },
           nhsMdcDisplay: {
             type: 'items',
@@ -104,6 +122,12 @@ define([], function () {
                 type: 'boolean',
                 label: 'Show icon captions',
                 ref: 'props.showLabels',
+                defaultValue: true
+              },
+              showBuildStamp: {
+                type: 'boolean',
+                label: 'Show extension build date',
+                ref: 'props.showBuildStamp',
                 defaultValue: true
               },
               maxRows: {

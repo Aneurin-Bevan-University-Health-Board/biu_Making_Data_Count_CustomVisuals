@@ -138,9 +138,12 @@ logic:
 
 | Extension | Purpose |
 |-----------|---------|
-| `nhs-mdc-spc-chart` | SPC chart (XmR/I, p, u, c, t, g, run) with auto-detection, rules 1–4, auto-rebasing, target line and MDC icons |
-| `nhs-mdc-summary-table` | MDC summary table — variation and assurance icons per measure |
+| `nhs-mdc-spc-chart` | SPC chart (XmR/I, p, u, c, t, g, run) with auto-detection, rules 1–4, auto-rebasing, fixed or time-varying target and MDC icons |
+| `nhs-mdc-summary-table` | MDC summary table — variation and assurance icons, target, latest period and latest value per measure |
 | `nhs-mdc-variation-icon` | KPI tile with the latest value and MDC icons |
+
+Every analysis setting accepts a fixed value or a Qlik expression, and numbers
+follow the measure's own Qlik format.
 
 Build the importable packages with Node.js (no npm dependencies):
 

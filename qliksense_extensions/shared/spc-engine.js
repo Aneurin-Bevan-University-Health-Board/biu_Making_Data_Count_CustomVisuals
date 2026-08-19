@@ -488,7 +488,8 @@
     var values = result.values;
     var mean = result.mean;
     var ucl = result.ucl || filled(values.length, Infinity);
-    var hasTarget = isNum(target);
+    var hasTarget = isNum(target) || (Array.isArray(target) && target.length === values.length);
+    var isDynamicTarget = Array.isArray(target);
     var colours = [];
 
     for (var i = 0; i < values.length; i++) {
@@ -505,9 +506,10 @@
 
       var isImprovement;
       if (hasTarget) {
+        var targetValue = isDynamicTarget ? target[i] : target;
         isImprovement = direction === 'high'
-          ? (values[i] >= target) || high
-          : (values[i] <= target) || !high;
+          ? (values[i] >= targetValue) || high
+          : (values[i] <= targetValue) || !high;
       } else {
         isImprovement = direction === 'high' ? high : !high;
       }
@@ -674,7 +676,12 @@
    * Classify assurance against a target using the most recent phase limits.
    */
   function determineAssuranceType(result, target, improvementDirection) {
-    if (!isNum(target)) { return 'no_target'; }
+    // Handle dynamic target array by using the last value
+    var targetValue = Array.isArray(target) && target.length > 0 
+      ? target[target.length - 1] 
+      : target;
+    
+    if (!isNum(targetValue)) { return 'no_target'; }
     if (!result.ucl || !result.lcl) { return 'no_target'; }
 
     var direction = improvementDirection === 'low' ? 'low' : 'high';
@@ -682,12 +689,12 @@
     var lcl = result.lcl[result.lcl.length - 1];
 
     if (direction === 'high') {
-      if (target <= lcl) { return 'pass'; }
-      if (target >= ucl) { return 'fail'; }
+      if (targetValue <= lcl) { return 'pass'; }
+      if (targetValue >= ucl) { return 'fail'; }
       return 'hit_or_miss';
     }
-    if (target >= ucl) { return 'pass'; }
-    if (target <= lcl) { return 'fail'; }
+    if (targetValue >= ucl) { return 'pass'; }
+    if (targetValue <= lcl) { return 'fail'; }
     return 'hit_or_miss';
   }
 
@@ -746,6 +753,19 @@
 
   function parseTarget(target) {
     if (target === null || target === undefined || target === '') { return null; }
+    
+    // Handle array of targets (dynamic targets)
+    if (Array.isArray(target)) {
+      var parsed = target.map(function(t) {
+        var num = Number(t);
+        return isNum(num) ? num : NaN;
+      });
+      // Return null if all values are NaN, otherwise return the array
+      var hasValidTarget = parsed.some(function(t) { return isNum(t); });
+      return hasValidTarget ? parsed : null;
+    }
+    
+    // Handle single numeric target
     var num = Number(target);
     return isNum(num) ? num : null;
   }

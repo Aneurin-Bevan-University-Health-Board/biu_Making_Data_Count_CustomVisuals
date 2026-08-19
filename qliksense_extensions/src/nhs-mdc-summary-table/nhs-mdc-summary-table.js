@@ -13,8 +13,9 @@ define([
   './lib/spc-engine',
   './lib/spc-render',
   './lib/qlik-data',
+  './lib/props-ui',
   './properties'
-], function (engine, render, qlikData, properties) {
+], function (engine, render, qlikData, propsUi, properties) {
   'use strict';
 
   function elementOf($element) {
@@ -26,25 +27,46 @@ define([
     return isFinite(num) ? num : fallback;
   }
 
+  function settingNumber(props, key, fallback) {
+    return numberOr(propsUi.settingValue(props, key, fallback), fallback);
+  }
+
   return {
     initialProperties: {
       version: 1.0,
       qHyperCubeDef: {
         qDimensions: [],
         qMeasures: [],
-        qInitialDataFetch: [{ qWidth: 4, qHeight: 2500 }],
+        qInitialDataFetch: [{ qWidth: 6, qHeight: 1600 }],
         qSuppressZero: false,
         qSuppressMissing: true
       },
       props: {
+        chartTypeMode: 'fixed',
         chartType: 'auto',
+        chartTypeExpression: '',
+        improvementDirectionMode: 'fixed',
         improvementDirection: 'high',
+        improvementDirectionExpression: '',
+        useTargetMode: 'fixed',
         useTarget: false,
+        useTargetExpression: '',
+        targetMode: 'fixed',
         target: 0,
+        targetExpression: '',
         autoRebase: false,
+        rebaseOnMode: 'fixed',
         rebaseOn: 'improvement',
+        rebaseOnExpression: '',
+        baselineMode: 'fixed',
+        baseline: 15,
+        baselineExpression: '',
+        minPhaseLengthMode: 'fixed',
+        minPhaseLength: 8,
+        minPhaseLengthExpression: '',
         decimals: 2,
         allowSelections: true,
+        showBuildStamp: true,
         maxRows: 5000
       }
     },
@@ -80,23 +102,52 @@ define([
             return;
           }
 
+          // Measure 3 (or 2 without a denominator) is an optional target per time period
+          var hasDenominator = measureCount > 1;
+          var hasDynamicTarget = measureCount > (hasDenominator ? 2 : 1);
+          var hasDescription = dimensionCount > 2;
+
           var groups = qlikData.groupSeries(rows, {
             groupIndex: 0,
             labelIndex: 1,
+            descriptionIndex: hasDescription ? 2 : null,
             valueIndex: dimensionCount,
-            denominatorIndex: measureCount > 1 ? dimensionCount + 1 : null
+            denominatorIndex: hasDenominator ? dimensionCount + 1 : null,
+            targetIndex: hasDynamicTarget
+              ? dimensionCount + (hasDenominator ? 2 : 1) : null
           });
 
+          var analysisOptions = {
+            chartType: propsUi.settingText(props, 'chartType', 'auto', propsUi.CHART_TYPE_VALUES),
+            improvementDirection: propsUi.settingText(
+              props, 'improvementDirection', 'high', propsUi.DIRECTION_VALUES
+            ),
+            target: propsUi.settingBoolean(props, 'useTarget', false)
+              ? settingNumber(props, 'target', null) : null,
+            autoRebase: !!props.autoRebase,
+            rebaseOn: propsUi.settingText(props, 'rebaseOn', 'improvement', propsUi.REBASE_VALUES),
+            baseline: settingNumber(props, 'baseline', 15),
+            minPhaseLength: settingNumber(props, 'minPhaseLength', 8)
+          };
+
           var tableRows = groups.map(function (group) {
-            var row = { label: group.label, elemNumber: group.elemNumber };
+            var labels = group.series.labels;
+            var row = {
+              label: group.label,
+              description: group.description,
+              elemNumber: group.elemNumber,
+              latestLabel: labels.length ? labels[labels.length - 1] : ''
+            };
             try {
               row.analysis = engine.analyse(group.series.values, {
-                chartType: props.chartType || 'auto',
+                chartType: analysisOptions.chartType,
                 subgroupSizes: group.series.denominators,
-                improvementDirection: props.improvementDirection,
-                target: props.useTarget ? numberOr(props.target, null) : null,
-                autoRebase: !!props.autoRebase,
-                rebaseOn: props.rebaseOn
+                improvementDirection: analysisOptions.improvementDirection,
+                target: group.series.targets || analysisOptions.target,
+                autoRebase: analysisOptions.autoRebase,
+                rebaseOn: analysisOptions.rebaseOn,
+                baseline: analysisOptions.baseline,
+                minPhaseLength: analysisOptions.minPhaseLength
               });
             } catch (error) {
               row.error = error.message;
@@ -106,6 +157,9 @@ define([
 
           render.renderSummaryTable(element, tableRows, {
             decimals: numberOr(props.decimals, 2),
+            formatValue: qlikData.measureFormatter(layout, 0, numberOr(props.decimals, 2)),
+            showDescription: hasDescription,
+            showBuildStamp: props.showBuildStamp !== false,
             onRowClick: props.allowSelections === false ? null : function (row) {
               if (row.elemNumber === null || row.elemNumber === undefined || row.elemNumber < 0) {
                 return;

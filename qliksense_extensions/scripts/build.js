@@ -23,7 +23,21 @@ const SRC_DIR = path.join(ROOT, 'src');
 const SHARED_DIR = path.join(ROOT, 'shared');
 const DIST_DIR = path.join(ROOT, 'dist');
 
-const SHARED_FILES = ['spc-engine.js', 'spc-render.js', 'qlik-data.js'];
+const SHARED_FILES = ['spc-engine.js', 'spc-render.js', 'qlik-data.js', 'props-ui.js', 'build-info.js'];
+
+const PKG_VERSION = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')
+).version;
+
+const BUILD_DATE = new Date();
+
+function stampText(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+    ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+}
+
+const BUILD_STAMP = stampText(BUILD_DATE);
 
 // ---------------------------------------------------------------------------
 // Minimal ZIP writer (deflate + store), so no npm dependencies are required
@@ -150,6 +164,27 @@ function copyFile(from, to) {
   fs.copyFileSync(from, to);
 }
 
+// The placeholder values in shared/build-info.js are replaced so the visual can
+// report which build is actually loaded in Qlik.
+function writeBuildInfo(targetFile) {
+  const source = fs.readFileSync(path.join(SHARED_DIR, 'build-info.js'), 'utf8')
+    .replace(/var VERSION = '[^']*';/, "var VERSION = '" + PKG_VERSION + "';")
+    .replace(/var BUILT_AT = '[^']*';/, "var BUILT_AT = '" + BUILD_STAMP + "';");
+  fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+  fs.writeFileSync(targetFile, source);
+}
+
+// Makes the build date visible in the QMC extension list as well as in-visual.
+function stampQext(target, name) {
+  const qextPath = path.join(target, name + '.qext');
+  if (!fs.existsSync(qextPath)) { return; }
+  const qext = JSON.parse(fs.readFileSync(qextPath, 'utf8'));
+  qext.version = PKG_VERSION;
+  qext.description = qext.description.replace(/\s*\(Build [^)]*\)$/, '') +
+    ' (Build ' + BUILD_STAMP + ')';
+  fs.writeFileSync(qextPath, JSON.stringify(qext, null, 2) + '\n');
+}
+
 function buildExtension(name) {
   const source = path.join(SRC_DIR, name);
   const target = path.join(DIST_DIR, name);
@@ -163,6 +198,9 @@ function buildExtension(name) {
   SHARED_FILES.forEach((file) => {
     copyFile(path.join(SHARED_DIR, file), path.join(target, 'lib', file));
   });
+
+  writeBuildInfo(path.join(target, 'lib', 'build-info.js'));
+  stampQext(target, name);
 
   const entries = listFiles(target).map((file) => ({
     // Qlik expects the extension folder as the root of the archive
@@ -189,8 +227,8 @@ function main() {
   extensions.forEach((name) => {
     const result = buildExtension(name);
     process.stdout.write(
-      'Built ' + result.name + ' (' + result.files + ' files) -> ' +
-      path.relative(ROOT, result.zipPath) + '\n'
+      'Built ' + result.name + ' v' + PKG_VERSION + ' (' + BUILD_STAMP + ', ' +
+      result.files + ' files) -> ' + path.relative(ROOT, result.zipPath) + '\n'
     );
   });
 

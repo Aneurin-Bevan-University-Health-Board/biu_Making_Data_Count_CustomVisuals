@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rules 1–4, run-chart signals, auto-rebasing (`rebaseOn` / `baseline`),
   variation and assurance classification, and chart-type auto-detection.
   Rendering is dependency-free SVG with NHS colours and MDC icons.
+- **Fixed or expression-driven settings** — chart type, improvement direction,
+  target, rebase options and baseline can each be set from the property panel
+  or driven by a Qlik variable or configuration table.
+- **Time-varying target** — an optional third measure supplies a target per
+  period, drawn as a stepped target line and used for assurance in the latest
+  period.
+- **Qlik-native number formatting** — values follow the measure's own format
+  (percentages, currency, durations), falling back to a decimal-places setting.
+- **Summary table parity with `abspc.plot.plot_mdc_summary_table`**, plus an
+  optional description column (third dimension) and a latest-period column so
+  each row can be traced back to the data.
+- **Version and build date stamp** rendered in each visual, so the build
+  running in Qlik can be checked against the imported `.zip`.
 - **`qliksense_extensions/implementation.md`** — QMC/Dev Hub installation,
   configuration, upgrade, uninstall and troubleshooting guide for the
   on-premise Qlik Sense deployment.
