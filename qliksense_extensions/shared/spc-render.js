@@ -573,15 +573,22 @@
     svg.appendChild(footer);
 
     if (opts.showLegend !== false) {
-      legendItem(footer, 0, 6, engine.POINT_COLOURS.COMMON_CAUSE, 'Common cause');
-      legendItem(footer, 120, 6, engine.POINT_COLOURS.IMPROVEMENT, 'Improvement');
-      legendItem(footer, 240, 6, engine.POINT_COLOURS.CONCERN, 'Concern');
+      var legendItems = [
+        { x: 0, colour: engine.POINT_COLOURS.COMMON_CAUSE, label: 'Common cause' },
+        { x: 120, colour: engine.POINT_COLOURS.IMPROVEMENT, label: 'Improvement' },
+        { x: 240, colour: engine.POINT_COLOURS.CONCERN, label: 'Concern' }
+      ];
       if (!isRun && opts.showControlLimits !== false) {
-        legendItem(footer, 350, 6, COLOURS.DARK_BLUE, 'Control limits', 'line');
+        legendItems.push({ x: 350, colour: COLOURS.DARK_BLUE, label: 'Control limits', type: 'line' });
       }
       if (opts.showTargetLine !== false && analysis.target !== null) {
-        legendItem(footer, 480, 6, COLOURS.WARM_YELLOW, 'Target', 'line');
+        legendItems.push({ x: 480, colour: COLOURS.WARM_YELLOW, label: 'Target', type: 'line' });
       }
+      var maxLegendX = legendItems.reduce(function (m, it) { return Math.max(m, it.x); }, 0) + 100;
+      var legendScale = maxLegendX > plotWidth ? plotWidth / maxLegendX : 1;
+      legendItems.forEach(function (it) {
+        legendItem(footer, Math.floor(it.x * legendScale), 6, it.colour, it.label, it.type);
+      });
     }
 
     if (opts.showIcons !== false) {
