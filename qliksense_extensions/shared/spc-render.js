@@ -538,7 +538,16 @@
 
       if (typeof opts.onPointClick === 'function') {
         point.style.cursor = 'pointer';
+        point.setAttribute('tabindex', '0');
+        point.setAttribute('role', 'button');
+        point.setAttribute('aria-label', labelText + ': ' + fmt(value));
         point.addEventListener('click', function () { opts.onPointClick(index); });
+        point.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            opts.onPointClick(index);
+          }
+        });
       }
 
       plot.appendChild(point);
@@ -567,8 +576,10 @@
       legendItem(footer, 0, 6, engine.POINT_COLOURS.COMMON_CAUSE, 'Common cause');
       legendItem(footer, 120, 6, engine.POINT_COLOURS.IMPROVEMENT, 'Improvement');
       legendItem(footer, 240, 6, engine.POINT_COLOURS.CONCERN, 'Concern');
-      legendItem(footer, 350, 6, COLOURS.DARK_BLUE, 'Control limits', 'line');
-      if (analysis.target !== null) {
+      if (!isRun && opts.showControlLimits !== false) {
+        legendItem(footer, 350, 6, COLOURS.DARK_BLUE, 'Control limits', 'line');
+      }
+      if (opts.showTargetLine !== false && analysis.target !== null) {
         legendItem(footer, 480, 6, COLOURS.WARM_YELLOW, 'Target', 'line');
       }
     }
@@ -591,12 +602,13 @@
         'font-size': 11, fill: '#425563'
       });
 
+      var assureX = Math.max(plotWidth - 260, Math.floor(plotWidth / 2));
       var assurance = assuranceIcon(analysis.assurance, 30);
-      assurance.setAttribute('transform', 'translate(' + Math.max(plotWidth - 260, 300) + ',0)');
+      assurance.setAttribute('transform', 'translate(' + assureX + ',0)');
       tooltip(assurance, analysis.assuranceLabel);
       icons.appendChild(assurance);
       text(icons, analysis.assuranceLabel, {
-        x: Math.max(plotWidth - 260, 300) + 38, y: 20,
+        x: assureX + 38, y: 20,
         'font-family': 'Arial, Helvetica, sans-serif', 'font-size': 11, fill: '#425563'
       });
     }
@@ -712,7 +724,14 @@
 
       if (typeof opts.onRowClick === 'function' && row.elemNumber !== undefined) {
         tr.style.cursor = 'pointer';
+        tr.setAttribute('tabindex', '0');
         tr.addEventListener('click', function () { opts.onRowClick(row); });
+        tr.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            opts.onRowClick(row);
+          }
+        });
       }
 
       tbody.appendChild(tr);

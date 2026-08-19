@@ -21,7 +21,7 @@
   'use strict';
 
   var EMPTY = { user: '', appName: '', appId: '' };
-  var cached = null;
+  var cache = {};
 
   function pad(value) {
     return (value < 10 ? '0' : '') + value;
@@ -71,23 +71,22 @@
    *   when the visual is embedded in a mashup.
    */
   function load(scope) {
-    if (cached) { return cached; }
     if (!qlik || typeof qlik.currApp !== 'function') {
-      cached = Promise.resolve(EMPTY);
-      return cached;
+      return Promise.resolve(EMPTY);
     }
 
     var app;
     try {
       app = qlik.currApp(scope);
     } catch (error) {
-      cached = Promise.resolve(EMPTY);
-      return cached;
+      return Promise.resolve(EMPTY);
     }
     if (!app) {
-      cached = Promise.resolve(EMPTY);
-      return cached;
+      return Promise.resolve(EMPTY);
     }
+
+    var cacheKey = app.id || '__default__';
+    if (cache[cacheKey]) { return cache[cacheKey]; }
 
     var titlePromise = settled(
       typeof app.getAppLayout === 'function' ? app.getAppLayout() : null, null
@@ -98,7 +97,7 @@
       null
     );
 
-    cached = Promise.all([titlePromise, userPromise]).then(function (replies) {
+    cache[cacheKey] = Promise.all([titlePromise, userPromise]).then(function (replies) {
       return {
         user: parseUser(replies[1] && replies[1].qReturn),
         appName: appTitleFrom(replies[0], app),
@@ -107,12 +106,13 @@
     }, function () {
       return EMPTY;
     });
-    return cached;
+    return cache[cacheKey];
   }
 
   /** One-line stamp: when the visual was generated, by whom, and where. */
   function stampText(context, date) {
     var ctx = context || EMPTY;
+    if (!ctx.user && !ctx.appName && !ctx.appId) { return ''; }
     var parts = ['Generated ' + formatTimestamp(date)];
     if (ctx.user) { parts.push(ctx.user); }
     if (ctx.appName) { parts.push(ctx.appName); }

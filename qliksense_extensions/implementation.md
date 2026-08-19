@@ -22,7 +22,7 @@ Three visualisation extensions are provided:
 | Qlik Sense | Enterprise on Windows (client-managed), 2024 releases (also works from June 2018 onwards) |
 | Permissions | A QMC account with the `RootAdmin` or `ContentAdmin` role (needed to import extensions) |
 | Security rule | Users need the standard `Extension` read rule (`Extension_*`, enabled by default) |
-| Build machine | Node.js 14 or later — only required if you build the packages yourself |
+| Build machine | Node.js 14.14 or later — only required if you build the packages yourself |
 | Browser | Chrome, Edge or Firefox (the extensions use SVG and ES5 JavaScript only) |
 
 No internet access, CDN or third-party JavaScript library is required at
@@ -156,7 +156,7 @@ chart type that needs a denominator).
 | Summary Table | 1: measure / service name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
 | Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
 
-Only the first dimension and the first measure are required.
+Only the first dimension and the first measure are required. **The Summary Table requires at least two dimensions** (measure/service name and time period).
 
 * **Denominator** (measure 2) — the subgroup size for p and u charts.
 * **Target** (measure 3) — overrides the fixed **Target value** property and

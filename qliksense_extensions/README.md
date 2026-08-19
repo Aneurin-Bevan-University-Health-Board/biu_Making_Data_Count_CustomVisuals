@@ -56,7 +56,7 @@ npm run build   # writes dist/<extension>/ and dist/<extension>.zip
 npm test        # runs the SPC engine unit tests
 ```
 
-Both commands use only Node.js (14+) and its standard library — nothing is
+Both commands use only Node.js (14.14+) and its standard library — nothing is
 downloaded, which keeps the packages usable inside restricted NHS networks.
 
 Each visual prints its version and build date in the bottom corner (switch it
@@ -71,7 +71,7 @@ checked against the `.zip` that was imported.
 | Summary Table | 1: measure name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
 | Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
 
-Only the first dimension and first measure are required.
+Only the first dimension and first measure are required. **The Summary Table requires at least two dimensions** (measure name and time period).
 
 * **Denominator** — the subgroup size for p and u charts.
 * **Target** — a third measure overrides the fixed target and lets the target

@@ -16,7 +16,10 @@ define(['./lib/props-ui'], function (propsUi) {
     var props = data.props || {};
     return props.useTargetMode === 'expression' || !!props.useTarget;
   }
-  function whenAutoRebase(data) { return !!(data.props && data.props.autoRebase); }
+  function whenAutoRebase(data) {
+    var props = data.props || {};
+    return props.autoRebaseMode === 'expression' || !!props.autoRebase;
+  }
 
   function merge(target, source) {
     Object.keys(source).forEach(function (key) { target[key] = source[key]; });
@@ -60,12 +63,11 @@ define(['./lib/props-ui'], function (propsUi) {
     label: 'A third measure, when supplied, overrides the target above and lets the target line change over time.'
   };
 
-  analysisItems.autoRebase = {
-    type: 'boolean',
+  merge(analysisItems, propsUi.booleanItems({
+    key: 'autoRebase',
     label: 'Auto-rebase on sustained shift',
-    ref: 'props.autoRebase',
     defaultValue: false
-  };
+  }));
 
   merge(analysisItems, propsUi.choiceItems({
     key: 'rebaseOn',

@@ -53,7 +53,7 @@
       return Promise.resolve([]);
     }
 
-    var cap = maxRows || 5000;
+    var cap = Math.max(Math.floor(maxRows) || 5000, 1);
     var total = Math.min(hyperCube.qSize.qcy, cap);
     var width = hyperCube.qSize.qcx;
     var store = [];
@@ -222,11 +222,28 @@
     text = parts.join(numFormat.qDec || '.');
     if (scaled < 0) { text = '-' + text; }
 
-    // Keep any currency symbol / unit text the master measure carries
+    // Keep any currency symbol / unit text the master measure carries.
+    // Qlik formats may contain semicolon-separated sections (positive;negative;
+    // zero); pick the section that applies to this value before extracting
+    // prefix/suffix so that multi-section formats are not appended verbatim.
     if (core) {
-      var prefix = fmt.slice(0, core.index).replace(/['"]/g, '');
-      var suffix = fmt.slice(core.index + core[0].length).replace(/['"%]/g, '');
-      text = prefix + text + suffix;
+      var sections = fmt.split(';');
+      var activeFmt = fmt;
+      if (sections.length > 1) {
+        if (scaled < 0 && sections.length >= 2) {
+          activeFmt = sections[1];
+        } else if (scaled === 0 && sections.length >= 3) {
+          activeFmt = sections[2];
+        } else {
+          activeFmt = sections[0];
+        }
+      }
+      var activeCore = activeFmt.match(/[#0][#0.,]*/);
+      if (activeCore) {
+        var prefix = activeFmt.slice(0, activeCore.index).replace(/['"]/g, '');
+        var suffix = activeFmt.slice(activeCore.index + activeCore[0].length).replace(/['"%]/g, '');
+        text = prefix + text + suffix;
+      }
     }
     return isPercent ? text + '%' : text;
   }
@@ -330,11 +347,16 @@
     var lookup = {};
 
     rows.forEach(function (row) {
-      var key = cellText(row[spec.groupIndex]);
+      var cell = row[spec.groupIndex];
+      var elemNum = cell ? cell.qElemNumber : undefined;
+      var displayText = cellText(cell);
+      // Use qElemNumber as the grouping key when available; fall back to display
+      // text only when the element number is absent (e.g. totals rows).
+      var key = (elemNum !== undefined && elemNum !== null) ? 'e:' + elemNum : 't:' + displayText;
       if (!Object.prototype.hasOwnProperty.call(lookup, key)) {
         lookup[key] = {
-          label: key,
-          elemNumber: row[spec.groupIndex] ? row[spec.groupIndex].qElemNumber : null,
+          label: displayText,
+          elemNumber: elemNum !== undefined ? elemNum : null,
           rows: []
         };
         groups.push(lookup[key]);

@@ -24,6 +24,7 @@ define([
   }
 
   function numberOr(value, fallback) {
+    if (value === null || value === undefined || value === '') { return fallback; }
     var num = Number(value);
     return isFinite(num) ? num : fallback;
   }
@@ -55,7 +56,9 @@ define([
         targetMode: 'fixed',
         target: 0,
         targetExpression: '',
+        autoRebaseMode: 'fixed',
         autoRebase: false,
+        autoRebaseExpression: '',
         rebaseOnMode: 'fixed',
         rebaseOn: 'improvement',
         rebaseOnExpression: '',
@@ -130,7 +133,7 @@ define([
             ),
             target: propsUi.settingBoolean(props, 'useTarget', false)
               ? settingNumber(props, 'target', null) : null,
-            autoRebase: !!props.autoRebase,
+            autoRebase: propsUi.settingBoolean(props, 'autoRebase', false),
             rebaseOn: propsUi.settingText(props, 'rebaseOn', 'improvement', propsUi.REBASE_VALUES),
             baseline: settingNumber(props, 'baseline', 15),
             minPhaseLength: settingNumber(props, 'minPhaseLength', 8)

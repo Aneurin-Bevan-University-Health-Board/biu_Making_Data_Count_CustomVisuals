@@ -225,7 +225,7 @@
       return isNum(v) && stats.sigma[i] > 0 ? (v - stats.centre) / stats.sigma[i] : NaN;
     });
     var meanMr = nanMean(movingRanges(z));
-    return isNum(meanMr) && meanMr > 0 ? meanMr / D2 : 1.0;
+    return isNum(meanMr) && meanMr > 0 ? Math.max(meanMr / D2, 1.0) : 1.0;
   }
 
   function attributeLimits(stats, sigmaZ) {
