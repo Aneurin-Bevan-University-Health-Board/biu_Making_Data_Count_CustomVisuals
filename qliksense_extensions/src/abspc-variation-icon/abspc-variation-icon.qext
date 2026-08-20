@@ -1,0 +1,14 @@
+{
+  "name": "abspc Variation Icon",
+  "description": "NHS Making Data Count KPI tile showing the latest value with the variation and assurance icons for a single measure.",
+  "icon": "kpi",
+  "type": "visualization",
+  "version": "1.0.0",
+  "author": "Aneurin Bevan University Health Board",
+  "homepage": "https://github.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals",
+  "keywords": "nhs, making data count, spc, kpi, healthcare",
+  "license": "MIT",
+  "dependencies": {
+    "qlik-sense": ">=3.1.x"
+  }
+}
