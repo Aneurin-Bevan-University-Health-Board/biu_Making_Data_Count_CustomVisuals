@@ -138,9 +138,9 @@ logic:
 
 | Extension | Purpose |
 |-----------|---------|
-| `nhs-mdc-spc-chart` | SPC chart (XmR/I, p, p′, u, u′, c, t, g, run) with auto-detection, rules 1–4, auto-rebasing, fixed or time-varying target and MDC icons |
-| `nhs-mdc-summary-table` | MDC summary table — variation and assurance icons, target, latest period and latest value per measure |
-| `nhs-mdc-variation-icon` | KPI tile with the latest value and MDC icons |
+| `abspc-spc-chart` | SPC chart (XmR/I, p, p′, u, u′, c, t, g, run) with auto-detection, rules 1–4, auto-rebasing, fixed or time-varying target and MDC icons |
+| `abspc-summary-table` | MDC summary table — variation and assurance icons, target, latest period and latest value per measure |
+| `abspc-variation-icon` | Single-measure KPI tile showing the latest value with the MDC variation and assurance icons |
 
 Every analysis setting accepts a fixed value or a Qlik expression, and numbers
 follow the measure's own Qlik format. Each visual carries a stamp recording
