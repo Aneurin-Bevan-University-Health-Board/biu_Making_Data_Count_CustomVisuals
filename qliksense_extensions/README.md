@@ -16,9 +16,9 @@ Python or Looker.
 
 | Extension | Description |
 |-----------|-------------|
-| `nhs-mdc-spc-chart` | SPC chart supporting XmR (I), p, p′, u, u′, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
-| `nhs-mdc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, target, latest period and latest value. Mirrors `abspc.plot.plot_mdc_summary_table`. |
-| `nhs-mdc-variation-icon` | Compact KPI tile showing the latest value with the MDC variation and assurance icons. |
+| `abspc-spc-chart` | SPC chart supporting XmR (I), p, p′, u, u′, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
+| `abspc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, target, latest period and latest value. Mirrors `abspc.plot.plot_mdc_summary_table`. |
+| `abspc-variation-icon` | Compact KPI tile showing the latest value with the MDC variation and assurance icons. |
 
 Every analysis setting can be entered as a **fixed value** or driven by a
 **Qlik expression**, so chart type, improvement direction and target can come
@@ -38,9 +38,9 @@ qliksense_extensions/
 │   ├── qlik-context.js        <- current user and app name for the generated stamp
 │   └── build-info.js          <- version + build date (rewritten at build time)
 ├── src/
-│   ├── nhs-mdc-spc-chart/
-│   ├── nhs-mdc-summary-table/
-│   └── nhs-mdc-variation-icon/
+│   ├── abspc-spc-chart/
+│   ├── abspc-summary-table/
+│   └── abspc-variation-icon/
 ├── scripts/build.js           <- packages each extension into dist/<name>.zip
 └── tests/test_spc_engine.js   <- unit tests for the SPC engine
 ```

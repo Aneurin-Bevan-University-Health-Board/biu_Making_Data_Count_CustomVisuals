@@ -1,6 +1,6 @@
 /**
- * nhs-mdc-summary-table.js
- * ========================
+ * abspc-summary-table.js
+ * ======================
  * NHS Making Data Count summary table for Qlik Sense Enterprise on Windows
  * (client-managed / on-premise).
  *

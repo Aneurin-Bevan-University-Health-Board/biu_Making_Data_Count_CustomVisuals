@@ -1,6 +1,6 @@
 /**
- * nhs-mdc-variation-icon.js
- * =========================
+ * abspc-variation-icon.js
+ * ========================
  * NHS Making Data Count variation / assurance KPI tile for Qlik Sense
  * Enterprise on Windows (client-managed / on-premise).
  *

@@ -9,9 +9,9 @@ Three visualisation extensions are provided:
 
 | Extension | Folder / package | Purpose |
 |-----------|------------------|---------|
-| **NHS MDC SPC Chart** | `nhs-mdc-spc-chart` | Full SPC chart (XmR, p, p′, u, u′, c, t, g, run) |
-| **NHS MDC Summary Table** | `nhs-mdc-summary-table` | Variation & assurance icons per measure |
-| **NHS MDC Variation Icon** | `nhs-mdc-variation-icon` | Single-measure KPI tile with MDC icons |
+| **NHS MDC SPC Chart** | `abspc-spc-chart` | Full SPC chart (XmR, p, p′, u, u′, c, t, g, run) |
+| **NHS MDC Summary Table** | `abspc-summary-table` | Variation & assurance icons per measure |
+| **NHS MDC Variation Icon** | `abspc-variation-icon` | Single-measure KPI tile with MDC icons |
 
 ---
 
@@ -46,9 +46,9 @@ npm run build
 This writes three importable archives (no npm dependencies are downloaded):
 
 ```text
-qliksense_extensions/dist/nhs-mdc-spc-chart.zip
-qliksense_extensions/dist/nhs-mdc-summary-table.zip
-qliksense_extensions/dist/nhs-mdc-variation-icon.zip
+qliksense_extensions/dist/abspc-spc-chart.zip
+qliksense_extensions/dist/abspc-summary-table.zip
+qliksense_extensions/dist/abspc-variation-icon.zip
 ```
 
 The build copies the shared modules (`spc-engine.js`, `spc-render.js`,
@@ -67,19 +67,19 @@ npm test
 
 For each extension folder under `qliksense_extensions/src/`:
 
-1. Copy the folder (for example `nhs-mdc-spc-chart`) to a working directory.
+1. Copy the folder (for example `abspc-spc-chart`) to a working directory.
 2. Create a `lib` sub-folder inside it.
 3. Copy all six files from `qliksense_extensions/shared/` into that `lib`
    folder.
 4. Zip the extension folder so the archive contains the folder itself, e.g.
-   `nhs-mdc-spc-chart/nhs-mdc-spc-chart.qext`, `nhs-mdc-spc-chart/lib/...`.
+   `abspc-spc-chart/abspc-spc-chart.qext`, `abspc-spc-chart/lib/...`.
 
 The finished structure of each package must be:
 
 ```text
-nhs-mdc-spc-chart/
-├── nhs-mdc-spc-chart.qext     <- extension manifest (name shown in Qlik)
-├── nhs-mdc-spc-chart.js       <- entry point loaded by Qlik Sense
+abspc-spc-chart/
+├── abspc-spc-chart.qext       <- extension manifest (name shown in Qlik)
+├── abspc-spc-chart.js         <- entry point loaded by Qlik Sense
 ├── properties.js              <- property panel definition
 ├── wbfolder.wbl               <- Dev Hub file list
 └── lib/
@@ -101,9 +101,9 @@ report `v dev (unbuilt)`.
 1. Sign in to the **QMC** (`https://<your-server>/qmc`).
 2. Open **Manage content > Extensions**.
 3. Click **Import** (bottom right).
-4. Choose `nhs-mdc-spc-chart.zip` and click **Import**.
-   *If you are replacing an existing version, tick **Overwrite existing extension**.*
-5. Repeat for `nhs-mdc-summary-table.zip` and `nhs-mdc-variation-icon.zip`.
+4. Choose `abspc-spc-chart.zip` and click **Import**.
+   *If you are replacing an existing version, tick **Overwrite existing extension*.* 
+5. Repeat for `abspc-summary-table.zip` and `abspc-variation-icon.zip`.
 6. Confirm the three extensions appear in the list with owner and date.
 
 The files are deployed to the central node under:

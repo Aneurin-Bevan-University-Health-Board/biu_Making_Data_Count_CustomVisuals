@@ -1,6 +1,6 @@
 /**
- * nhs-mdc-spc-chart.js
- * ====================
+ * abspc-spc-chart.js
+ * ==================
  * NHS Making Data Count SPC chart for Qlik Sense Enterprise on Windows
  * (client-managed / on-premise).
  *

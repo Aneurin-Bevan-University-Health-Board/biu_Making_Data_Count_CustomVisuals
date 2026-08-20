@@ -1,5 +1,5 @@
 {
-  "name": "NHS MDC SPC Chart",
+  "name": "abspc SPC Chart",
   "description": "NHS Making Data Count statistical process control chart (XmR, p, u, c, t, g and run charts) with special-cause rules, auto-rebasing and MDC variation/assurance icons.",
   "icon": "linechart",
   "type": "visualization",

@@ -1,5 +1,5 @@
 {
-  "name": "NHS MDC Summary Table",
+  "name": "abspc Summary Table",
   "description": "NHS Making Data Count summary table showing variation and assurance icons for each measure, using the same SPC logic as the abspc Python package.",
   "icon": "table",
   "type": "visualization",
