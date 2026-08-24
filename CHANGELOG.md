@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Qlik Sense custom visual set** (`qliksense_extensions/`) for Qlik Sense
+  Enterprise on Windows (client-managed / on-premise, 2024 releases):
+  `nhs-mdc-spc-chart`, `nhs-mdc-summary-table` and `nhs-mdc-variation-icon`.
+  The extensions share `shared/spc-engine.js`, a JavaScript port of
+  `abspc/spc.py` covering XmR/I, p, p′, u, u′, c, t, g and run charts, MDC
+  special-cause rules 1–4, run-chart signals, auto-rebasing (`rebaseOn` /
+  `baseline`), variation and assurance classification, and chart-type
+  auto-detection. Rendering is dependency-free SVG with NHS colours and MDC
+  icons.
+- **Laney p′ and u′ charts** for large denominators, where ordinary p and u
+  limits are so tight that almost every point signals. Each subgroup sigma is
+  scaled by σ(z), derived from the mean moving range of the z-transformed
+  series, so the limits reflect the dispersion actually present between
+  subgroups. σ(z) resolves to 1 when the data is not overdispersed, making the
+  limits identical to p/u. Auto-detection never selects them; they must be
+  chosen explicitly as `pprime` / `uprime` (or `p'`, `p-prime`, `p_prime` and
+  the `u` equivalents in an expression).
+- **Fixed or expression-driven settings** — chart type, improvement direction,
+  target, rebase options and baseline can each be set from the property panel
+  or driven by a Qlik variable or configuration table.
+- **Time-varying target** — on the summary table and variation icon an optional
+  third measure supplies a target per period, drawn as a stepped target line and
+  used for assurance in the latest period.
+- **Plain SPC charts** — setting the Qlik SPC chart's improvement direction to
+  *Not set* (or returning `none` from its expression) drops the Making Data
+  Count colours and icons while keeping every part of the SPC logic:
+  special-cause points take the neutral NHS Dark Blue, the legend reads
+  *Special cause*, and auto-rebasing falls back to any sustained shift.
+- **Making Data Count compliance badge** — a tick beside the variation and
+  assurance icons, NHS Green when the chart is MDC compliant (improvement
+  direction set, process control limits present and at least 15 points) and
+  grey with the reasons in its tooltip when it is not.
+- **Zone C (1 sigma)** — `calculateControlLimits` now returns `uzc` / `lzc` for
+  every chart type with limits (preserved through rebasing), and the SPC chart
+  gained a **Show zone C (1 sigma)** option alongside the warning limits so a
+  process hugging the centre line can be seen.
+- **Qlik-native number formatting** — values follow the measure's own format
+  (percentages, currency, durations), falling back to a decimal-places setting.
+- **Summary table parity with `abspc.plot.plot_mdc_summary_table`**, plus an
+  optional description column (third dimension) and a latest-period column so
+  each row can be traced back to the data.
+- **Generated stamp** on each visual recording when it was rendered, the
+  signed-in user and the Qlik app it sits in, resolved through the Capability
+  API and cached per session. The extension version and build date moved to the
+  stamp's tooltip, and are still used as the fallback when the Qlik context
+  cannot be read.
+- **Improvement-direction icon** — an up or down arrow shown beside the
+  variation and assurance icons on the SPC chart and KPI tile, mirroring
+  `improvement_direction_high/low.png` in the Python package.
+- **`qliksense_extensions/implementation.md`** — QMC/Dev Hub installation,
+  configuration, upgrade, uninstall and troubleshooting guide for the
+  on-premise Qlik Sense deployment.
+- **Zero-dependency build (`npm run build`) and tests (`npm test`)** for the
+  Qlik Sense extensions, producing importable `.zip` packages.
+
+### Changed
+- The Qlik SPC chart charts a **single measure**: a second measure is only ever
+  the p/u denominator and a third is rejected with a message pointing at the
+  target value / target expression. The target is no longer taken from a
+  measure on that visual.
+- The SPC chart legend and icons are placed below the rotated period labels,
+  with the label band measured from the labels themselves, so long dates no
+  longer collide with them. The icons are laid out as one group.
+
 ## [1.1.0] - 2026-06-15
 
 ### Added
