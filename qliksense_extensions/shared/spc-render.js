@@ -334,8 +334,9 @@
   }
 
   function complianceLabel(compliance) {
-    if (!compliance || compliance.compliant) { return 'Making Data Count compliant'; }
-    return 'Not Making Data Count compliant: ' + compliance.reasons.join('; ');
+    if (!compliance) { return 'Making Data Count compliance unknown'; }
+    if (compliance.compliant) { return 'Making Data Count compliant'; }
+    return 'Not Making Data Count compliant: ' + (compliance.reasons || []).join('; ');
   }
 
   function directionLabel(direction) {

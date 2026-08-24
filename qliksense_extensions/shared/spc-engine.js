@@ -154,7 +154,8 @@
     return null;
   }
 
-  function clipLower(values, minimum) {    return values.map(function (v) {
+  function clipLower(values, minimum) {
+    return values.map(function (v) {
       return isNum(v) ? Math.max(v, minimum) : v;
     });
   }
