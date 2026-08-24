@@ -618,3 +618,254 @@ class TestInsufficientDataWarning:
         warning_texts = [t for t in texts if "Warning" in t]
         assert len(warning_texts) == 1
         assert "8" in warning_texts[0]
+
+
+# ---------------------------------------------------------------------------
+# Plain SPC charts (no improvement direction)
+# ---------------------------------------------------------------------------
+
+
+class TestNoImprovementDirection:
+    """improvement_direction=None → plain SPC chart, no MDC colours/icons."""
+
+    def test_no_mdc_icons_even_when_requested(self, xmr_data):
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_icons=True,
+            improvement_direction=None,
+        )
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        assert len(annot_boxes) == 0
+
+    def test_run_chart_no_mdc_icons(self, xmr_data):
+        fig, ax = plot_run_chart(
+            xmr_data, show_icons=True, improvement_direction=None,
+        )
+        annot_boxes = [
+            c for c in ax.get_children()
+            if type(c).__name__ == "AnnotationBbox"
+        ]
+        assert len(annot_boxes) == 0
+
+    def test_legend_uses_neutral_special_cause_label(self, xmr_data):
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", improvement_direction=None,
+        )
+        labels = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert "Special cause" in labels
+        assert "Improvement" not in labels
+        assert "Concern" not in labels
+
+    def test_spc_logic_still_applied(self, xmr_data):
+        """Control limits are still drawn without an improvement direction."""
+        fig_mdc, ax_mdc = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_plain, ax_plain = plot_spc_chart(
+            xmr_data, chart_type="XmR", improvement_direction=None,
+        )
+        assert len(ax_plain.lines) == len(ax_mdc.lines)
+
+    def test_invalid_direction_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="improvement_direction"):
+            plot_spc_chart(
+                xmr_data, chart_type="XmR", improvement_direction="up",
+            )
+
+
+# ---------------------------------------------------------------------------
+# MDC compliance badge
+# ---------------------------------------------------------------------------
+
+
+class TestMdcComplianceBadge:
+    """A small MDC tick badge accompanies the MDC icons."""
+
+    def _badge(self, ax):
+        return [t for t in ax.texts if "MDC" in t.get_text()]
+
+    def test_badge_shown_with_icons(self):
+        data = pd.DataFrame({"value": list(range(20))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR", show_icons=True)
+        badges = self._badge(ax)
+        assert len(badges) == 1
+
+    def test_badge_green_when_compliant(self):
+        data = pd.DataFrame({"value": list(range(20))})
+        fig, ax = plot_spc_chart(data, chart_type="XmR", show_icons=True)
+        from abspc.spc import NHS_GREEN
+        assert self._badge(ax)[0].get_color() == NHS_GREEN
+
+    def test_badge_grey_when_not_compliant(self, xmr_data):
+        """Fewer than 15 points → not MDC compliant → grey tick."""
+        from abspc.spc import NHS_GREY
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR", show_icons=True)
+        assert self._badge(ax)[0].get_color() == NHS_GREY
+
+    def test_no_badge_without_icons(self, xmr_data):
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR", show_icons=False)
+        assert self._badge(ax) == []
+
+    def test_no_badge_without_improvement_direction(self, xmr_data):
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_icons=True,
+            improvement_direction=None,
+        )
+        assert self._badge(ax) == []
+
+
+# ---------------------------------------------------------------------------
+# Single-measure enforcement
+# ---------------------------------------------------------------------------
+
+
+class TestSingleMeasure:
+    """Only one measure may be plotted; targets use the target parameter."""
+
+    def test_list_of_measures_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="Only one measure"):
+            plot_spc_chart(xmr_data, chart_type="XmR", value_col=["value"])
+
+    def test_run_chart_list_of_measures_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="Only one measure"):
+            plot_run_chart(xmr_data, value_col=["value"])
+
+    def test_target_as_extra_measure_series_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="target must be"):
+            plot_spc_chart(
+                xmr_data, chart_type="XmR", target=xmr_data["value"],
+            )
+
+
+# ---------------------------------------------------------------------------
+# Target handling
+# ---------------------------------------------------------------------------
+
+
+class TestTargetHandling:
+    """Targets may be a value or a target column, and draw automatically."""
+
+    def test_target_drawn_without_show_target(self, xmr_data):
+        fig_no, ax_no = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_yes, ax_yes = plot_spc_chart(
+            xmr_data, chart_type="XmR", target=11.0
+        )
+        assert len(ax_yes.lines) > len(ax_no.lines)
+
+    def test_target_suppressed_when_show_target_false(self, xmr_data):
+        fig_no, ax_no = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig_off, ax_off = plot_spc_chart(
+            xmr_data, chart_type="XmR", target=11.0, show_target=False
+        )
+        assert len(ax_off.lines) == len(ax_no.lines)
+
+    def test_target_column_drawn(self, xmr_data):
+        data = xmr_data.assign(target=[11.0] * 5 + [12.0] * 5)
+        fig_no, ax_no = plot_spc_chart(data, chart_type="XmR")
+        fig, ax = plot_spc_chart(data, chart_type="XmR", target="target")
+        assert len(ax.lines) > len(ax_no.lines)
+        target_lines = [
+            line for line in ax.lines if line.get_label() == "Target"
+        ]
+        assert len(target_lines) == 1
+        assert list(target_lines[0].get_ydata()) == [11.0] * 5 + [12.0] * 5
+
+    def test_missing_target_column_raises(self, xmr_data):
+        with pytest.raises(ValueError, match="Target column"):
+            plot_spc_chart(xmr_data, chart_type="XmR", target="not_a_column")
+
+    def test_target_column_in_legend(self, xmr_data):
+        data = xmr_data.assign(target=[11.0] * 10)
+        fig, ax = plot_spc_chart(data, chart_type="XmR", target="target")
+        labels = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert "Target" in labels
+
+    def test_run_chart_target_column(self, xmr_data):
+        data = xmr_data.assign(target=[11.0] * 10)
+        fig_no, ax_no = plot_run_chart(data)
+        fig, ax = plot_run_chart(data, target="target")
+        assert len(ax.lines) > len(ax_no.lines)
+
+
+# ---------------------------------------------------------------------------
+# Warning limits / zone C
+# ---------------------------------------------------------------------------
+
+
+class TestWarningLimitsAndZoneC:
+    """2-sigma warning limits and 1-sigma zone C can be displayed."""
+
+    def test_warning_limits_add_lines(self, xmr_data):
+        fig_no, ax_no = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR", show_warning_limits=True
+        )
+        assert len(ax.lines) == len(ax_no.lines) + 2
+
+    def test_zone_c_adds_lines(self, xmr_data):
+        fig_no, ax_no = plot_spc_chart(xmr_data, chart_type="XmR")
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR", show_zone_c=True)
+        assert len(ax.lines) == len(ax_no.lines) + 2
+
+    def test_zone_c_values_match_one_sigma(self, xmr_data):
+        from abspc.spc import calculate_control_limits
+        expected = calculate_control_limits(xmr_data, chart_type="XmR")
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR", show_zone_c=True)
+        y_values = [tuple(np.round(line.get_ydata(), 6)) for line in ax.lines]
+        assert tuple(np.round(expected["uzc"].to_numpy(), 6)) in y_values
+        assert tuple(np.round(expected["lzc"].to_numpy(), 6)) in y_values
+
+    def test_legend_entries_added(self, xmr_data):
+        fig, ax = plot_spc_chart(
+            xmr_data, chart_type="XmR",
+            show_warning_limits=True, show_zone_c=True,
+        )
+        labels = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert any("Warning limits" in label for label in labels)
+        assert any("Zone C" in label for label in labels)
+
+    def test_not_shown_by_default(self, xmr_data):
+        fig, ax = plot_spc_chart(xmr_data, chart_type="XmR")
+        labels = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert not any("Zone C" in label for label in labels)
+
+
+# ---------------------------------------------------------------------------
+# Legend placement
+# ---------------------------------------------------------------------------
+
+
+class TestLegendPlacement:
+    """The legend must sit clear of the (rotated) date labels."""
+
+    @staticmethod
+    def _extents(fig, ax):
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        legend = ax.get_legend().get_window_extent(renderer)
+        tick_labels = [
+            t.get_window_extent(renderer)
+            for t in ax.get_xticklabels() if t.get_text()
+        ]
+        xlabel = ax.xaxis.label.get_window_extent(renderer)
+        return legend, tick_labels, xlabel
+
+    def test_legend_below_date_labels(self):
+        data = pd.DataFrame(
+            {"value": list(range(24))},
+            index=pd.date_range("2023-01-01", periods=24, freq="MS"),
+        )
+        fig, ax = plot_spc_chart(data, chart_type="XmR", date_format="%b %Y")
+        legend, tick_labels, xlabel = self._extents(fig, ax)
+        assert legend.y1 < min(b.y0 for b in tick_labels)
+        assert legend.y1 < xlabel.y0
+
+    def test_run_chart_legend_below_date_labels(self):
+        data = pd.DataFrame(
+            {"value": list(range(24))},
+            index=pd.date_range("2023-01-01", periods=24, freq="MS"),
+        )
+        fig, ax = plot_run_chart(data, date_format="%b %Y")
+        legend, tick_labels, xlabel = self._extents(fig, ax)
+        assert legend.y1 < min(b.y0 for b in tick_labels)
+        assert legend.y1 < xlabel.y0
