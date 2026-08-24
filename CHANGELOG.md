@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Plain SPC charts** — `improvement_direction=None` on `plot_spc_chart()` /
+  `plot_run_chart()` (and `determine_point_colours()`) draws a chart that
+  still uses all SPC logic but **not** the Making Data Count colour scheme or
+  icons: special-cause points use the neutral NHS Dark Blue and the variation,
+  assurance, improvement-direction and compliance icons are suppressed.
+- **MDC compliance badge** — with `show_icons=True` a small tick badge is
+  drawn alongside the MDC icons: NHS Green when the chart is Making Data
+  Count compliant and grey when it is not. The new
+  `determine_mdc_compliance()` helper returns the assessment and the reasons
+  for any non-compliance.
+- **Zone C (1-sigma) boundaries** — `calculate_control_limits()` now returns
+  `uzc` / `lzc` columns for every chart type with control limits, and
+  `plot_spc_chart()` gained `show_zone_c` and `show_warning_limits` options to
+  display the 1-sigma and 2-sigma lines.
+- **Target expressions** — `target` may now be the name of a column holding a
+  (possibly varying) target as well as a single value.
+
+### Changed
+- `show_target` defaults to `None`, which draws the target line automatically
+  whenever a `target` is supplied (pass `False` to suppress it).
+- The legend is anchored to the figure so it always clears the rotated date
+  labels and the x-axis label, and the MDC icons are drawn closer together.
+
+### Fixed
+- Only a single measure may be plotted: a non-string `value_col` now raises a
+  clear `ValueError` explaining that targets belong in the `target` parameter
+  rather than in an additional measure. A non-numeric, non-column `target`
+  (for example a Series of target values) also raises `ValueError`.
+
 ## [1.1.0] - 2026-06-15
 
 ### Added

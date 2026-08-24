@@ -228,12 +228,15 @@ Accepts the same chart-type and rebasing options, plus presentation controls.
 | `numerator_col` | `None` | Event-count column for `p` charts. |
 | `x_col` | `None` | Column for the x-axis (auto-detects a `DatetimeIndex`). |
 | `title` | `None` | Chart title (defaults from `chart_type`). |
-| `improvement_direction` | `"high"` | `"high"` or `"low"`. |
-| `target` | `None` | Optional target value / assurance line. |
+| `improvement_direction` | `"high"` | `"high"`, `"low"`, or `None`. `None` draws a **plain SPC chart**: SPC logic still applies but the MDC colours and icons are not used. |
+| `target` | `None` | Optional target: a value **or** the name of a target column (target expression). Only one measure may be plotted, so a target must never be supplied as a second measure. |
+| `show_target` | `None` | Draw the target line. `None` draws it automatically whenever `target` is set; `False` suppresses it. |
+| `show_warning_limits` | `False` | Draw the 2-sigma warning limits (`uwl` / `lwl`). |
+| `show_zone_c` | `False` | Draw the 1-sigma zone-C boundaries (`uzc` / `lzc`). |
 | `auto_rebase` | `False` | Detect sustained shifts and recalculate limits per phase. |
 | **`rebase_on`** | **`"improvement"`** | Shift direction that triggers a rebase: `"improvement"`, `"worsening"`, or `"any"`. |
 | **`baseline`** | **`15`** | Minimum points per phase before a rebase is permitted. |
-| `show_target`, `shade_band`, `show_legend`, `show_icons`, `show_summary`, … | various | Presentation options (see the package docstrings). |
+| `shade_band`, `show_legend`, `show_icons`, `show_summary`, … | various | Presentation options (see the package docstrings). |
 
 Invalid values for `rebase_on` (not one of `improvement` / `worsening` /
 `any`) or a negative / non-integer `baseline` raise `ValueError`.
@@ -284,6 +287,19 @@ icons:
 | Pass | ![pass](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_pass.png) | Target will consistently be met |
 | Hit or miss | ![hit_or_miss](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_hit_or_miss.png) | Target may or may not be met |
 | Fail | ![fail](https://raw.githubusercontent.com/Aneurin-Bevan-University-Health-Board/biu_Making_Data_Count_CustomVisuals/main/abspc/icons/assurance_fail.png) | Target will consistently not be met |
+
+With `show_icons=True` the variation, assurance and improvement-direction
+icons are drawn as a single tightly-grouped row at the top-left, followed by a
+small **MDC compliance tick** — NHS Green when the chart follows the Making
+Data Count methodology and grey when it does not (for example when fewer than
+15 points are plotted).  `determine_mdc_compliance()` returns the same
+assessment, with the reasons for any non-compliance.
+
+When `improvement_direction=None` no improvement direction has been declared,
+so the chart is **not** a Making Data Count chart: the MDC colours and all of
+the icons above are suppressed and special-cause points use the neutral NHS
+Dark Blue.  All SPC logic (control limits, rebasing and the special-cause
+rules) continues to be applied.
 
 ---
 
