@@ -8,34 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Plain SPC charts** — `improvement_direction=None` on `plot_spc_chart()` /
-  `plot_run_chart()` (and `determine_point_colours()`) draws a chart that
-  still uses all SPC logic but **not** the Making Data Count colour scheme or
-  icons: special-cause points use the neutral NHS Dark Blue and the variation,
-  assurance, improvement-direction and compliance icons are suppressed.
-- **MDC compliance badge** — with `show_icons=True` a small tick badge is
-  drawn alongside the MDC icons: NHS Green when the chart is Making Data
-  Count compliant and grey when it is not. The new
-  `determine_mdc_compliance()` helper returns the assessment and the reasons
-  for any non-compliance.
-- **Zone C (1-sigma) boundaries** — `calculate_control_limits()` now returns
-  `uzc` / `lzc` columns for every chart type with control limits, and
-  `plot_spc_chart()` gained `show_zone_c` and `show_warning_limits` options to
-  display the 1-sigma and 2-sigma lines.
-- **Target expressions** — `target` may now be the name of a column holding a
-  (possibly varying) target as well as a single value.
-
-### Changed
-- `show_target` defaults to `None`, which draws the target line automatically
-  whenever a `target` is supplied (pass `False` to suppress it).
-- The legend is anchored to the figure so it always clears the rotated date
-  labels and the x-axis label, and the MDC icons are drawn closer together.
-
-### Fixed
-- Only a single measure may be plotted: a non-string `value_col` now raises a
-  clear `ValueError` explaining that targets belong in the `target` parameter
-  rather than in an additional measure. A non-numeric, non-column `target`
-  (for example a Series of target values) also raises `ValueError`.
+- **Qlik Sense custom visual set** (`qliksense_extensions/`) for Qlik Sense
+  Enterprise on Windows (client-managed / on-premise, 2024 releases):
+  `nhs-mdc-spc-chart`, `nhs-mdc-summary-table` and `nhs-mdc-variation-icon`.
+  The extensions share `shared/spc-engine.js`, a JavaScript port of
+  `abspc/spc.py` covering XmR/I, p, p′, u, u′, c, t, g and run charts, MDC
+  special-cause rules 1–4, run-chart signals, auto-rebasing (`rebaseOn` /
+  `baseline`), variation and assurance classification, and chart-type
+  auto-detection. Rendering is dependency-free SVG with NHS colours and MDC
+  icons.
+- **Laney p′ and u′ charts** for large denominators, where ordinary p and u
+  limits are so tight that almost every point signals. Each subgroup sigma is
+  scaled by σ(z), derived from the mean moving range of the z-transformed
+  series, so the limits reflect the dispersion actually present between
+  subgroups. σ(z) resolves to 1 when the data is not overdispersed, making the
+  limits identical to p/u. Auto-detection never selects them; they must be
+  chosen explicitly as `pprime` / `uprime` (or `p'`, `p-prime`, `p_prime` and
+  the `u` equivalents in an expression).
+- **Fixed or expression-driven settings** — chart type, improvement direction,
+  target, rebase options and baseline can each be set from the property panel
+  or driven by a Qlik variable or configuration table.
+- **Time-varying target** — an optional third measure supplies a target per
+  period, drawn as a stepped target line and used for assurance in the latest
+  period.
+- **Qlik-native number formatting** — values follow the measure's own format
+  (percentages, currency, durations), falling back to a decimal-places setting.
+- **Summary table parity with `abspc.plot.plot_mdc_summary_table`**, plus an
+  optional description column (third dimension) and a latest-period column so
+  each row can be traced back to the data.
+- **Generated stamp** on each visual recording when it was rendered, the
+  signed-in user and the Qlik app it sits in, resolved through the Capability
+  API and cached per session. The extension version and build date moved to the
+  stamp's tooltip, and are still used as the fallback when the Qlik context
+  cannot be read.
+- **Improvement-direction icon** — an up or down arrow shown beside the
+  variation and assurance icons on the SPC chart and KPI tile, mirroring
+  `improvement_direction_high/low.png` in the Python package.
+- **`qliksense_extensions/implementation.md`** — QMC/Dev Hub installation,
+  configuration, upgrade, uninstall and troubleshooting guide for the
+  on-premise Qlik Sense deployment.
+- **Zero-dependency build (`npm run build`) and tests (`npm test`)** for the
+  Qlik Sense extensions, producing importable `.zip` packages.
 
 ## [1.1.0] - 2026-06-15
 
