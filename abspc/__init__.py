@@ -31,7 +31,6 @@ from .spc import (
     determine_point_colours,
     determine_variation_type,
     determine_assurance_type,
-    determine_mdc_compliance,
     show_summary,
     SPC_MIN_DATA_POINTS,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "determine_point_colours",
     "determine_variation_type",
     "determine_assurance_type",
-    "determine_mdc_compliance",
     "show_summary",
     "plot_spc_chart",
     "plot_run_chart",

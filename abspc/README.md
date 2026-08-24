@@ -318,17 +318,6 @@ variation = determine_variation_type(result, value_col="value", improvement_dire
 assurance = determine_assurance_type(result, target=60, improvement_direction="high")
 ```
 
-A small **MDC compliance tick** is drawn immediately after the icons: NHS
-Green when the chart is Making Data Count compliant and grey when it is not.
-`determine_mdc_compliance(result, improvement_direction=...)` returns the same
-assessment as `{"compliant": bool, "reasons": [...]}`.
-
-Setting `improvement_direction=None` means no improvement direction has been
-declared, so the chart is a plain SPC chart rather than a Making Data Count
-chart: none of the icons are drawn and special-cause points use the neutral
-NHS Dark Blue instead of the MDC improvement / concern colours.  All SPC logic
-still applies.
-
 > For run charts only the variation icon is shown (no control limits means
 > assurance cannot be calculated).
 
@@ -408,11 +397,9 @@ fig, ax = plot_spc_chart(
     title=None,
     xlabel="Observation",
     ylabel="Value",
-    improvement_direction="high",     # "high" | "low" | None (plain SPC chart)
-    target=None,                      # value or target-column name
-    show_target=None,                 # None = draw whenever target is set
-    show_warning_limits=False,        # 2-sigma limits
-    show_zone_c=False,                # 1-sigma (zone C) boundaries
+    improvement_direction="high",
+    target=None,
+    show_target=False,
     shade_band=False,
     shade_color="#41B6E6",
     nhs_logo_path=None,
@@ -442,11 +429,9 @@ fig, ax = plot_spc_chart(
 | `title` | `str \| None` | `None` | Chart title. Auto-generated if omitted. |
 | `xlabel` | `str` | `"Observation"` | X-axis label. |
 | `ylabel` | `str` | `"Value"` | Y-axis label. |
-| `improvement_direction` | `str \| None` | `"high"` | `"high"`, `"low"`, or `None`. Controls point colouring. `None` draws a plain SPC chart with no MDC colours or icons. |
-| `target` | `float \| str \| None` | `None` | Optional target — a value, or the name of a column holding the target expression. Never supply a target as a second measure. |
-| `show_target` | `bool \| None` | `None` | Draw the target line. `None` draws it automatically whenever `target` is set. |
-| `show_warning_limits` | `bool` | `False` | Draw the 2-sigma warning limits (`uwl` / `lwl`). |
-| `show_zone_c` | `bool` | `False` | Draw the 1-sigma zone-C boundaries (`uzc` / `lzc`). |
+| `improvement_direction` | `str` | `"high"` | `"high"` or `"low"`. Controls point colouring. |
+| `target` | `float \| None` | `None` | Optional target value for the target line and assurance calculation. |
+| `show_target` | `bool` | `False` | Draw a dashed target line at `target`. |
 | `shade_band` | `bool` | `False` | Fill between UCL and LCL with a translucent band. |
 | `shade_color` | `str` | `"#41B6E6"` | Colour for tolerance-band shading. |
 | `nhs_logo_path` | `str \| None` | `None` | Logo inside the axes (legacy). Use `logo_path` instead. |
@@ -460,7 +445,7 @@ fig, ax = plot_spc_chart(
 | `date_format` | `str \| None` | `None` | `strftime`-style format for datetime x-axis. |
 | `logo_path` | `str \| None` | `None` | Logo image at top-right of figure. |
 | `logo_zoom` | `float` | `0.07` | Logo height as fraction of figure height. |
-| `show_icons` | `bool` | `False` | Display the MDC variation, assurance and improvement-direction icons plus the MDC compliance tick. Ignored when `improvement_direction` is `None`. |
+| `show_icons` | `bool` | `False` | Display MDC variation & assurance icons. |
 | `icon_zoom` | `float` | `0.06` | Icon height as fraction of figure height. |
 
 **Returns:** `(fig, ax)` — `matplotlib.figure.Figure` and `matplotlib.axes.Axes`.
@@ -477,9 +462,9 @@ fig, ax = plot_run_chart(
     title=None,
     xlabel="Observation",
     ylabel="Value",
-    improvement_direction="high",     # "high" | "low" | None (plain run chart)
-    target=None,                      # value or target-column name
-    show_target=None,                 # None = draw whenever target is set
+    improvement_direction="high",
+    target=None,
+    show_target=False,
     nhs_logo_path=None,
     ax=None,
     figsize=(12, 5),
@@ -502,9 +487,8 @@ Same parameter semantics as `plot_spc_chart` (without `chart_type`,
 
 ### `calculate_control_limits`
 
-Returns the input DataFrame extended with `mean`, `ucl`, `lcl`, `uwl`, `lwl`,
-`uzc`, `lzc` columns (or just `mean` for run charts).  `uwl` / `lwl` are the
-2-sigma warning limits and `uzc` / `lzc` the 1-sigma zone-C boundaries.
+Returns the input DataFrame extended with `mean`, `ucl`, `lcl`, `uwl`, `lwl`
+columns (or just `mean` for run charts).
 
 ### `detect_special_causes`
 

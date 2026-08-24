@@ -60,15 +60,11 @@ NHS_GREY = "#768692"
 NHS_WARM_YELLOW = "#FFB81C"
 NHS_LIGHT_BLUE = "#41B6E6"
 NHS_PALE_GREY = "#E8EDEE"
-NHS_GREEN = "#009639"
 
 # Colour assigned to each point category
 COLOUR_COMMON_CAUSE = NHS_GREY
 COLOUR_IMPROVEMENT = NHS_BLUE
 COLOUR_CONCERN = NHS_ORANGE
-# Neutral colour used for special-cause points when no improvement direction
-# is supplied (a plain SPC chart rather than a Making Data Count chart)
-COLOUR_SPECIAL_CAUSE = NHS_DARK_BLUE
 
 # Minimum number of data points recommended for reliable SPC analysis
 SPC_MIN_DATA_POINTS = 15
@@ -124,8 +120,6 @@ def calculate_control_limits(
         * ``lcl``   – lower control limit (absent for ``"run"`` charts)
         * ``uwl``   – upper warning limit at 2-sigma (absent for ``"run"``)
         * ``lwl``   – lower warning limit at 2-sigma (absent for ``"run"``)
-        * ``uzc``   – upper zone-C boundary at 1-sigma (absent for ``"run"``)
-        * ``lzc``   – lower zone-C boundary at 1-sigma (absent for ``"run"``)
 
     Raises
     ------
@@ -174,17 +168,10 @@ def calculate_control_limits(
     elif chart_type == "run":
         result = _calc_run(result, value_col)
 
-    # Zone-C boundaries at 1-sigma, derived from the 3-sigma limits so that
-    # every chart type exposes them consistently.
-    if "ucl" in result.columns and "lcl" in result.columns:
-        result["uzc"] = result["mean"] + (result["ucl"] - result["mean"]) / 3.0
-        result["lzc"] = result["mean"] - (result["mean"] - result["lcl"]) / 3.0
-
     # Ensure LCL is non-negative for count / proportion charts
     if chart_type in {"p", "u", "c", "t", "g"}:
         result["lcl"] = result["lcl"].clip(lower=0)
         result["lwl"] = result["lwl"].clip(lower=0)
-        result["lzc"] = result["lzc"].clip(lower=0)
 
     return result
 
@@ -275,7 +262,7 @@ def determine_point_colours(
     mean_col: str = "mean",
     ucl_col: str = "ucl",
     lcl_col: str = "lcl",
-    improvement_direction: str | None = "high",
+    improvement_direction: str = "high",
     target: float | None = None,
 ) -> list[str]:
     """Determine the NHS MDC colour for every data point.
@@ -294,17 +281,13 @@ def determine_point_colours(
         Column containing the UCL (default ``"ucl"``).
     lcl_col : str, optional
         Column containing the LCL (default ``"lcl"``).
-    improvement_direction : str or None, optional
+    improvement_direction : str, optional
         ``"high"`` if higher values are better (e.g. compliance rate) or
         ``"low"`` if lower values are better (e.g. error rate).
-        Defaults to ``"high"``.  When ``None`` the Making Data Count colour
-        scheme is **not** applied: special-cause points are coloured with the
-        neutral :data:`COLOUR_SPECIAL_CAUSE` instead of improvement / concern
-        colours (a plain SPC chart).
+        Defaults to ``"high"``.
     target : float or None, optional
         Optional target value.  When supplied, special-cause points that
-        move towards the target are coloured as improvement.  Ignored when
-        *improvement_direction* is ``None``.
+        move towards the target are coloured as improvement.
 
     Returns
     -------
@@ -314,11 +297,11 @@ def determine_point_colours(
     Raises
     ------
     ValueError
-        If *improvement_direction* is not ``"high"``, ``"low"`` or ``None``.
+        If *improvement_direction* is not ``"high"`` or ``"low"``.
     """
-    if improvement_direction not in {"high", "low", None}:
+    if improvement_direction not in {"high", "low"}:
         raise ValueError(
-            "improvement_direction must be 'high', 'low' or None, "
+            "improvement_direction must be 'high' or 'low', "
             f"got '{improvement_direction}'"
         )
 
@@ -343,11 +326,6 @@ def determine_point_colours(
     for i in range(len(values)):
         if not special_cause[i]:
             colours.append(COLOUR_COMMON_CAUSE)
-            continue
-
-        if improvement_direction is None:
-            # Plain SPC chart – no Making Data Count colour coding
-            colours.append(COLOUR_SPECIAL_CAUSE)
             continue
 
         # Determine direction of the special cause
@@ -565,7 +543,7 @@ def rebase_control_limits(
                 subgroup_col=subgroup_col,
                 numerator_col=numerator_col,
             )
-            for col in ("mean", "ucl", "lcl", "uwl", "lwl", "uzc", "lzc"):
+            for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
                 if col in prev_phase_result.columns:
                     result.iloc[
                         phase_start:abs_rebase, result.columns.get_loc(col)
@@ -583,7 +561,7 @@ def rebase_control_limits(
 
         phase += 1
         # Write the new phase's limits back into the full result DataFrame
-        for col in ("mean", "ucl", "lcl", "uwl", "lwl", "uzc", "lzc"):
+        for col in ("mean", "ucl", "lcl", "uwl", "lwl"):
             if col in new_phase_result.columns:
                 result.iloc[
                     abs_rebase:, result.columns.get_loc(col)
@@ -601,7 +579,7 @@ def determine_variation_type(
     result: pd.DataFrame,
     value_col: str = "value",
     mean_col: str = "mean",
-    improvement_direction: str | None = "high",
+    improvement_direction: str = "high",
 ) -> str:
     """Determine the overall variation icon type for an SPC chart.
 
@@ -622,19 +600,14 @@ def determine_variation_type(
         Column containing measured values.
     mean_col : str
         Column containing the centre line.
-    improvement_direction : str or None
-        ``"high"`` or ``"low"``.  When ``None`` the Making Data Count
-        variation classification does not apply and ``"common_cause"`` is
-        returned.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
 
     Returns
     -------
     str
         One of the variation type strings listed above.
     """
-    if improvement_direction is None:
-        return "common_cause"
-
     if improvement_direction not in {"high", "low"}:
         raise ValueError(
             "improvement_direction must be 'high' or 'low', "
@@ -671,7 +644,7 @@ def determine_variation_type(
 def determine_assurance_type(
     result: pd.DataFrame,
     target: float | None,
-    improvement_direction: str | None = "high",
+    improvement_direction: str = "high",
     ucl_col: str = "ucl",
     lcl_col: str = "lcl",
 ) -> str:
@@ -694,9 +667,8 @@ def determine_assurance_type(
         Output from :func:`calculate_control_limits` (must contain UCL/LCL).
     target : float or None
         The target value. Returns ``"no_target"`` when ``None``.
-    improvement_direction : str or None
-        ``"high"`` or ``"low"``.  When ``None`` assurance cannot be
-        determined and ``"no_target"`` is returned.
+    improvement_direction : str
+        ``"high"`` or ``"low"``.
     ucl_col, lcl_col : str
         Column names for the upper and lower control limits.
 
@@ -705,7 +677,7 @@ def determine_assurance_type(
     str
         One of ``"pass"``, ``"hit_or_miss"``, ``"fail"``, or ``"no_target"``.
     """
-    if target is None or improvement_direction is None:
+    if target is None:
         return "no_target"
 
     if ucl_col not in result.columns or lcl_col not in result.columns:
@@ -733,62 +705,10 @@ def determine_assurance_type(
             return "hit_or_miss"
 
 
-def determine_mdc_compliance(
-    result: pd.DataFrame,
-    improvement_direction: str | None = "high",
-    min_points: int = SPC_MIN_DATA_POINTS,
-    ucl_col: str = "ucl",
-    lcl_col: str = "lcl",
-) -> dict:
-    """Assess whether a chart is NHS Making Data Count (MDC) compliant.
-
-    A chart is considered MDC compliant when all of the following hold:
-
-    * an *improvement direction* has been declared (without it the variation
-      and assurance icons cannot be assigned, so the chart is a plain SPC
-      chart rather than an MDC chart);
-    * process control limits are present (a run chart alone is not an MDC
-      SPC chart);
-    * at least *min_points* data points are plotted (default
-      :data:`SPC_MIN_DATA_POINTS`).
-
-    Parameters
-    ----------
-    result : pd.DataFrame
-        Output from :func:`calculate_control_limits` (or a later step).
-    improvement_direction : str or None, optional
-        ``"high"``, ``"low"`` or ``None`` (default ``"high"``).
-    min_points : int, optional
-        Minimum number of data points required (default
-        :data:`SPC_MIN_DATA_POINTS`).
-    ucl_col, lcl_col : str, optional
-        Column names of the upper / lower control limits.
-
-    Returns
-    -------
-    dict
-        ``{"compliant": bool, "reasons": list[str]}`` where *reasons* lists
-        the compliance failures (empty when compliant).
-    """
-    reasons: list[str] = []
-
-    if improvement_direction is None:
-        reasons.append("No improvement direction set")
-
-    if ucl_col not in result.columns or lcl_col not in result.columns:
-        reasons.append("No process control limits")
-
-    if len(result) < min_points:
-        reasons.append(
-            f"Fewer than {min_points} data points ({len(result)} provided)"
-        )
-
-    return {"compliant": not reasons, "reasons": reasons}
-
-
 # ---------------------------------------------------------------------------
 # Chart-specific helpers
 # ---------------------------------------------------------------------------
+
 
 def _calc_xmr(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     """XmR (individuals / moving-range) chart calculations.
@@ -1212,7 +1132,7 @@ def show_summary(
     data: pd.DataFrame,
     chart_type: str = "XmR",
     value_col: str = "value",
-    improvement_direction: str | None = "high",
+    improvement_direction: str = "high",
     target: float | None = None,
     subgroup_col: str | None = "subgroup_size",
     x_col: str | None = None,
@@ -1233,10 +1153,9 @@ def show_summary(
         ``"XmR"``.
     value_col : str, optional
         Column name for the measured values (default ``"value"``).
-    improvement_direction : str or None, optional
+    improvement_direction : str, optional
         Whether higher (``"high"``) or lower (``"low"``) values are better
-        (default ``"high"``).  ``None`` reports signals without a Making Data
-        Count improvement / concern classification.
+        (default ``"high"``).
     target : float or None, optional
         Optional target value for assurance classification (default ``None``).
     subgroup_col : str or None, optional
@@ -1302,20 +1221,10 @@ def show_summary(
             median_arr = result["mean"].to_numpy(dtype=float)
             last_sig = int(np.where(run_signal)[0][-1])
             val_is_high = values_arr[last_sig] > median_arr[last_sig]
-            if improvement_direction is None:
-                variation = "Special-cause variation"
-            elif improvement_direction == "high":
+            if improvement_direction == "high":
                 variation = "Special-cause variation — Improvement (high)" if val_is_high else "Special-cause variation — Concern (low)"
             else:
                 variation = "Special-cause variation — Concern (high)" if val_is_high else "Special-cause variation — Improvement (low)"
-    elif improvement_direction is None:
-        # Plain SPC chart – signals are reported without a Making Data Count
-        # improvement / concern classification.
-        variation = (
-            "Special-cause variation"
-            if result["special_cause"].any()
-            else "Common-cause variation"
-        )
     else:
         variation_type = determine_variation_type(
             result, value_col=value_col, improvement_direction=improvement_direction

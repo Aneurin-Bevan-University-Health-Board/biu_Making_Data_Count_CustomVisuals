@@ -20,7 +20,6 @@ import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
 import numpy as np
 import pandas as pd
 
@@ -32,20 +31,17 @@ from .spc import (
     determine_point_colours,
     determine_variation_type,
     determine_assurance_type,
-    determine_mdc_compliance,
     show_summary as generate_summary_data,
     NHS_BLUE,
     NHS_DARK_BLUE,
     NHS_ORANGE,
     NHS_GREY,
-    NHS_GREEN,
     NHS_WARM_YELLOW,
     NHS_LIGHT_BLUE,
     NHS_PALE_GREY,
     COLOUR_COMMON_CAUSE,
     COLOUR_IMPROVEMENT,
     COLOUR_CONCERN,
-    COLOUR_SPECIAL_CAUSE,
     SPC_MIN_DATA_POINTS,
 )
 from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_change_line, add_annotation
@@ -57,12 +53,6 @@ from .utils import add_target_line, add_nhs_logo, add_logo, add_shading, add_cha
 import pathlib as _pathlib
 
 _ICON_DIR = _pathlib.Path(__file__).parent / "icons"
-
-# Vertical placement of the legend, in *figure* coordinates.  Anchoring the
-# legend to the figure (rather than the axes) keeps it clear of rotated date
-# tick labels and of the x-axis label, however long they are.
-_LEGEND_Y_OFFSET = 0.09
-_LEGEND_BOTTOM_MARGIN = 0.14
 
 _VARIATION_ICON_MAP = {
     "improvement_high": _ICON_DIR / "variation_improvement_high.png",
@@ -162,15 +152,13 @@ def _add_mdc_icons(
     assurance_type: str,
     icon_zoom: float = 0.06,
     improvement_direction: str | None = None,
-    mdc_compliant: bool | None = None,
 ) -> None:
     """Place variation, assurance, and improvement-direction icons at the
     top-left of the chart.
 
     Icons are placed side by side at the top-left of the axes, just below
     the title: variation icon first, then assurance icon, then the
-    improvement-direction arrow, and finally the optional MDC-compliance
-    tick.  All icons are drawn as a single tightly-grouped row.
+    improvement-direction arrow.
 
     Parameters
     ----------
@@ -184,10 +172,6 @@ def _add_mdc_icons(
     improvement_direction : str or None
         ``"high"`` or ``"low"``.  When supplied, an arrow icon indicating the
         improvement direction is placed after the other icons.
-    mdc_compliant : bool or None
-        When not ``None``, a small tick badge is drawn after the icons —
-        green when the chart is Making Data Count compliant, grey when it is
-        not.
     """
     from matplotlib.offsetbox import OffsetImage, AnnotationBbox
     import matplotlib.image as mpimg
@@ -234,37 +218,8 @@ def _add_mdc_icons(
         )
         ax.add_artist(ab)
 
-        # Advance x position for the next icon (small gap keeps icons grouped)
-        x_offset += icon_w_frac + 0.005
-
-    if mdc_compliant is not None:
-        _add_mdc_compliance_badge(ax, x_offset, mdc_compliant)
-
-
-def _add_mdc_compliance_badge(
-    ax: matplotlib.axes.Axes,
-    x_offset: float,
-    compliant: bool,
-) -> None:
-    """Draw a small "MDC compliant" tick badge at *x_offset* (axes fraction).
-
-    The tick is NHS Green when the chart follows the Making Data Count
-    methodology and grey when it does not.
-    """
-    colour = NHS_GREEN if compliant else NHS_GREY
-    label = "MDC compliant" if compliant else "Not MDC compliant"
-    ax.annotate(
-        "\u2713 MDC",
-        xy=(x_offset, 1.01),
-        xycoords="axes fraction",
-        va="bottom",
-        ha="left",
-        fontsize=8,
-        fontweight="bold",
-        color=colour,
-        annotation_clip=False,
-        label=label,
-    )
+        # Advance x position for the next icon (add small gap)
+        x_offset += icon_w_frac + 0.01
 
 
 def _render_summary_figure(
@@ -380,72 +335,6 @@ def _render_summary_figure(
 
 
 # ---------------------------------------------------------------------------
-# Measure / target validation helpers
-# ---------------------------------------------------------------------------
-
-
-def _validate_single_measure(value_col) -> None:
-    """Ensure exactly one measure column is supplied.
-
-    Only a single measure may be plotted on an SPC chart — a target must be
-    supplied through the *target* parameter (a value or a target column /
-    expression) rather than as an extra measure.
-    """
-    if not isinstance(value_col, str):
-        raise ValueError(
-            "Only one measure can be plotted on an SPC chart: value_col must "
-            f"be a single column name, got {type(value_col).__name__}. "
-            "Supply targets via the 'target' parameter (a value or a target "
-            "column), not as an additional measure."
-        )
-
-
-def _validate_improvement_direction(improvement_direction) -> None:
-    """Validate the *improvement_direction* argument (``None`` allowed)."""
-    if improvement_direction not in {"high", "low", None}:
-        raise ValueError(
-            "improvement_direction must be 'high', 'low' or None "
-            f"(no Making Data Count colours/icons), got '{improvement_direction}'"
-        )
-
-
-def _resolve_target(
-    data: pd.DataFrame,
-    target,
-) -> tuple[float | None, np.ndarray | None]:
-    """Resolve *target* into a scalar value and an optional per-point series.
-
-    *target* may be ``None``, a single numeric value, or the name of a column
-    in *data* holding a (possibly varying) target expression.  The scalar
-    value returned is the most recent target and is used for point colouring
-    and the assurance icon.
-    """
-    if target is None:
-        return None, None
-
-    if isinstance(target, str):
-        if target not in data.columns:
-            raise ValueError(
-                f"Target column '{target}' not found in data. "
-                f"Available columns: {list(data.columns)}"
-            )
-        if not pd.api.types.is_numeric_dtype(data[target]):
-            raise ValueError(f"Target column '{target}' must be numeric")
-        series = data[target].to_numpy(dtype=float)
-        finite = series[np.isfinite(series)]
-        value = float(finite[-1]) if len(finite) else None
-        return value, series
-
-    if isinstance(target, bool) or not isinstance(target, (int, float, np.number)):
-        raise ValueError(
-            "target must be a single numeric value or the name of a target "
-            f"column in data, got {type(target).__name__}"
-        )
-
-    return float(target), None
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -471,17 +360,15 @@ def plot_spc_chart(
     title: str | None = None,
     xlabel: str = "Observation",
     ylabel: str = "Value",
-    improvement_direction: str | None = "high",
-    target: float | str | None = None,
-    show_target: bool | None = None,
+    improvement_direction: str = "high",
+    target: float | None = None,
+    show_target: bool = False,
     shade_band: bool = False,
     shade_color: str = NHS_LIGHT_BLUE,
     nhs_logo_path: str | None = None,
     ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[float, float] = (12, 5),
     show_legend: bool = True,
-    show_warning_limits: bool = False,
-    show_zone_c: bool = False,
     change_points: list[dict] | None = None,
     annotations: list[dict] | None = None,
     auto_rebase: bool = False,
@@ -528,22 +415,13 @@ def plot_spc_chart(
         x-axis label (default ``"Observation"``).
     ylabel : str, optional
         y-axis label (default ``"Value"``).
-    improvement_direction : str or None, optional
+    improvement_direction : str, optional
         ``"high"`` (default) or ``"low"`` – whether higher values represent
-        improvement.  When ``None`` the chart is drawn as a **plain SPC
-        chart**: the Making Data Count colour scheme and the MDC
-        variation / assurance / improvement-direction icons are not used,
-        although all SPC logic (control limits and special-cause rules) is
-        still applied.
-    target : float, str or None, optional
-        Optional target.  Either a single numeric value or the name of a
-        column in *data* holding the target (a target expression, which may
-        vary over time).  A target must **not** be supplied as a second
-        measure.  Also controls improvement colouring when set.
-    show_target : bool or None, optional
-        Draw the target line.  When ``None`` (default) the target line is
-        drawn automatically whenever *target* is supplied; pass ``False`` to
-        suppress it.
+        improvement.
+    target : float or None, optional
+        Optional target value.  Also controls improvement colouring when set.
+    show_target : bool, optional
+        Draw a dashed target line when ``True`` (requires *target* to be set).
     shade_band : bool, optional
         Fill the region between UCL and LCL when ``True`` (default ``False``).
     shade_color : str, optional
@@ -559,12 +437,6 @@ def plot_spc_chart(
         Figure size in inches ``(width, height)`` (default ``(12, 5)``).
     show_legend : bool, optional
         Add a legend to the chart (default ``True``).
-    show_warning_limits : bool, optional
-        Draw the 2-sigma warning limits (``uwl`` / ``lwl``) when ``True``
-        (default ``False``).
-    show_zone_c : bool, optional
-        Draw the 1-sigma zone-C boundaries (``uzc`` / ``lzc``) when ``True``
-        (default ``False``).
     change_points : list of dict or None, optional
         Vertical annotation lines marking known process changes.  Each dict
         must contain:
@@ -626,12 +498,9 @@ def plot_spc_chart(
         Increase for a larger logo; decrease for a smaller one.
     show_icons : bool, optional
         When ``True``, display NHS MDC variation and assurance icons on the
-        chart, grouped together at the top-left, together with a small MDC
-        compliance tick (green when compliant, grey when not).  Icons are
-        never drawn when *improvement_direction* is ``None`` because the
-        chart is then a plain SPC chart (default ``False``).  Assurance icons
-        require a *target* to be set; otherwise the empty/no-target icon is
-        shown.
+        chart.  The variation icon appears at the top-left and the assurance
+        icon at the top-right (default ``False``).  Assurance icons require
+        a *target* to be set; otherwise the empty/no-target icon is shown.
     icon_zoom : float, optional
         Icon height as a fraction of the figure height (default ``0.06``).
 
@@ -641,12 +510,6 @@ def plot_spc_chart(
     ax  : matplotlib.axes.Axes
     """
     chart_type_key = chart_type.strip().lower()
-
-    _validate_single_measure(value_col)
-    _validate_improvement_direction(improvement_direction)
-    target_value, target_series = _resolve_target(data, target)
-    if show_target is None:
-        show_target = target_value is not None or target_series is not None
 
     if rebase_on not in {"improvement", "worsening", "any"}:
         raise ValueError(
@@ -685,17 +548,14 @@ def plot_spc_chart(
 
     # --- Calculate limits ---------------------------------------------------
     if auto_rebase:
-        # Without an improvement direction, rebasing must be direction-neutral
-        rebase_direction = improvement_direction or "high"
-        rebase_trigger = rebase_on if improvement_direction is not None else "any"
         result = rebase_control_limits(
             data,
             chart_type=chart_type,
-            improvement_direction=rebase_direction,
+            improvement_direction=improvement_direction,
             value_col=value_col,
             subgroup_col=subgroup_col,
             numerator_col=numerator_col,
-            rebase_on=rebase_trigger,
+            rebase_on=rebase_on,
             baseline=baseline,
         )
     else:
@@ -712,7 +572,7 @@ def plot_spc_chart(
         result,
         value_col=value_col,
         improvement_direction=improvement_direction,
-        target=target_value,
+        target=target,
     )
 
     # --- Axes setup ---------------------------------------------------------
@@ -738,25 +598,6 @@ def plot_spc_chart(
             label="UCL / LCL", zorder=3)
     ax.plot(x, lcl, color=NHS_DARK_BLUE, linewidth=1.2, linestyle="--",
             zorder=3)
-
-    # --- Optional 2-sigma warning limits / 1-sigma zone-C boundaries --------
-    has_warning_limits = show_warning_limits and {"uwl", "lwl"} <= set(result.columns)
-    if has_warning_limits:
-        uwl = result["uwl"].to_numpy(dtype=float)
-        lwl = result["lwl"].to_numpy(dtype=float)
-        ax.plot(x, uwl, color=NHS_DARK_BLUE, linewidth=0.9, linestyle=":",
-                alpha=0.8, zorder=3)
-        ax.plot(x, lwl, color=NHS_DARK_BLUE, linewidth=0.9, linestyle=":",
-                alpha=0.8, zorder=3)
-
-    has_zone_c = show_zone_c and {"uzc", "lzc"} <= set(result.columns)
-    if has_zone_c:
-        uzc = result["uzc"].to_numpy(dtype=float)
-        lzc = result["lzc"].to_numpy(dtype=float)
-        ax.plot(x, uzc, color=NHS_LIGHT_BLUE, linewidth=0.9, linestyle=":",
-                alpha=0.9, zorder=3)
-        ax.plot(x, lzc, color=NHS_LIGHT_BLUE, linewidth=0.9, linestyle=":",
-                alpha=0.9, zorder=3)
 
     # --- Centre line --------------------------------------------------------
     ax.plot(x, mean, color=NHS_BLUE, linewidth=1.8, linestyle="-",
@@ -796,12 +637,8 @@ def plot_spc_chart(
                 )
 
     # --- Optional target line -----------------------------------------------
-    if show_target:
-        if target_series is not None:
-            ax.plot(x, target_series, color=NHS_WARM_YELLOW, linewidth=1.5,
-                    linestyle="--", label="Target", zorder=3)
-        elif target_value is not None:
-            add_target_line(ax, target_value, color=NHS_WARM_YELLOW)
+    if show_target and target is not None:
+        add_target_line(ax, target, color=NHS_WARM_YELLOW)
 
     # --- Change-point annotations ------------------------------------------
     if change_points:
@@ -836,35 +673,17 @@ def plot_spc_chart(
             mpatches.Patch(color=NHS_BLUE, label="Mean"),
             mpatches.Patch(color=NHS_DARK_BLUE, label="UCL / LCL"),
             mpatches.Patch(color=COLOUR_COMMON_CAUSE, label="Common cause"),
+            mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement"),
+            mpatches.Patch(color=COLOUR_CONCERN, label="Concern"),
         ]
-        if improvement_direction is None:
-            legend_handles.append(
-                mpatches.Patch(color=COLOUR_SPECIAL_CAUSE, label="Special cause")
-            )
-        else:
-            legend_handles.extend([
-                mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement"),
-                mpatches.Patch(color=COLOUR_CONCERN, label="Concern"),
-            ])
-        if has_warning_limits:
-            legend_handles.append(
-                mlines.Line2D([], [], color=NHS_DARK_BLUE, linestyle=":",
-                              label="Warning limits (2σ)")
-            )
-        if has_zone_c:
-            legend_handles.append(
-                mlines.Line2D([], [], color=NHS_LIGHT_BLUE, linestyle=":",
-                              label="Zone C (1σ)")
-            )
-        if show_target and (target_value is not None or target_series is not None):
+        if show_target and target is not None:
             legend_handles.append(
                 mpatches.Patch(color=NHS_WARM_YELLOW, label="Target")
             )
         ax.legend(
             handles=legend_handles,
             loc="upper center",
-            bbox_to_anchor=(0.5, _LEGEND_Y_OFFSET),
-            bbox_transform=fig.transFigure,
+            bbox_to_anchor=(0.5, -0.25),
             ncol=len(legend_handles),
             fontsize=9,
             frameon=False,
@@ -901,7 +720,7 @@ def plot_spc_chart(
 
     # Add bottom padding for legend
     if show_legend:
-        fig.tight_layout(rect=[0, _LEGEND_BOTTOM_MARGIN, 1, 1])
+        fig.tight_layout(rect=[0, 0.12, 1, 1])
     else:
         fig.tight_layout()
 
@@ -912,26 +731,19 @@ def plot_spc_chart(
         add_nhs_logo(ax, nhs_logo_path, position="lower right")
 
     # --- MDC variation & assurance icons ------------------------------------
-    # Without an improvement direction the chart is a plain SPC chart, so the
-    # Making Data Count icons are not applicable.
-    if show_icons and improvement_direction is not None:
+    if show_icons:
         variation = determine_variation_type(
             result,
             value_col=value_col,
             improvement_direction=improvement_direction,
         )
         assurance = determine_assurance_type(
-            result, target=target_value,
-            improvement_direction=improvement_direction,
-        )
-        compliance = determine_mdc_compliance(
-            result, improvement_direction=improvement_direction,
+            result, target=target, improvement_direction=improvement_direction,
         )
         _add_mdc_icons(
             fig, ax, variation, assurance,
             icon_zoom=icon_zoom,
             improvement_direction=improvement_direction,
-            mdc_compliant=compliance["compliant"],
         )
 
     # --- Summary visualization ----------------------------------------------
@@ -941,7 +753,7 @@ def plot_spc_chart(
             chart_type=chart_type,
             value_col=value_col,
             improvement_direction=improvement_direction,
-            target=target_value,
+            target=target,
             subgroup_col=subgroup_col,
             x_col=x_col,
         )
@@ -958,9 +770,9 @@ def plot_run_chart(
     title: str | None = None,
     xlabel: str = "Observation",
     ylabel: str = "Value",
-    improvement_direction: str | None = "high",
-    target: float | str | None = None,
-    show_target: bool | None = None,
+    improvement_direction: str = "high",
+    target: float | None = None,
+    show_target: bool = False,
     nhs_logo_path: str | None = None,
     ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[float, float] = (12, 5),
@@ -998,17 +810,14 @@ def plot_run_chart(
         x-axis label (default ``"Observation"``).
     ylabel : str, optional
         y-axis label (default ``"Value"``).
-    improvement_direction : str or None, optional
+    improvement_direction : str, optional
         ``"high"`` (default) or ``"low"`` – whether higher values represent
-        improvement.  When ``None`` the chart is drawn as a plain run chart:
-        signal points use the neutral special-cause colour and no Making Data
-        Count icons are shown.
-    target : float, str or None, optional
-        Optional target — either a single numeric value or the name of a
-        column in *data* holding the target expression.
-    show_target : bool or None, optional
-        Draw the target line.  When ``None`` (default) the line is drawn
-        automatically whenever *target* is supplied.
+        improvement.
+    target : float or None, optional
+        Optional target value.  When provided with *show_target*, a dashed
+        line is drawn.
+    show_target : bool, optional
+        Draw a dashed target line when ``True`` (default ``False``).
     nhs_logo_path : str or None, optional
         Path to an NHS logo image file.
     ax : matplotlib.axes.Axes or None, optional
@@ -1038,11 +847,11 @@ def plot_run_chart(
     fig : matplotlib.figure.Figure
     ax  : matplotlib.axes.Axes
     """
-    _validate_single_measure(value_col)
-    _validate_improvement_direction(improvement_direction)
-    target_value, target_series = _resolve_target(data, target)
-    if show_target is None:
-        show_target = target_value is not None or target_series is not None
+    if improvement_direction not in {"high", "low"}:
+        raise ValueError(
+            "improvement_direction must be 'high' or 'low', "
+            f"got '{improvement_direction}'"
+        )
 
     # --- Compute median and detect signals ----------------------------------
     result = calculate_control_limits(data, chart_type="run", value_col=value_col)
@@ -1074,8 +883,6 @@ def plot_run_chart(
     for i, (xi, yi) in enumerate(zip(x, values)):
         if not run_signal[i]:
             colour = COLOUR_COMMON_CAUSE
-        elif improvement_direction is None:
-            colour = COLOUR_SPECIAL_CAUSE
         else:
             is_high = yi > median[i]
             if improvement_direction == "high":
@@ -1085,12 +892,8 @@ def plot_run_chart(
         ax.plot(xi, yi, "o", color=colour, markersize=6, zorder=4)
 
     # --- Optional target line -----------------------------------------------
-    if show_target:
-        if target_series is not None:
-            ax.plot(x, target_series, color=NHS_WARM_YELLOW, linewidth=1.5,
-                    linestyle="--", label="Target", zorder=3)
-        elif target_value is not None:
-            add_target_line(ax, target_value, color=NHS_WARM_YELLOW)
+    if show_target and target is not None:
+        add_target_line(ax, target, color=NHS_WARM_YELLOW)
 
     # --- Change-point annotations ------------------------------------------
     if change_points:
@@ -1123,25 +926,17 @@ def plot_run_chart(
         legend_handles = [
             mpatches.Patch(color=NHS_BLUE, label="Median"),
             mpatches.Patch(color=COLOUR_COMMON_CAUSE, label="Common cause"),
+            mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement signal"),
+            mpatches.Patch(color=COLOUR_CONCERN, label="Concern signal"),
         ]
-        if improvement_direction is None:
-            legend_handles.append(
-                mpatches.Patch(color=COLOUR_SPECIAL_CAUSE, label="Signal")
-            )
-        else:
-            legend_handles.extend([
-                mpatches.Patch(color=COLOUR_IMPROVEMENT, label="Improvement signal"),
-                mpatches.Patch(color=COLOUR_CONCERN, label="Concern signal"),
-            ])
-        if show_target and (target_value is not None or target_series is not None):
+        if show_target and target is not None:
             legend_handles.append(
                 mpatches.Patch(color=NHS_WARM_YELLOW, label="Target")
             )
         ax.legend(
             handles=legend_handles,
             loc="upper center",
-            bbox_to_anchor=(0.5, _LEGEND_Y_OFFSET),
-            bbox_transform=fig.transFigure,
+            bbox_to_anchor=(0.5, -0.28),
             ncol=len(legend_handles),
             fontsize=9,
             frameon=False,
@@ -1155,7 +950,7 @@ def plot_run_chart(
 
     # Add bottom padding for legend
     if show_legend:
-        fig.tight_layout(rect=[0, _LEGEND_BOTTOM_MARGIN, 1, 1])
+        fig.tight_layout(rect=[0, 0.13, 1, 1])
     else:
         fig.tight_layout()
 
@@ -1166,8 +961,7 @@ def plot_run_chart(
         add_nhs_logo(ax, nhs_logo_path, position="lower right")
 
     # --- MDC variation icon (run charts have no assurance) -------------------
-    # Skipped entirely when no improvement direction is set (plain run chart).
-    if show_icons and improvement_direction is not None:
+    if show_icons:
         # Run charts don't have UCL/LCL, so only variation icon applies.
         # Determine variation from run signals instead.
         run_signal = result["run_signal"].to_numpy(dtype=bool)
@@ -1182,14 +976,10 @@ def plot_run_chart(
                 variation = "improvement_high" if val_is_high else "concern_low"
             else:
                 variation = "concern_high" if val_is_high else "improvement_low"
-        compliance = determine_mdc_compliance(
-            result, improvement_direction=improvement_direction,
-        )
         _add_mdc_icons(
             fig, ax, variation, "no_target",
             icon_zoom=icon_zoom,
             improvement_direction=improvement_direction,
-            mdc_compliant=compliance["compliant"],
         )
 
     # --- Summary visualization ----------------------------------------------
@@ -1199,7 +989,7 @@ def plot_run_chart(
             chart_type="run",
             value_col=value_col,
             improvement_direction=improvement_direction,
-            target=target_value,
+            target=target,
             x_col=x_col,
         )
         _render_summary_figure(summary_data)
