@@ -308,6 +308,36 @@
     return g;
   }
 
+  /**
+   * Build the Making Data Count compliance badge: a tick in a circle, NHS
+   * Green when the chart follows the MDC methodology and grey when it does
+   * not.
+   */
+  function complianceIcon(compliant, size) {
+    var s = size || 34;
+    var g = svgEl('g', { class: 'nhs-mdc-icon nhs-mdc-icon--compliance' });
+    var colour = compliant ? COLOURS.GREEN : COLOURS.GREY;
+    var r = s / 2;
+
+    g.appendChild(svgEl('circle', {
+      cx: r, cy: r, r: r - 1, fill: '#FFFFFF', stroke: colour, 'stroke-width': 2
+    }));
+    g.appendChild(svgEl('path', {
+      d: 'M ' + (s * 0.28) + ' ' + (s * 0.52) +
+         ' L ' + (s * 0.44) + ' ' + (s * 0.68) +
+         ' L ' + (s * 0.74) + ' ' + (s * 0.33),
+      fill: 'none', stroke: colour, 'stroke-width': 2.6,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+    }));
+
+    return g;
+  }
+
+  function complianceLabel(compliance) {
+    if (!compliance || compliance.compliant) { return 'Making Data Count compliant'; }
+    return 'Not Making Data Count compliant: ' + compliance.reasons.join('; ');
+  }
+
   function directionLabel(direction) {
     return direction === 'low' ? 'Lower is better' : 'Higher is better';
   }
@@ -315,6 +345,17 @@
   // -------------------------------------------------------------------------
   // SPC chart
   // -------------------------------------------------------------------------
+
+  // Layout constants for the rotated period labels and the footer beneath them
+  var LABEL_OFFSET = 16;                          // first baseline below the axis
+  var LABEL_CHAR_WIDTH = 5.4;                     // approx width of a 10px character
+  var LABEL_SIN = Math.sin(40 * Math.PI / 180);   // labels are rotated by -40 degrees
+  var LABEL_BAND_MIN = 30;
+  var LABEL_BAND_MAX = 90;
+  var LEGEND_HEIGHT = 20;
+  var ICON_ROW_HEIGHT = 38;
+  var ICON_SIZE = 30;
+  var ICON_GAP = 6;
 
   function stepPath(xScale, yScale, series) {
     var d = '';
@@ -363,8 +404,11 @@
    * @param {Object} analysis Output of `engine.analyse`.
    * @param {Object} options Rendering options:
    *   labels, width, height, title, decimals, formatValue, showControlLimits,
-   *   showWarningLimits, showCentreLine, showTargetLine, showLegend,
-   *   showIcons, onPointClick, valueLabel.
+   *   showWarningLimits, showZoneC, showCentreLine, showTargetLine,
+   *   showLegend, showIcons, onPointClick, valueLabel.
+   *
+   * Charts with no improvement direction (`analysis.isMdc === false`) are not
+   * Making Data Count charts, so the MDC icons are never drawn for them.
    */
   function renderChart(element, analysis, options) {
     var opts = options || {};
@@ -375,11 +419,25 @@
     var width = Math.max(opts.width || element.clientWidth || 600, 240);
     var height = Math.max(opts.height || element.clientHeight || 360, 180);
     var isRun = analysis.chartType === 'run';
+    // Icons only carry meaning on a Making Data Count chart
+    var showIcons = opts.showIcons !== false && analysis.isMdc !== false;
+
+    // Reserve room for the rotated period labels so the legend and icons sit
+    // clear of them however long the labels are.
+    var labelBand = LABEL_BAND_MIN;
+    labels.forEach(function (label) {
+      var length = label === null || label === undefined ? 0 : String(label).length;
+      labelBand = Math.max(labelBand, LABEL_OFFSET + length * LABEL_CHAR_WIDTH * LABEL_SIN);
+    });
+    labelBand = Math.min(Math.round(labelBand), LABEL_BAND_MAX);
+
+    var footerHeight = (opts.showLegend === false ? 0 : LEGEND_HEIGHT) +
+      (showIcons ? ICON_ROW_HEIGHT : 0);
 
     var margin = {
       top: opts.title ? 46 : 24,
       right: 16,
-      bottom: opts.showIcons === false ? 62 : 96,
+      bottom: labelBand + footerHeight + 8,
       left: 62
     };
     var plotWidth = Math.max(width - margin.left - margin.right, 80);
@@ -424,6 +482,9 @@
     }
     if (opts.showWarningLimits) {
       candidates = candidates.concat(analysis.uwl || [], analysis.lwl || []);
+    }
+    if (opts.showZoneC) {
+      candidates = candidates.concat(analysis.uzc || [], analysis.lzc || []);
     }
     if (opts.showTargetLine !== false && analysis.target !== null) {
       candidates = candidates.concat(analysis.target);
@@ -482,6 +543,10 @@
     if (!isRun && opts.showWarningLimits) {
       drawLimitSeries(plot, xScale, yScale, analysis.uwl, COLOURS.DARK_BLUE, '2,3');
       drawLimitSeries(plot, xScale, yScale, analysis.lwl, COLOURS.DARK_BLUE, '2,3');
+    }
+    if (!isRun && opts.showZoneC) {
+      drawLimitSeries(plot, xScale, yScale, analysis.uzc, COLOURS.LIGHT_BLUE, '1,3');
+      drawLimitSeries(plot, xScale, yScale, analysis.lzc, COLOURS.LIGHT_BLUE, '1,3');
     }
     if (opts.showCentreLine !== false) {
       drawLimitSeries(plot, xScale, yScale, analysis.mean, COLOURS.BLUE, null, 2);
@@ -567,56 +632,79 @@
     }
 
     // ---- footer: legend + icons ------------------------------------------
+    // Anchored below the rotated period labels so neither the legend nor the
+    // icons overlap them, however long the labels are.
     var footer = svgEl('g', {
-      transform: 'translate(' + margin.left + ',' + (margin.top + plotHeight + 40) + ')'
+      transform: 'translate(' + margin.left + ',' +
+        (margin.top + plotHeight + labelBand + 4) + ')'
     });
     svg.appendChild(footer);
 
     if (opts.showLegend !== false) {
-      var legendItems = [
-        { x: 0, colour: engine.POINT_COLOURS.COMMON_CAUSE, label: 'Common cause' },
-        { x: 120, colour: engine.POINT_COLOURS.IMPROVEMENT, label: 'Improvement' },
-        { x: 240, colour: engine.POINT_COLOURS.CONCERN, label: 'Concern' }
-      ];
+      var legendItems = analysis.isMdc === false
+        ? [
+          { colour: engine.POINT_COLOURS.COMMON_CAUSE, label: 'Common cause' },
+          { colour: engine.POINT_COLOURS.SPECIAL_CAUSE, label: 'Special cause' }
+        ]
+        : [
+          { colour: engine.POINT_COLOURS.COMMON_CAUSE, label: 'Common cause' },
+          { colour: engine.POINT_COLOURS.IMPROVEMENT, label: 'Improvement' },
+          { colour: engine.POINT_COLOURS.CONCERN, label: 'Concern' }
+        ];
       if (!isRun && opts.showControlLimits !== false) {
-        legendItems.push({ x: 350, colour: COLOURS.DARK_BLUE, label: 'Control limits', type: 'line' });
+        legendItems.push({ colour: COLOURS.DARK_BLUE, label: 'Control limits', type: 'line' });
+      }
+      if (!isRun && opts.showWarningLimits) {
+        legendItems.push({ colour: COLOURS.DARK_BLUE, label: 'Warning limits', type: 'line' });
+      }
+      if (!isRun && opts.showZoneC) {
+        legendItems.push({ colour: COLOURS.LIGHT_BLUE, label: 'Zone C (1 sigma)', type: 'line' });
       }
       if (opts.showTargetLine !== false && analysis.target !== null) {
-        legendItems.push({ x: 480, colour: COLOURS.WARM_YELLOW, label: 'Target', type: 'line' });
+        legendItems.push({ colour: COLOURS.WARM_YELLOW, label: 'Target', type: 'line' });
       }
-      var maxLegendX = legendItems.reduce(function (m, it) { return Math.max(m, it.x); }, 0) + 100;
-      var legendScale = maxLegendX > plotWidth ? plotWidth / maxLegendX : 1;
-      legendItems.forEach(function (it) {
-        legendItem(footer, Math.floor(it.x * legendScale), 6, it.colour, it.label, it.type);
+
+      // Lay the entries out from their own widths rather than fixed columns,
+      // then shrink the row if it would run past the plot area.
+      var cursor = 0;
+      legendItems.forEach(function (item) {
+        item.x = cursor;
+        cursor += 26 + item.label.length * 6 + 16;
+      });
+      var legendScale = cursor > plotWidth && cursor > 0 ? plotWidth / cursor : 1;
+      legendItems.forEach(function (item) {
+        legendItem(footer, Math.floor(item.x * legendScale), 6, item.colour, item.label, item.type);
       });
     }
 
-    if (opts.showIcons !== false) {
-      var icons = svgEl('g', { transform: 'translate(0,20)' });
-      footer.appendChild(icons);
-
-      var direction = improvementDirectionIcon(analysis.improvementDirection, 30);
-      direction.setAttribute('transform', 'translate(0,0)');
-      tooltip(direction, directionLabel(analysis.improvementDirection));
-      icons.appendChild(direction);
-
-      var variation = variationIcon(analysis.variation, 30);
-      variation.setAttribute('transform', 'translate(40,0)');
-      tooltip(variation, analysis.variationLabel);
-      icons.appendChild(variation);
-      text(icons, analysis.variationLabel, {
-        x: 78, y: 20, 'font-family': 'Arial, Helvetica, sans-serif',
-        'font-size': 11, fill: '#425563'
+    if (showIcons) {
+      var iconRow = svgEl('g', {
+        transform: 'translate(0,' + (opts.showLegend === false ? 0 : LEGEND_HEIGHT) + ')'
       });
+      footer.appendChild(iconRow);
 
-      var assureX = Math.max(plotWidth - 260, Math.floor(plotWidth / 2));
-      var assurance = assuranceIcon(analysis.assurance, 30);
-      assurance.setAttribute('transform', 'translate(' + assureX + ',0)');
-      tooltip(assurance, analysis.assuranceLabel);
-      icons.appendChild(assurance);
-      text(icons, analysis.assuranceLabel, {
-        x: assureX + 38, y: 20,
-        'font-family': 'Arial, Helvetica, sans-serif', 'font-size': 11, fill: '#425563'
+      var iconX = 0;
+      var placeIcon = function (node, label) {
+        node.setAttribute('transform', 'translate(' + iconX + ',0)');
+        tooltip(node, label);
+        iconRow.appendChild(node);
+        iconX += ICON_SIZE + ICON_GAP;
+      };
+
+      placeIcon(
+        improvementDirectionIcon(analysis.improvementDirection, ICON_SIZE),
+        directionLabel(analysis.improvementDirection)
+      );
+      placeIcon(variationIcon(analysis.variation, ICON_SIZE), analysis.variationLabel);
+      placeIcon(assuranceIcon(analysis.assurance, ICON_SIZE), analysis.assuranceLabel);
+      placeIcon(
+        complianceIcon(!!(analysis.mdcCompliance && analysis.mdcCompliance.compliant), ICON_SIZE),
+        complianceLabel(analysis.mdcCompliance)
+      );
+
+      text(iconRow, analysis.variationLabel + ' \u00b7 ' + analysis.assuranceLabel, {
+        x: iconX + 4, y: 20, 'font-family': 'Arial, Helvetica, sans-serif',
+        'font-size': 11, fill: '#425563'
       });
     }
 
@@ -814,15 +902,24 @@
     iconRow.style.alignItems = 'center';
     iconRow.style.gap = '14px';
 
-    [
+    // Without an improvement direction the tile is not a Making Data Count
+    // chart, so the MDC icons do not apply.
+    var kpiIcons = analysis.isMdc === false ? [] : [
       {
         type: analysis.improvementDirection,
         label: directionLabel(analysis.improvementDirection),
         kind: 'direction'
       },
       { type: analysis.variation, label: analysis.variationLabel, kind: 'variation' },
-      { type: analysis.assurance, label: analysis.assuranceLabel, kind: 'assurance' }
-    ].forEach(function (item) {
+      { type: analysis.assurance, label: analysis.assuranceLabel, kind: 'assurance' },
+      {
+        type: !!(analysis.mdcCompliance && analysis.mdcCompliance.compliant),
+        label: complianceLabel(analysis.mdcCompliance),
+        kind: 'compliance'
+      }
+    ];
+
+    kpiIcons.forEach(function (item) {
       var cell = document.createElement('div');
       cell.style.display = 'flex';
       cell.style.alignItems = 'center';
@@ -834,12 +931,14 @@
         svg.appendChild(variationIcon(item.type, 34));
       } else if (item.kind === 'assurance') {
         svg.appendChild(assuranceIcon(item.type, 34));
+      } else if (item.kind === 'compliance') {
+        svg.appendChild(complianceIcon(item.type, 34));
       } else {
         svg.appendChild(improvementDirectionIcon(item.type, 34));
       }
       cell.appendChild(svg);
 
-      if (opts.showLabels !== false && item.kind !== 'direction') {
+      if (opts.showLabels !== false && item.kind !== 'direction' && item.kind !== 'compliance') {
         var caption = document.createElement('span');
         caption.textContent = item.label;
         caption.style.fontSize = '11px';
@@ -849,6 +948,15 @@
 
       iconRow.appendChild(cell);
     });
+
+    if (!kpiIcons.length) {
+      var note = document.createElement('div');
+      note.textContent =
+        'No improvement direction set \u2014 plain SPC, not a Making Data Count chart.';
+      note.style.fontSize = '11px';
+      note.style.color = '#425563';
+      iconRow.appendChild(note);
+    }
 
     wrapper.appendChild(iconRow);
     element.appendChild(wrapper);
@@ -864,6 +972,7 @@
     renderSummaryTable: renderSummaryTable,
     renderIconKpi: renderIconKpi,
     variationIcon: variationIcon,
-    assuranceIcon: assuranceIcon
+    assuranceIcon: assuranceIcon,
+    complianceIcon: complianceIcon
   };
 }));

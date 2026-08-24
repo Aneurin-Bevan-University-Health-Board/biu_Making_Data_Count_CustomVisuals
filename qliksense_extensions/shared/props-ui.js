@@ -222,9 +222,10 @@
     ],
     DIRECTION_OPTIONS: [
       { value: 'high', label: 'Higher is better' },
-      { value: 'low', label: 'Lower is better' }
+      { value: 'low', label: 'Lower is better' },
+      { value: 'none', label: 'Not set (plain SPC chart)' }
     ],
-    DIRECTION_VALUES: ['high', 'low'],
+    DIRECTION_VALUES: ['high', 'low', 'none'],
     REBASE_OPTIONS: [
       { value: 'improvement', label: 'Improvement only' },
       { value: 'worsening', label: 'Worsening only' },

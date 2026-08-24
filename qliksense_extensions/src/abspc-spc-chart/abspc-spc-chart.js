@@ -4,9 +4,10 @@
  * NHS Making Data Count SPC chart for Qlik Sense Enterprise on Windows
  * (client-managed / on-premise).
  *
- * Data model: one dimension (the time period) and one or two measures —
- * measure 1 is the value, optional measure 2 is the denominator / subgroup
- * size used by p and u charts.
+ * Data model: one dimension (the time period) and a single charted measure —
+ * measure 1 is the value and optional measure 2 is only the denominator /
+ * subgroup size used by p and u charts. A target is never a measure: it is
+ * set as a value or a target expression in the property panel.
  */
 define([
   './lib/spc-engine',
@@ -71,6 +72,7 @@ define([
         decimals: 2,
         showControlLimits: true,
         showWarningLimits: false,
+        showZoneC: false,
         showCentreLine: true,
         showTargetLine: true,
         showLegend: true,
@@ -105,6 +107,17 @@ define([
         return Promise.resolve();
       }
 
+      if (measureCount > 2) {
+        render.renderMessage(
+          element,
+          'Only one measure can be charted (with an optional second measure as the ' +
+          'denominator for p / u charts). Set the target as a value or a target ' +
+          'expression under NHS MDC analysis rather than as another measure.',
+          true
+        );
+        return Promise.resolve();
+      }
+
       return Promise.all([
         qlikData.fetchRows(self.backendApi, layout, numberOr(props.maxRows, 5000)),
         qlikContext.load(self)
@@ -117,18 +130,14 @@ define([
             return;
           }
 
-          // Determine target index: if 3+ measures, 3rd is dynamic target
+          // A second measure is only ever the denominator for p / u charts
           var hasDenominator = measureCount > 1;
-          var hasDynamicTarget = measureCount > (hasDenominator ? 2 : 1);
-          var targetIndex = hasDynamicTarget 
-            ? dimensionCount + (hasDenominator ? 2 : 1)
-            : null;
 
           var series = qlikData.toSeries(rows, {
             labelIndex: 0,
             valueIndex: dimensionCount,
             denominatorIndex: hasDenominator ? dimensionCount + 1 : null,
-            targetIndex: targetIndex
+            targetIndex: null
           });
 
           if (!series.values.length) {
@@ -136,11 +145,10 @@ define([
             return;
           }
 
-          // Use dynamic target if available, otherwise fall back to static property
-          var targetValue = series.targets
-            ? series.targets
-            : (propsUi.settingBoolean(props, 'useTarget', false)
-              ? settingNumber(props, 'target', null) : null);
+          // The target comes from the target value / target expression only
+          var targetValue = propsUi.settingBoolean(props, 'useTarget', false)
+            ? settingNumber(props, 'target', null)
+            : null;
 
           var analysis = engine.analyse(series.values, {
             chartType: propsUi.settingText(props, 'chartType', 'auto', propsUi.CHART_TYPE_VALUES),
@@ -171,6 +179,7 @@ define([
             formatValue: qlikData.measureFormatter(layout, 0, numberOr(props.decimals, 2)),
             showControlLimits: props.showControlLimits !== false,
             showWarningLimits: !!props.showWarningLimits,
+            showZoneC: !!props.showZoneC,
             showCentreLine: props.showCentreLine !== false,
             showTargetLine: props.showTargetLine !== false,
             showLegend: props.showLegend !== false,

@@ -16,7 +16,7 @@ Python or Looker.
 
 | Extension | Description |
 |-----------|-------------|
-| `abspc-spc-chart` | SPC chart supporting XmR (I), p, p′, u, u′, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a fixed or time-varying target line, and variation/assurance icons. |
+| `abspc-spc-chart` | SPC chart supporting XmR (I), p, p′, u, u′, c, t, g and run charts, with auto chart-type detection, all four MDC special-cause rules, optional auto-rebasing, a target value or target expression, optional 2σ warning limits and 1σ zone C, and variation/assurance/compliance icons. |
 | `abspc-summary-table` | MDC summary table: one row per measure with variation and assurance icons, target, latest period and latest value. Mirrors `abspc.plot.plot_mdc_summary_table`. |
 | `abspc-variation-icon` | Compact KPI tile showing the latest value with the MDC variation and assurance icons. |
 
@@ -67,15 +67,18 @@ checked against the `.zip` that was imported.
 
 | Extension | Dimensions | Measures |
 |-----------|------------|----------|
-| SPC Chart | 1: time period | 1: value · 2: denominator · 3: target |
+| SPC Chart | 1: time period | 1: value · 2: denominator |
 | Summary Table | 1: measure name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
 | Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
 
 Only the first dimension and first measure are required. **The Summary Table requires at least two dimensions** (measure name and time period).
 
 * **Denominator** — the subgroup size for p and u charts.
-* **Target** — a third measure overrides the fixed target and lets the target
-  line change over time; assurance is judged against the latest period.
+* **Target** — on the SPC chart the target is **never a measure**: set a fixed
+  **Target value**, or switch it to **Expression** to drive it from a variable
+  or configuration table. Only one measure is charted, so a second measure is
+  read as a denominator and a third is rejected with a message. On the summary
+  table and variation icon a third measure still supplies a target per period.
 * **Description** — optional third dimension on the summary table, shown as a
   column beside the measure name. It must be one-to-one with the measure name,
   otherwise Qlik splits the measure across several rows.
@@ -144,6 +147,33 @@ Point colours: NHS Blue `#005EB8` (improvement), NHS Orange `#ED8B00`
 
 SPC needs history: aim for 15–100 points. Below 15 the chart shows a warning,
 because limits calculated from fewer points are unreliable.
+
+### Warning limits and zone C
+
+**Show warning limits (2 sigma)** and **Show zone C (1 sigma)** draw the inner
+boundaries used by rules 2 and 4, so a process hugging the centre line — the
+sign that the limits no longer describe the data — can be seen directly.
+
+### Plain SPC charts (no improvement direction)
+
+Setting **Improvement direction** to *Not set (plain SPC chart)*, or returning
+`none` from its expression, means no improvement direction has been declared,
+so the chart is not a Making Data Count chart:
+
+* special-cause points take the neutral NHS Dark Blue `#003087` instead of the
+  improvement / concern colours, and the legend reads *Special cause*;
+* the variation, assurance, improvement-direction and compliance icons are not
+  drawn;
+* the SPC logic is unchanged — the same control limits, rebasing (on any
+  sustained shift, as there is no improving side) and rules 1–4 still apply.
+
+### Making Data Count compliance badge
+
+With the icons switched on, a tick badge follows the variation, assurance and
+improvement-direction icons: NHS Green `#009639` when the chart follows the MDC
+methodology and grey when it does not. Hovering gives the reasons. A chart is
+compliant when an improvement direction is set, process control limits are
+present (a run chart alone is not enough) and at least 15 points are plotted.
 
 ## Notes on parity with the Python package
 

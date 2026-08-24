@@ -152,16 +152,18 @@ chart type that needs a denominator).
 
 | Extension | Dimensions | Measures |
 |-----------|------------|----------|
-| SPC Chart | 1: time period | 1: value · 2: denominator · 3: target |
+| SPC Chart | 1: time period | 1: value · 2: denominator |
 | Summary Table | 1: measure / service name · 2: time period · 3: description | 1: value · 2: denominator · 3: target |
 | Variation Icon | 1: time period | 1: value · 2: denominator · 3: target |
 
 Only the first dimension and the first measure are required. **The Summary Table requires at least two dimensions** (measure/service name and time period).
 
 * **Denominator** (measure 2) — the subgroup size for p and u charts.
-* **Target** (measure 3) — overrides the fixed **Target value** property and
-  lets the target line change over time. Assurance is judged against the target
-  in the latest period.
+* **Target** — on the SPC chart the target is set with the **Target value**
+  property, or with a target expression, never as a measure: only one measure
+  is charted, and a third measure is rejected with a message. On the summary
+  table and variation icon, measure 3 still supplies a target per period and
+  assurance is judged against the latest period.
 * **Description** (summary table dimension 3) — shown as a column beside the
   measure name. It must be one-to-one with the measure name, otherwise Qlik
   splits that measure into several rows.
@@ -194,8 +196,8 @@ true; the extensions handle this for the boolean settings.
 | Property | Default | Notes |
 |----------|---------|-------|
 | Chart type | Auto-detect | `auto`, XmR, p, p′, u, u′, c, t, g, run |
-| Improvement direction | Higher is better | Drives improvement/concern colouring and the variation icon |
-| Use target / Target value | Off | Adds a target line and enables the assurance icon |
+| Improvement direction | Higher is better | Drives improvement/concern colouring and the variation icon. *Not set* draws a plain SPC chart: no MDC colours or icons, all SPC logic retained |
+| Use target / Target value | Off | Adds a target line and enables the assurance icon. Switch to Expression to drive it from a variable or configuration table |
 | Auto-rebase on sustained shift | Off | Recalculates limits from the start of a sustained shift |
 | Rebase on | Improvement only | `improvement`, `worsening`, or `any` |
 | Baseline points before rebasing | 15 | Points that must accumulate in a phase before a rebase |
@@ -207,9 +209,10 @@ true; the extensions handle this for the boolean settings.
 |----------|---------|--------------|
 | Chart title (expression allowed) | measure name + chart type | Chart, Icon |
 | Decimal places | 2 | All |
-| Show control limits / warning limits / centre line / target line | on / off / on / on | Chart |
+| Show control limits / warning limits (2σ) / zone C (1σ) / centre line / target line | on / off / off / on / on | Chart |
 | Show legend | on | Chart |
 | Show variation & assurance icons | on | Chart |
+| MDC compliance badge | with the icons | Chart, Icon — green when compliant, grey with reasons when not |
 | Show icon captions | on | Icon |
 | Allow selections on click | on | Chart, Summary table |
 | Show generated stamp (time, user, app) | on | All |

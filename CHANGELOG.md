@@ -28,9 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed or expression-driven settings** — chart type, improvement direction,
   target, rebase options and baseline can each be set from the property panel
   or driven by a Qlik variable or configuration table.
-- **Time-varying target** — an optional third measure supplies a target per
-  period, drawn as a stepped target line and used for assurance in the latest
-  period.
+- **Time-varying target** — on the summary table and variation icon an optional
+  third measure supplies a target per period, drawn as a stepped target line and
+  used for assurance in the latest period.
+- **Plain SPC charts** — setting the Qlik SPC chart's improvement direction to
+  *Not set* (or returning `none` from its expression) drops the Making Data
+  Count colours and icons while keeping every part of the SPC logic:
+  special-cause points take the neutral NHS Dark Blue, the legend reads
+  *Special cause*, and auto-rebasing falls back to any sustained shift.
+- **Making Data Count compliance badge** — a tick beside the variation and
+  assurance icons, NHS Green when the chart is MDC compliant (improvement
+  direction set, process control limits present and at least 15 points) and
+  grey with the reasons in its tooltip when it is not.
+- **Zone C (1 sigma)** — `calculateControlLimits` now returns `uzc` / `lzc` for
+  every chart type with limits (preserved through rebasing), and the SPC chart
+  gained a **Show zone C (1 sigma)** option alongside the warning limits so a
+  process hugging the centre line can be seen.
 - **Qlik-native number formatting** — values follow the measure's own format
   (percentages, currency, durations), falling back to a decimal-places setting.
 - **Summary table parity with `abspc.plot.plot_mdc_summary_table`**, plus an
@@ -49,6 +62,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on-premise Qlik Sense deployment.
 - **Zero-dependency build (`npm run build`) and tests (`npm test`)** for the
   Qlik Sense extensions, producing importable `.zip` packages.
+
+### Changed
+- The Qlik SPC chart charts a **single measure**: a second measure is only ever
+  the p/u denominator and a third is rejected with a message pointing at the
+  target value / target expression. The target is no longer taken from a
+  measure on that visual.
+- The SPC chart legend and icons are placed below the rotated period labels,
+  with the label band measured from the labels themselves, so long dates no
+  longer collide with them. The icons are laid out as one group.
 
 ## [1.1.0] - 2026-06-15
 

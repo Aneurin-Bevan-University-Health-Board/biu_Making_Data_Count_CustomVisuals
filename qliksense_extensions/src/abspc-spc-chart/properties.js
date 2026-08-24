@@ -60,7 +60,7 @@ define(['./lib/props-ui'], function (propsUi) {
   analysisItems.targetHelp = {
     type: 'string',
     component: 'text',
-    label: 'A third measure, when supplied, overrides the target above and lets the target line change over time.'
+    label: 'Only one measure is charted. Set the target above, or switch the target to Expression to drive it from a variable or configuration table \u2014 never add it as a second measure.'
   };
 
   merge(analysisItems, propsUi.booleanItems({
@@ -125,6 +125,12 @@ define(['./lib/props-ui'], function (propsUi) {
         type: 'boolean',
         label: 'Show warning limits (2 sigma)',
         ref: 'props.showWarningLimits',
+        defaultValue: false
+      },
+      showZoneC: {
+        type: 'boolean',
+        label: 'Show zone C (1 sigma)',
+        ref: 'props.showZoneC',
         defaultValue: false
       },
       showCentreLine: {
@@ -192,8 +198,8 @@ define(['./lib/props-ui'], function (propsUi) {
       measures: {
         uses: 'measures',
         min: 1,
-        max: 3,
-        description: '1: value (required). 2: denominator for p/u charts. 3: target per time period.'
+        max: 2,
+        description: '1: value (required). 2: denominator for p/u charts only. A target is not a measure \u2014 set it under NHS MDC analysis.'
       },
       sorting: { uses: 'sorting' },
       addons: { uses: 'addons' },

@@ -36,13 +36,17 @@
     GREY: '#768692',
     WARM_YELLOW: '#FFB81C',
     LIGHT_BLUE: '#41B6E6',
-    PALE_GREY: '#E8EDEE'
+    PALE_GREY: '#E8EDEE',
+    GREEN: '#009639'
   };
 
   var POINT_COLOURS = {
     COMMON_CAUSE: NHS_COLOURS.GREY,
     IMPROVEMENT: NHS_COLOURS.BLUE,
-    CONCERN: NHS_COLOURS.ORANGE
+    CONCERN: NHS_COLOURS.ORANGE,
+    // Neutral colour for special-cause points on a plain SPC chart, i.e. one
+    // with no improvement direction and therefore no MDC colour scheme
+    SPECIAL_CAUSE: NHS_COLOURS.DARK_BLUE
   };
 
   // Minimum number of data points recommended for reliable SPC analysis
@@ -137,8 +141,20 @@
     return key;
   }
 
-  function clipLower(values, minimum) {
-    return values.map(function (v) {
+  /**
+   * Normalise the improvement direction. Anything that is not "high" or "low"
+   * — including an empty value or the explicit "none" — means no improvement
+   * direction has been declared, so the chart is a plain SPC chart rather
+   * than a Making Data Count chart. Returns `null` in that case.
+   */
+  function normaliseDirection(direction) {
+    var key = (direction === null || direction === undefined ? '' : direction)
+      .toString().trim().toLowerCase();
+    if (key === 'high' || key === 'low') { return key; }
+    return null;
+  }
+
+  function clipLower(values, minimum) {    return values.map(function (v) {
       return isNum(v) ? Math.max(v, minimum) : v;
     });
   }
@@ -341,8 +357,10 @@
    * @param {string} chartType One of xmr|i|p|pprime|u|uprime|c|t|g|run.
    * @param {Object} [options] `subgroupSizes` (array, required for p/u and
    *   their Laney p'/u' variants).
-   * @returns {Object} `{values, mean, ucl, lcl, uwl, lwl}` — limit arrays are
-   *   omitted for run charts. `values` may be rescaled (p/u charts).
+   * @returns {Object} `{values, mean, ucl, lcl, uwl, lwl, uzc, lzc}` — limit
+   *   arrays (3-sigma control limits, 2-sigma warning limits and the 1-sigma
+   *   zone-C boundaries) are omitted for run charts. `values` may be rescaled
+   *   (p/u charts).
    */
   function calculateControlLimits(values, chartType, options) {
     var opts = options || {};
@@ -378,10 +396,22 @@
     else if (key === 'g') { result = calcG(values); }
     else { result = calcRun(values); }
 
+    // Zone-C boundaries at 1 sigma, derived from the 3-sigma limits so every
+    // chart type exposes them consistently (mirrors abspc/spc.py).
+    if (result.ucl && result.lcl) {
+      result.uzc = result.mean.map(function (m, i) {
+        return m + (result.ucl[i] - m) / 3.0;
+      });
+      result.lzc = result.mean.map(function (m, i) {
+        return m - (m - result.lcl[i]) / 3.0;
+      });
+    }
+
     // Counts / proportions cannot go below zero
     if (['p', 'pprime', 'u', 'uprime', 'c', 't', 'g'].indexOf(key) !== -1) {
       result.lcl = clipLower(result.lcl, 0);
       result.lwl = clipLower(result.lwl, 0);
+      result.lzc = clipLower(result.lzc, 0);
     }
 
     result.chartType = key;
@@ -532,9 +562,12 @@
   /**
    * Determine the NHS MDC colour for every data point.
    * Mirrors `determine_point_colours` in abspc/spc.py.
+   *
+   * With no improvement direction the Making Data Count colour scheme does
+   * not apply: special-cause points take the neutral `SPECIAL_CAUSE` colour.
    */
   function determinePointColours(result, signals, improvementDirection, target) {
-    var direction = improvementDirection === 'low' ? 'low' : 'high';
+    var direction = normaliseDirection(improvementDirection);
     var values = result.values;
     var mean = result.mean;
     var ucl = result.ucl || filled(values.length, Infinity);
@@ -545,6 +578,12 @@
     for (var i = 0; i < values.length; i++) {
       if (!signals.specialCause[i]) {
         colours.push(POINT_COLOURS.COMMON_CAUSE);
+        continue;
+      }
+
+      if (direction === null) {
+        // Plain SPC chart - no Making Data Count colour coding
+        colours.push(POINT_COLOURS.SPECIAL_CAUSE);
         continue;
       }
 
@@ -603,7 +642,7 @@
   }
 
   function writePhase(target, source, from) {
-    ['values', 'mean', 'ucl', 'lcl', 'uwl', 'lwl'].forEach(function (key) {
+    ['values', 'mean', 'ucl', 'lcl', 'uwl', 'lwl', 'uzc', 'lzc'].forEach(function (key) {
       if (!source[key] || !target[key]) { return; }
       for (var i = 0; i < source[key].length; i++) {
         target[key][from + i] = source[key][i];
@@ -704,9 +743,12 @@
 
   /**
    * Classify the overall variation using the most recent special-cause point.
+   * Without an improvement direction the MDC classification does not apply,
+   * so `common_cause` is returned.
    */
   function determineVariationType(result, signals, improvementDirection) {
-    var direction = improvementDirection === 'low' ? 'low' : 'high';
+    var direction = normaliseDirection(improvementDirection);
+    if (direction === null) { return 'common_cause'; }
     if (!signals || !signals.specialCause) { return 'common_cause'; }
 
     var lastIdx = -1;
@@ -724,17 +766,19 @@
 
   /**
    * Classify assurance against a target using the most recent phase limits.
+   * Assurance needs an improvement direction, so `no_target` is returned when
+   * none has been declared.
    */
   function determineAssuranceType(result, target, improvementDirection) {
     // Handle dynamic target array by using the last value
-    var targetValue = Array.isArray(target) && target.length > 0 
-      ? target[target.length - 1] 
+    var targetValue = Array.isArray(target) && target.length > 0
+      ? target[target.length - 1]
       : target;
-    
+
+    var direction = normaliseDirection(improvementDirection);
+    if (direction === null) { return 'no_target'; }
     if (!isNum(targetValue)) { return 'no_target'; }
     if (!result.ucl || !result.lcl) { return 'no_target'; }
-
-    var direction = improvementDirection === 'low' ? 'low' : 'high';
     var ucl = result.ucl[result.ucl.length - 1];
     var lcl = result.lcl[result.lcl.length - 1];
 
@@ -746,6 +790,37 @@
     if (targetValue >= ucl) { return 'pass'; }
     if (targetValue <= lcl) { return 'fail'; }
     return 'hit_or_miss';
+  }
+
+  /**
+   * Assess whether a chart follows the NHS Making Data Count methodology.
+   *
+   * A chart is MDC compliant when an improvement direction has been declared
+   * (without one the variation and assurance icons cannot be assigned),
+   * process control limits are present (a run chart alone is not an MDC SPC
+   * chart) and at least `minPoints` points are plotted.
+   *
+   * @param {Object} result Output of `calculateControlLimits` / `analyse`.
+   * @param {string|null} improvementDirection 'high', 'low' or null.
+   * @param {number} [minPoints] Defaults to `SPC_MIN_DATA_POINTS`.
+   * @returns {Object} `{compliant: boolean, reasons: string[]}`
+   */
+  function determineMdcCompliance(result, improvementDirection, minPoints) {
+    var required = isNum(minPoints) ? minPoints : SPC_MIN_DATA_POINTS;
+    var pointCount = (result && result.values ? result.values : []).length;
+    var reasons = [];
+
+    if (normaliseDirection(improvementDirection) === null) {
+      reasons.push('No improvement direction set');
+    }
+    if (!result || !result.ucl || !result.lcl) {
+      reasons.push('No process control limits');
+    }
+    if (pointCount < required) {
+      reasons.push('Fewer than ' + required + ' data points (' + pointCount + ' provided)');
+    }
+
+    return { compliant: reasons.length === 0, reasons: reasons };
   }
 
   // -------------------------------------------------------------------------
@@ -827,7 +902,8 @@
    * @param {Object} [options]
    *   - chartType: 'auto' (default) or any supported type
    *   - subgroupSizes: denominators for p/u charts
-   *   - improvementDirection: 'high' (default) or 'low'
+   *   - improvementDirection: 'high' (default), 'low' or null / 'none' for a
+   *     plain SPC chart with no Making Data Count colours or icons
    *   - target: number or null
    *   - autoRebase: boolean (default false)
    *   - rebaseOn / baseline / minPhaseLength: rebasing controls
@@ -866,15 +942,20 @@
       hasDenominator = true;
     }
 
-    var direction = opts.improvementDirection === 'low' ? 'low' : 'high';
+    var direction = normaliseDirection(
+      opts.improvementDirection === undefined ? 'high' : opts.improvementDirection
+    );
+    var isMdc = direction !== null;
     var target = parseTarget(opts.target);
 
     var result;
     if (opts.autoRebase && chartType !== 'run') {
       result = rebaseControlLimits(values, chartType, {
         subgroupSizes: subgroupSizes,
-        improvementDirection: direction,
-        rebaseOn: opts.rebaseOn,
+        improvementDirection: direction || 'high',
+        // Without an improvement direction there is no improving side to
+        // rebase on, so any sustained shift is treated equally
+        rebaseOn: isMdc ? opts.rebaseOn : 'any',
         baseline: opts.baseline,
         minPhaseLength: opts.minPhaseLength
       });
@@ -891,6 +972,7 @@
     var assuranceType = chartType === 'run'
       ? 'no_target'
       : determineAssuranceType(result, target, direction);
+    var compliance = determineMdcCompliance(result, direction);
 
     return {
       chartType: chartType,
@@ -902,6 +984,8 @@
       lcl: result.lcl || null,
       uwl: result.uwl || null,
       lwl: result.lwl || null,
+      uzc: result.uzc || null,
+      lzc: result.lzc || null,
       rebasePhase: result.rebasePhase,
       signals: signals,
       colours: determinePointColours(result, signals, direction, target),
@@ -910,6 +994,8 @@
       assurance: assuranceType,
       assuranceLabel: ASSURANCE_LABELS[assuranceType],
       improvementDirection: direction,
+      isMdc: isMdc,
+      mdcCompliance: compliance,
       target: target,
       rulesTriggered: {
         R1: signals.rule1.filter(Boolean).length,
@@ -937,6 +1023,8 @@
     rebaseControlLimits: rebaseControlLimits,
     determineVariationType: determineVariationType,
     determineAssuranceType: determineAssuranceType,
+    determineMdcCompliance: determineMdcCompliance,
+    normaliseDirection: normaliseDirection,
     detectChartType: detectChartType,
     analyse: analyse
   };

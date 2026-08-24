@@ -367,6 +367,77 @@ test('analyse rejects empty data', () => {
   assert.throws(() => engine.analyse([]), /No data available/);
 });
 
+// ---------------------------------------------------------------------------
+// Zone C, plain SPC charts and MDC compliance
+// ---------------------------------------------------------------------------
+
+test('control limits expose the 1-sigma zone C boundaries', () => {
+  const result = engine.calculateControlLimits(STABLE, 'xmr');
+  closeTo(result.uzc[0], result.mean[0] + (result.ucl[0] - result.mean[0]) / 3, 1e-12);
+  closeTo(result.lzc[0], result.mean[0] - (result.mean[0] - result.lcl[0]) / 3, 1e-12);
+});
+
+test('zone C is clipped at zero for count charts and absent for run charts', () => {
+  const counts = engine.calculateControlLimits([1, 0, 2, 1, 0, 1], 'c');
+  assert.ok(counts.lzc.every((v) => v >= 0));
+  const run = engine.calculateControlLimits(STABLE, 'run');
+  assert.strictEqual(run.uzc, undefined);
+});
+
+test('rebasing keeps the zone C boundaries per phase', () => {
+  const values = STABLE.concat([80, 82, 79, 83, 81, 84, 80, 82, 81, 83]);
+  const result = engine.rebaseControlLimits(values, 'xmr', { rebaseOn: 'any' });
+  const last = values.length - 1;
+  closeTo(result.uzc[last], result.mean[last] + (result.ucl[last] - result.mean[last]) / 3, 1e-9);
+  assert.notStrictEqual(result.uzc[0], result.uzc[last]);
+});
+
+test('no improvement direction gives a plain SPC chart with neutral colours', () => {
+  const analysis = engine.analyse(STABLE.concat([120]), {
+    chartType: 'xmr',
+    improvementDirection: 'none'
+  });
+  assert.strictEqual(analysis.improvementDirection, null);
+  assert.strictEqual(analysis.isMdc, false);
+  assert.strictEqual(analysis.variation, 'common_cause');
+  assert.strictEqual(analysis.assurance, 'no_target');
+  // The astronomical point is still detected, but coloured neutrally
+  assert.strictEqual(analysis.rulesTriggered.R1, 1);
+  analysis.colours.forEach((colour, index) => {
+    assert.strictEqual(
+      colour,
+      analysis.signals.specialCause[index]
+        ? engine.POINT_COLOURS.SPECIAL_CAUSE
+        : engine.POINT_COLOURS.COMMON_CAUSE
+    );
+  });
+});
+
+test('a plain SPC chart ignores a target for assurance', () => {
+  const analysis = engine.analyse(STABLE, {
+    chartType: 'xmr',
+    improvementDirection: null,
+    target: 30
+  });
+  assert.strictEqual(analysis.assurance, 'no_target');
+  assert.strictEqual(analysis.mdcCompliance.compliant, false);
+  assert.ok(analysis.mdcCompliance.reasons.indexOf('No improvement direction set') !== -1);
+});
+
+test('MDC compliance needs a direction, control limits and 15 points', () => {
+  const compliant = engine.analyse(STABLE, { chartType: 'xmr' });
+  assert.strictEqual(compliant.mdcCompliance.compliant, true);
+  assert.deepStrictEqual(compliant.mdcCompliance.reasons, []);
+
+  const tooShort = engine.analyse(STABLE.slice(0, 6), { chartType: 'xmr' });
+  assert.strictEqual(tooShort.mdcCompliance.compliant, false);
+  assert.ok(/Fewer than 15 data points/.test(tooShort.mdcCompliance.reasons.join(' ')));
+
+  const runChart = engine.analyse(STABLE, { chartType: 'run' });
+  assert.strictEqual(runChart.mdcCompliance.compliant, false);
+  assert.ok(runChart.mdcCompliance.reasons.indexOf('No process control limits') !== -1);
+});
+
 process.stdout.write('\n' + passed + ' passed, ' + failures.length + ' failed\n');
 if (failures.length) {
   process.exit(1);
