@@ -1212,7 +1212,7 @@ def show_summary(
     data: pd.DataFrame,
     chart_type: str = "XmR",
     value_col: str = "value",
-    improvement_direction: str = "high",
+    improvement_direction: str | None = "high",
     target: float | None = None,
     subgroup_col: str | None = "subgroup_size",
     x_col: str | None = None,
@@ -1233,9 +1233,10 @@ def show_summary(
         ``"XmR"``.
     value_col : str, optional
         Column name for the measured values (default ``"value"``).
-    improvement_direction : str, optional
+    improvement_direction : str or None, optional
         Whether higher (``"high"``) or lower (``"low"``) values are better
-        (default ``"high"``).
+        (default ``"high"``).  ``None`` reports signals without a Making Data
+        Count improvement / concern classification.
     target : float or None, optional
         Optional target value for assurance classification (default ``None``).
     subgroup_col : str or None, optional
@@ -1301,10 +1302,20 @@ def show_summary(
             median_arr = result["mean"].to_numpy(dtype=float)
             last_sig = int(np.where(run_signal)[0][-1])
             val_is_high = values_arr[last_sig] > median_arr[last_sig]
-            if improvement_direction == "high":
+            if improvement_direction is None:
+                variation = "Special-cause variation"
+            elif improvement_direction == "high":
                 variation = "Special-cause variation — Improvement (high)" if val_is_high else "Special-cause variation — Concern (low)"
             else:
                 variation = "Special-cause variation — Concern (high)" if val_is_high else "Special-cause variation — Improvement (low)"
+    elif improvement_direction is None:
+        # Plain SPC chart – signals are reported without a Making Data Count
+        # improvement / concern classification.
+        variation = (
+            "Special-cause variation"
+            if result["special_cause"].any()
+            else "Common-cause variation"
+        )
     else:
         variation_type = determine_variation_type(
             result, value_col=value_col, improvement_direction=improvement_direction

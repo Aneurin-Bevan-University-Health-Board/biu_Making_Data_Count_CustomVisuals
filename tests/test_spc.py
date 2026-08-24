@@ -964,3 +964,32 @@ class TestMdcCompliance:
         )
         assert compliance["compliant"] is False
         assert any("control limits" in r for r in compliance["reasons"])
+
+
+# ---------------------------------------------------------------------------
+# show_summary without an improvement direction
+# ---------------------------------------------------------------------------
+
+
+class TestSummaryWithoutDirection:
+    """show_summary reports neutral results when no direction is set."""
+
+    def test_special_cause_reported_without_direction(self):
+        df = pd.DataFrame({"value": [50, 52, 48, 51, 49, 50, 51, 200]})
+        summary = show_summary(df, improvement_direction=None)
+        assert summary["variation"] == "Special-cause variation"
+
+    def test_common_cause_reported_without_direction(self):
+        df = pd.DataFrame({"value": [50, 52, 48, 51, 49, 50, 51, 50]})
+        summary = show_summary(df, improvement_direction=None)
+        assert summary["variation"] == "Common-cause variation"
+
+    def test_run_chart_signal_without_direction(self):
+        df = pd.DataFrame({"value": list(range(12))})
+        summary = show_summary(df, chart_type="run", improvement_direction=None)
+        assert summary["variation"] == "Special-cause variation"
+
+    def test_assurance_neutral_without_direction(self):
+        df = pd.DataFrame({"value": [50, 52, 48, 51, 49, 50, 51, 50]})
+        summary = show_summary(df, improvement_direction=None, target=60)
+        assert summary["assurance"] == "No target set"

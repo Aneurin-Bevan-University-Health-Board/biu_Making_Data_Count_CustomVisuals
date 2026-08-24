@@ -940,7 +940,7 @@ def plot_spc_chart(
             data,
             chart_type=chart_type,
             value_col=value_col,
-            improvement_direction=improvement_direction or "high",
+            improvement_direction=improvement_direction,
             target=target_value,
             subgroup_col=subgroup_col,
             x_col=x_col,
@@ -1198,7 +1198,7 @@ def plot_run_chart(
             data,
             chart_type="run",
             value_col=value_col,
-            improvement_direction=improvement_direction or "high",
+            improvement_direction=improvement_direction,
             target=target_value,
             x_col=x_col,
         )
