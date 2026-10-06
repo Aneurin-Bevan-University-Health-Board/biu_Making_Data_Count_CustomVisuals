@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from .spc import (
+    _coerce_baseline,
     calculate_control_limits,
     detect_special_causes,
     detect_run_chart_signals,
@@ -516,10 +517,7 @@ def plot_spc_chart(
             "rebase_on must be one of 'improvement', 'worsening', 'any', "
             f"got '{rebase_on}'"
         )
-    if isinstance(baseline, bool) or not isinstance(baseline, (int, np.integer)) or baseline < 0:
-        raise ValueError(
-            f"baseline must be a non-negative integer, got '{baseline}'"
-        )
+    baseline = _coerce_baseline(baseline)
 
     # Delegate run charts to the dedicated function
     if chart_type_key == "run":
