@@ -68,6 +68,13 @@ function bundleChartFile(chartFileName, utilsCode) {
   chartContent = chartContent.replace(/^import\s+\{[^}]+\}\s+from\s+['"]\.\/spc_utils\.js['"];?\s*$/gm, '');
   chartContent = chartContent.replace(/^import\s+.*\s+from\s+['"]\.\/spc_utils\.js['"];?\s*$/gm, '');
   
+  // Remove ES module export syntax - Looker loads visualizations as classic
+  // scripts, where any `export` keyword is a SyntaxError and the
+  // visualization never registers.
+  chartContent = chartContent
+    .replace(/^[ \t]*export\s+default\s+[\w$]+;?[ \t]*$/gm, '')
+    .replace(/^([ \t]*)export\s+(const|let|var|function|class)\b/gm, '$1$2');
+  
   // Combine: utils + chart code
   const bundled = `${utilsCode}${chartContent}`;
   

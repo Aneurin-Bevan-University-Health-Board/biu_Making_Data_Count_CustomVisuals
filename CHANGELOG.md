@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Looker Visualizations)
+- XmR chart not loading in Looker (#31):
+  - `bundle-for-lookml.cjs` now strips ES module `export` syntax from chart files,
+    so bundled visualizations load as classic scripts in Looker (previously a
+    `SyntaxError` stopped the visualization from registering)
+  - XmR `updateAsync` now uses Looker's
+    `(data, element, config, queryResponse, details, done)` signature, so `done()`
+    is always called
+  - XmR chart reads Looker `{ value, rendered }` cells, uses the first measure when
+    `value_column` is not found, skips null values and plots points in
+    chronological order when the first dimension is a date
+
 ## [1.1.0] - 2026-06-15
 
 ### Added
