@@ -286,6 +286,72 @@ export function validateData(data, chartType, valueColumn = 'value', subgroupCol
 }
 
 /**
+ * Normalise Looker query results into simple `{ value, label }` rows for
+ * single-measure SPC charts.
+ *
+ * Looker passes each cell as `{ value, rendered }` keyed by field name (e.g.
+ * `provider_stays.count`), and date dimensions are usually sorted newest-first.
+ * This function:
+ *   - uses `valueColumn` if present in the data, otherwise the first measure
+ *     (or table calculation) from `queryResponse`
+ *   - unwraps Looker cell objects (plain values are passed through unchanged)
+ *   - drops rows with a null/empty value
+ *   - orders rows chronologically when the first dimension is a date/time field
+ *
+ * @param {Array} data - Looker data rows (or plain `{ value }` rows)
+ * @param {string} valueColumn - Preferred value column name (default: 'value')
+ * @param {Object|null} queryResponse - Looker query response (optional)
+ * @returns {Array} - Rows of shape `{ value, label }`
+ */
+export function prepareLookerData(data, valueColumn = 'value', queryResponse = null) {
+  if (!data || data.length === 0) return [];
+
+  const fields = (queryResponse && queryResponse.fields) || {};
+  const measures = (fields.measure_like && fields.measure_like.length)
+    ? fields.measure_like
+    : (fields.table_calculations || []);
+  const dimension = (fields.dimension_like || [])[0] || null;
+
+  let column = valueColumn;
+  if (!Object.prototype.hasOwnProperty.call(data[0], column) && measures.length > 0) {
+    column = measures[0].name;
+  }
+
+  const unwrap = (cell) => (cell !== null && typeof cell === 'object' && 'value' in cell) ? cell.value : cell;
+
+  const rows = [];
+  data.forEach((row) => {
+    if (!Object.prototype.hasOwnProperty.call(row, column)) {
+      throw new Error(`Value column '${column}' not found in data`);
+    }
+    const value = unwrap(row[column]);
+    if (value === null || value === undefined || value === '') return;
+
+    let label = null;
+    let sortKey = null;
+    if (dimension && row[dimension.name] !== undefined) {
+      const dimCell = row[dimension.name];
+      sortKey = unwrap(dimCell);
+      label = (dimCell && typeof dimCell === 'object' && dimCell.rendered) || sortKey;
+    }
+    rows.push({ value, label: label === null || label === undefined ? null : String(label), sortKey });
+  });
+
+  const isTimeDimension = dimension &&
+    (dimension.is_timeframe || /^(date|time)/.test(String(dimension.type || '')));
+  if (isTimeDimension) {
+    rows.sort((a, b) => {
+      if (a.sortKey === b.sortKey) return 0;
+      if (a.sortKey === null || a.sortKey === undefined) return 1;
+      if (b.sortKey === null || b.sortKey === undefined) return -1;
+      return a.sortKey < b.sortKey ? -1 : 1;
+    });
+  }
+
+  return rows.map(({ value, label }) => ({ value, label }));
+}
+
+/**
  * Format number for display with appropriate decimal places
  * @param {number} value - Number to format
  * @param {number} decimals - Number of decimal places (default: 2)

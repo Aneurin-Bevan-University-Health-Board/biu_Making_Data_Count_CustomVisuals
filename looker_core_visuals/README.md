@@ -71,6 +71,14 @@ const data = [
 ];
 ```
 
+### Using in Looker
+
+When used as a Looker visualization, the XmR chart reads the query results directly:
+
+- **Value**: the `value_column` option if it matches a field name, otherwise the first measure (or table calculation) in the query
+- **Ordering**: if the first dimension is a date/time field (e.g. a month), points are plotted oldest to newest, whatever the sort order in the Explore
+- **Missing values**: rows with a null value are skipped
+
 ## Configuration
 
 ```javascript

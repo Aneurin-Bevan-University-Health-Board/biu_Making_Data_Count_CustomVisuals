@@ -20,6 +20,7 @@ import {
   rule4TwoInThree,
   determinePointColors,
   validateData,
+  prepareLookerData,
   formatNumber,
   SPC_MIN_DATA_POINTS
 } from './spc_utils.js';
@@ -208,6 +209,7 @@ export const XmRChart = {
     container.style.width = '100%';
     container.style.height = '100%';
     container.style.position = 'relative';
+    container.style.overflow = 'hidden';
     
     // Store reference for updates
     this._container = container;
@@ -219,22 +221,33 @@ export const XmRChart = {
    * @param {HTMLElement} element - DOM element
    * @param {Object} config - Looker configuration object
    * @param {Object} queryResponse - Looker query response
+   * @param {Object} details - Looker render details
+   * @param {Function} done - Callback to signal rendering is complete
    */
-  updateAsync(data, element, config, queryResponse, done) {
+  updateAsync(data, element, config, queryResponse, details, done) {
+    // Support the legacy 5-argument call (data, element, config, queryResponse, done)
+    if (typeof done !== 'function') {
+      done = typeof details === 'function' ? details : () => {};
+    }
+    config = config || {};
+
     try {
+      // Normalise Looker rows ({ value, rendered } cells, newest-first) into
+      // chronologically ordered { value, label } rows
+      const chartData = prepareLookerData(data, config.value_column || 'value', queryResponse);
+
       // Validate we have data
-      if (!data || data.length === 0) {
+      if (chartData.length === 0) {
         this._container.innerHTML = '<div style="padding: 20px; text-align: center;">No data available</div>';
         done();
         return;
       }
 
-      const valueColumn = config.value_column || 'value';
       const improvementDirection = config.improvement_direction || 'high';
       const targetValue = config.target_value ? Number(config.target_value) : null;
       
       // Calculate control limits
-      const xmrResults = calculateXmRLimits(data, valueColumn);
+      const xmrResults = calculateXmRLimits(chartData, 'value');
       const { values, meanArray, uclArray, lclArray, uwlArray, lwlArray, statistics } = xmrResults;
       
       // Detect special causes
@@ -253,7 +266,7 @@ export const XmRChart = {
       
       // Build chart using D3 or Chart.js
       this._renderChart({
-        data: data,
+        data: chartData,
         values: values,
         statistics: statistics,
         specialCauses: specialCauses,
@@ -265,7 +278,8 @@ export const XmRChart = {
       done();
     } catch (error) {
       console.error('XmR Chart Error:', error);
-      this._container.innerHTML = `<div style="padding: 20px; color: red;">Error: ${error.message}</div>`;
+      this._container.innerHTML = '<div style="padding: 20px; color: red;"></div>';
+      this._container.firstChild.textContent = `Error: ${error.message}`;
       done();
     }
   },
@@ -284,6 +298,7 @@ export const XmRChart = {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
+    svg.style.display = 'block';
     svg.style.backgroundColor = 'white';
     this._container.appendChild(svg);
     
@@ -330,7 +345,7 @@ export const XmRChart = {
     }
     
     // Draw data points
-    this._drawDataPoints(chartGroup, xScale, yScale, values, pointColors);
+    this._drawDataPoints(chartGroup, xScale, yScale, values, pointColors, data.map(row => row.label));
     
     // Draw axes
     this._drawAxes(chartGroup, xScale, yScale, width, height);
@@ -408,7 +423,7 @@ export const XmRChart = {
    * Draw data points
    * @private
    */
-  _drawDataPoints(group, xScale, yScale, values, pointColors) {
+  _drawDataPoints(group, xScale, yScale, values, pointColors, labels = []) {
     // Draw connecting line as a single path (much faster than per-segment lines)
     if (values.length > 1) {
       let pathData = `M ${xScale(0)} ${yScale(values[0])}`;
@@ -436,7 +451,7 @@ export const XmRChart = {
       
       // Add tooltip
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = `Point ${index + 1}: ${formatNumber(value)}`;
+      title.textContent = `${labels[index] || `Point ${index + 1}`}: ${formatNumber(value)}`;
       circle.appendChild(title);
       
       group.appendChild(circle);
