@@ -400,6 +400,33 @@ def detect_run_chart_signals(
     return df
 
 
+def _coerce_baseline(baseline) -> int:
+    """Validate *baseline*, accepting integral floats and numeric strings.
+
+    BI tools such as Qlik pass variables through as strings or floats
+    (e.g. ``"20"`` or ``20.0``); these are converted to ``int``.
+    """
+    value = baseline
+    if isinstance(value, str):
+        try:
+            value = float(value.strip())
+        except ValueError:
+            value = None
+    if (
+        value is None
+        or isinstance(value, (bool, np.bool_))
+        or not isinstance(value, (int, float, np.integer, np.floating))
+        or value != value
+        or value in (float("inf"), float("-inf"))
+        or value != int(value)
+        or value < 0
+    ):
+        raise ValueError(
+            f"baseline must be a non-negative integer, got '{baseline}'"
+        )
+    return int(value)
+
+
 def rebase_control_limits(
     data: pd.DataFrame,
     chart_type: str,
@@ -493,10 +520,7 @@ def rebase_control_limits(
             "rebase_on must be one of 'improvement', 'worsening', 'any', "
             f"got '{rebase_on}'"
         )
-    if isinstance(baseline, bool) or not isinstance(baseline, (int, np.integer)) or baseline < 0:
-        raise ValueError(
-            f"baseline must be a non-negative integer, got '{baseline}'"
-        )
+    baseline = _coerce_baseline(baseline)
 
     # Baseline limits over the full dataset
     result = calculate_control_limits(
