@@ -154,6 +154,21 @@
     return null;
   }
 
+  /**
+   * Validate `baseline`, accepting numeric strings and whole floats as Qlik
+   * variables arrive as text (e.g. "20" or "20.0"). Mirrors abspc `_coerce_baseline`.
+   */
+  function coerceBaseline(baseline, fallback) {
+    var value = typeof baseline === 'string' ? baseline.trim() : baseline;
+    var num = typeof value === 'string' && value !== '' ? Number(value) : value;
+    // Qlik nulls arrive as '', '-' or undefined; treat anything non-numeric as unset
+    if (!isNum(num)) { return fallback; }
+    if (num % 1 !== 0 || num < 0) {
+      throw new Error("baseline must be a non-negative integer, got '" + baseline + "'");
+    }
+    return num;
+  }
+
   function clipLower(values, minimum) {
     return values.map(function (v) {
       return isNum(v) ? Math.max(v, minimum) : v;
@@ -550,13 +565,19 @@
   // Point colouring
   // -------------------------------------------------------------------------
 
-  function isHighSignal(value, mean, ucl, isRule1, isRule2, isRule3, allValues, idx) {
-    if (isRule1) { return value > ucl; }
-    // Rule 3 (trend): direction comes from the slope, not the side of the mean
-    if (isRule3 && !isRule2) {
-      if (idx > 0) { return allValues[idx] > allValues[idx - 1]; }
-      if (idx < allValues.length - 1) { return allValues[idx + 1] > allValues[idx]; }
+  function trendIsRising(allValues, trendFlags, idx) {
+    // Prefer the next point so the first point of a run takes the run's direction
+    if (idx < allValues.length - 1 && trendFlags[idx + 1]) {
+      return allValues[idx + 1] > allValues[idx];
     }
+    if (idx > 0) { return allValues[idx] > allValues[idx - 1]; }
+    return allValues[idx + 1] > allValues[idx];
+  }
+
+  function isHighSignal(value, mean, ucl, isRule1, trendFlags, allValues, idx) {
+    if (isRule1) { return value > ucl; }
+    // A trend is coloured by its slope even inside a shift, so a fall from a peak is never an improvement
+    if (trendFlags[idx]) { return trendIsRising(allValues, trendFlags, idx); }
     return value > mean;
   }
 
@@ -590,7 +611,7 @@
 
       var high = isHighSignal(
         values[i], mean[i], ucl[i],
-        signals.rule1[i], signals.rule2[i], signals.rule3[i],
+        signals.rule1[i], signals.rule3,
         values, i
       );
 
@@ -677,10 +698,7 @@
     if (minPhaseLength < 2) {
       throw new Error('minPhaseLength must be at least 2');
     }
-    var baseline = isNum(opts.baseline) ? Math.round(opts.baseline) : 15;
-    if (baseline < 0) {
-      throw new Error('baseline must be a non-negative integer');
-    }
+    var baseline = coerceBaseline(opts.baseline, 15);
 
     var subgroupSizes = opts.subgroupSizes;
     function limitsFor(from, to) {
@@ -758,7 +776,14 @@
     }
     if (lastIdx === -1) { return 'common_cause'; }
 
-    var valueIsHigh = result.values[lastIdx] > result.mean[lastIdx];
+    // Classify the latest signal exactly as its point is coloured, so icon and chart agree
+    var values = result.values;
+    var ucl = result.ucl || filled(values.length, Infinity);
+    var valueIsHigh = isHighSignal(
+      values[lastIdx], result.mean[lastIdx], ucl[lastIdx],
+      !!(signals.rule1 && signals.rule1[lastIdx]), signals.rule3 || [],
+      values, lastIdx
+    );
     if (direction === 'high') {
       return valueIsHigh ? 'improvement_high' : 'concern_low';
     }

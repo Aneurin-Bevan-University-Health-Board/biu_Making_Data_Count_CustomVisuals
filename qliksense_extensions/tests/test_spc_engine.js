@@ -270,6 +270,32 @@ test('a high outlier is improvement when higher is better and concern otherwise'
   assert.strictEqual(low[values.length - 1], engine.POINT_COLOURS.CONCERN);
 });
 
+test('a falling trend inside a high shift is a concern when higher is better', () => {
+  const values = [50, 51, 49, 50, 52, 48, 50, 51, 49, 50,
+    60, 66, 65, 64, 63, 62, 61, 60.5, 60.2, 50];
+  const result = engine.calculateControlLimits(values, 'xmr');
+  const signals = engine.detectSpecialCauses(result);
+  const colours = engine.determinePointColours(result, signals, 'high');
+  for (let i = 12; i < 19; i++) {
+    assert.ok(signals.rule2[i] && signals.rule3[i], 'point ' + i + ' is in both a shift and a trend');
+    if (!signals.rule1[i]) {
+      assert.strictEqual(colours[i], engine.POINT_COLOURS.CONCERN, 'point ' + i);
+    }
+  }
+});
+
+test('the variation icon agrees with the colour of a falling trend above the mean', () => {
+  const values = [50, 51, 49, 50, 52, 48, 50, 51, 49, 50,
+    60, 66, 65, 64, 63, 62, 61, 60.5, 60.2];
+  const result = engine.calculateControlLimits(values, 'xmr');
+  const signals = engine.detectSpecialCauses(result);
+  const last = values.length - 1;
+  assert.ok(signals.rule3[last] && !signals.rule1[last] && values[last] > result.mean[last]);
+  assert.strictEqual(engine.determinePointColours(result, signals, 'high')[last], engine.POINT_COLOURS.CONCERN);
+  assert.strictEqual(engine.determineVariationType(result, signals, 'high'), 'concern_low');
+  assert.strictEqual(engine.determineVariationType(result, signals, 'low'), 'improvement_low');
+});
+
 test('variation classification follows the latest special-cause point', () => {
   const values = STABLE.concat([120]);
   const result = engine.calculateControlLimits(values, 'xmr');
@@ -323,6 +349,26 @@ test('rebasing is rejected for run charts and invalid options', () => {
     () => engine.rebaseControlLimits(STABLE, 'xmr', { baseline: -1 }),
     /baseline/
   );
+});
+
+test('baseline accepts numeric strings and whole floats from Qlik variables', () => {
+  const values = [50, 52, 48, 51, 49, 53, 47, 50, 52, 48]
+    .concat([60, 62, 58, 61, 59, 63, 57, 60, 62, 58, 61, 59, 60, 62, 58, 61, 59, 60, 62, 58]);
+  const firstRebase = (baseline) => engine.rebaseControlLimits(values, 'xmr', {
+    rebaseOn: 'any', baseline
+  }).rebasePhase.indexOf(1);
+
+  assert.strictEqual(firstRebase('20'), firstRebase(20));
+  assert.strictEqual(firstRebase(' 20 '), firstRebase(20));
+  assert.strictEqual(firstRebase(20.0), firstRebase(20));
+  assert.strictEqual(firstRebase(''), firstRebase(15));
+  assert.notStrictEqual(firstRebase('20'), firstRebase(15));
+  [null, undefined, '', '-', 'Yes', 'abc', true].forEach((unset) => {
+    assert.strictEqual(firstRebase(unset), firstRebase(15));
+  });
+  ['20.5', 20.5, '-1'].forEach((bad) => {
+    assert.throws(() => firstRebase(bad), /baseline must be a non-negative integer/);
+  });
 });
 
 // ---------------------------------------------------------------------------

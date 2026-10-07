@@ -331,7 +331,7 @@ def determine_point_colours(
         # Determine direction of the special cause
         is_high = _is_high_signal(
             values[i], mean[i], ucl[i], lcl[i],
-            rule1[i], rule2[i], rule3[i],
+            rule1[i], rule3,
             values, mean, i,
         )
 
@@ -625,9 +625,19 @@ def determine_variation_type(
     values = result[value_col].to_numpy(dtype=float)
     mean = result[mean_col].to_numpy(dtype=float)
 
-    # Assess the most recent special-cause point
+    # Assess the most recent special-cause point, classified exactly as its
+    # point is coloured so the icon and the chart agree
     last_sc_idx = int(np.where(sc)[0][-1])
-    value_is_high = values[last_sc_idx] > mean[last_sc_idx]
+    if {"rule1", "rule3", "ucl"}.issubset(result.columns):
+        value_is_high = _is_high_signal(
+            values[last_sc_idx], mean[last_sc_idx],
+            float(result["ucl"].iloc[last_sc_idx]), float("nan"),
+            bool(result["rule1"].iloc[last_sc_idx]),
+            result["rule3"].to_numpy(dtype=bool),
+            values, mean, last_sc_idx,
+        )
+    else:
+        value_is_high = values[last_sc_idx] > mean[last_sc_idx]
 
     if improvement_direction == "high":
         if value_is_high:
@@ -1036,8 +1046,7 @@ def _is_high_signal(
     ucl: float,
     lcl: float,
     is_rule1: bool,
-    is_rule2: bool,
-    is_rule3: bool,
+    trend_flags: np.ndarray,
     all_values: np.ndarray,
     all_means: np.ndarray,
     idx: int,
@@ -1045,14 +1054,16 @@ def _is_high_signal(
     """Return True if the special-cause signal is in the *high* direction."""
     if is_rule1:
         return value > ucl
-    # Rule 3 (trend): direction is determined by the slope, not by
-    # the point's position relative to the mean.  An upward trend is
-    # "high" regardless of whether individual points sit below the mean.
-    if is_rule3 and not is_rule2:
+    # A trend is coloured by its slope even inside a shift, so a fall from a
+    # peak is never shown as an improvement.
+    if trend_flags[idx]:
+        n = len(all_values)
+        # Prefer the next point so the first point of a run takes its direction
+        if idx < n - 1 and trend_flags[idx + 1]:
+            return float(all_values[idx + 1]) > float(all_values[idx])
         if idx > 0:
             return float(all_values[idx]) > float(all_values[idx - 1])
-        if idx < len(all_values) - 1:
-            return float(all_values[idx + 1]) > float(all_values[idx])
+        return float(all_values[idx + 1]) > float(all_values[idx])
     # Rule 2 or 4: look at which side of mean the point is on
     return value > mean
 

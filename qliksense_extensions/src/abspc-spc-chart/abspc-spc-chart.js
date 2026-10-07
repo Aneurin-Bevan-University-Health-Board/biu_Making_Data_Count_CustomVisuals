@@ -159,7 +159,7 @@ define([
             target: targetValue,
             autoRebase: propsUi.settingBoolean(props, 'autoRebase', false),
             rebaseOn: propsUi.settingText(props, 'rebaseOn', 'improvement', propsUi.REBASE_VALUES),
-            baseline: settingNumber(props, 'baseline', 15),
+            baseline: propsUi.settingValue(props, 'baseline', 15),
             minPhaseLength: settingNumber(props, 'minPhaseLength', 8)
           });
 

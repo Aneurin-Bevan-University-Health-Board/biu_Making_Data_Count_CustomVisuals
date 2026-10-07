@@ -137,6 +137,9 @@
     items[spec.key + 'Mode'] = modeSwitch(spec.key, spec.label + ' source', spec.extraShow);
     items[spec.key] = numberBox(spec.key, spec.label, spec.defaultValue, spec.extraShow);
     items[spec.key + 'Expression'] = expressionBox(spec.key, spec.label + ' expression', spec.extraShow);
+    if (spec.hint) {
+      items[spec.key + 'ExpressionHint'] = hint(spec.key, spec.hint, spec.extraShow);
+    }
     return items;
   }
 

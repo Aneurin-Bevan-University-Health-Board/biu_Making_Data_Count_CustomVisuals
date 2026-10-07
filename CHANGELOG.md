@@ -62,8 +62,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on-premise Qlik Sense deployment.
 - **Zero-dependency build (`npm run build`) and tests (`npm test`)** for the
   Qlik Sense extensions, producing importable `.zip` packages.
+- **Baseline driven by a Qlik variable** — the *Baseline points before
+  rebasing* expression accepts numeric text and whole floats (`"20"`,
+  `"20.0"`); an empty, null (`-`) or non-numeric result falls back to 15, and
+  a negative or fractional value shows an error. The property panel shows a
+  hint on referencing a variable (`=$(vBaseline)`).
 
 ### Changed
+- **Trend colouring** — a point in a trend (rule 3) is coloured by the trend's
+  slope even when it is also part of a shift (rule 2), so a fall from a peak
+  that is still above the mean is a concern when higher is better. Points
+  beyond a control limit (rule 1) are still classed by the side they fall on.
+  Applied to both the Qlik engine and `abspc`.
+- **Variation icon** classifies the latest special-cause point with the same
+  logic as its colour, so the icon and the chart always agree.
+- Qlik Sense extensions bumped to **1.0.1**.
 - The Qlik SPC chart charts a **single measure**: a second measure is only ever
   the p/u denominator and a third is rejected with a message pointing at the
   target value / target expression. The target is no longer taken from a

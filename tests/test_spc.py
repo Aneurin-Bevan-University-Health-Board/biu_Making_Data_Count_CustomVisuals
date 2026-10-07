@@ -14,6 +14,7 @@ from abspc.spc import (
     detect_run_chart_signals,
     rebase_control_limits,
     determine_point_colours,
+    determine_variation_type,
     show_summary,
     _find_improvement_shift_start,
     COLOUR_COMMON_CAUSE,
@@ -645,6 +646,36 @@ class TestDeterminePointColours:
                 assert colours[i] == COLOUR_IMPROVEMENT, (
                     f"Point {i} (value={values[i]}) should be IMPROVEMENT"
                 )
+
+    def test_falling_trend_inside_high_shift_is_concern(self):
+        """A fall from a peak that is still above the mean is a concern when
+        higher is better: the trend's slope outranks the shift's side."""
+        values = [50, 51, 49, 50, 52, 48, 50, 51, 49, 50,
+                  60, 66, 65, 64, 63, 62, 61, 60.5, 60.2, 50]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        colours = determine_point_colours(flags, improvement_direction="high")
+        for i in range(12, 19):
+            assert flags["rule2"].iloc[i] and flags["rule3"].iloc[i]
+            if not flags["rule1"].iloc[i]:
+                assert colours[i] == COLOUR_CONCERN, (
+                    f"Point {i} (value={values[i]}) should be CONCERN"
+                )
+
+    def test_variation_matches_falling_trend_colour(self):
+        """The variation icon must agree with the colour of the latest signal,
+        here a falling trend that is still above the mean."""
+        values = [50, 51, 49, 50, 52, 48, 50, 51, 49, 50,
+                  60, 66, 65, 64, 63, 62, 61, 60.5, 60.2]
+        df = pd.DataFrame({"value": values})
+        result = calculate_control_limits(df, chart_type="XmR")
+        flags = detect_special_causes(result)
+        last = len(values) - 1
+        assert flags["rule3"].iloc[last] and not flags["rule1"].iloc[last]
+        assert determine_point_colours(flags, improvement_direction="high")[last] == COLOUR_CONCERN
+        assert determine_variation_type(flags, improvement_direction="high") == "concern_low"
+        assert determine_variation_type(flags, improvement_direction="low") == "improvement_low"
 
     def test_target_based_colouring(self):
         values = [10] * 9 + [100]

@@ -72,6 +72,7 @@ define(['./lib/props-ui'], function (propsUi) {
     key: 'baseline',
     label: 'Baseline points before rebasing',
     defaultValue: 15,
+    hint: 'Start with = to use a variable, e.g. =$(vBaseline). Must return a whole number of 0 or more.',
     extraShow: whenAutoRebase
   }));
 
