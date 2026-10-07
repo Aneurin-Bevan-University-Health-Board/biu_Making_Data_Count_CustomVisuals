@@ -209,11 +209,11 @@
   return {
     CHART_TYPE_OPTIONS: [
       { value: 'auto', label: 'Auto-detect' },
-      { value: 'xmr', label: 'XmR (individuals)' },
-      { value: 'p', label: 'p (proportion)' },
-      { value: 'pprime', label: "p' (proportion, large denominators)" },
-      { value: 'u', label: 'u (rate per unit)' },
-      { value: 'uprime', label: "u' (rate, large denominators)" },
+      { value: 'xmr', label: 'XmR (individuals) \u2014 recommended for most measures' },
+      { value: 'p', label: 'p (proportion) \u2014 needs denominator measure' },
+      { value: 'pprime', label: "p' (proportion, large denominators) \u2014 needs denominator measure" },
+      { value: 'u', label: 'u (rate per unit) \u2014 needs denominator measure' },
+      { value: 'uprime', label: "u' (rate, large denominators) \u2014 needs denominator measure" },
       { value: 'c', label: 'c (count)' },
       { value: 't', label: 't (time between rare events)' },
       { value: 'g', label: 'g (opportunities between rare events)' },
