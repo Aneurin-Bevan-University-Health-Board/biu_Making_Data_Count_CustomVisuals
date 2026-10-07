@@ -709,10 +709,22 @@
       });
     }
 
+    var warningY = margin.top + 12;
     if (!analysis.hasEnoughData) {
       text(svg, 'Warning: SPC needs at least ' + engine.SPC_MIN_DATA_POINTS +
         ' data points (' + analysis.pointCount + ' supplied) \u2014 results may be unreliable.', {
-        x: margin.left, y: margin.top + 12,
+        x: margin.left, y: warningY,
+        'font-family': 'Arial, Helvetica, sans-serif', 'font-size': 11,
+        'font-weight': 'bold', fill: COLOURS.ORANGE
+      });
+      warningY += 14;
+    }
+
+    if (analysis.assumedDenominator) {
+      text(svg, 'Warning: no denominator measure \u2014 limits assume ' +
+        analysis.assumedDenominator + ' per period. Add the denominator as a second ' +
+        'measure, or use an XmR chart.', {
+        x: margin.left, y: warningY,
         'font-family': 'Arial, Helvetica, sans-serif', 'font-size': 11,
         'font-weight': 'bold', fill: COLOURS.ORANGE
       });

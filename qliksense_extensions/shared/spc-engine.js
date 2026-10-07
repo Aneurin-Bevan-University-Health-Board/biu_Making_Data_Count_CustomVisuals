@@ -961,10 +961,12 @@
     }
     chartType = normaliseChartType(chartType);
 
+    var assumedDenominator = null;
     if (DENOMINATOR_CHART_TYPES.indexOf(chartType) !== -1 && !hasDenominator) {
       // Mirror the Python / Looker default assumptions rather than failing
       var isProportion = chartType === 'p' || chartType === 'pprime';
-      subgroupSizes = filled(values.length, isProportion ? 100 : 1);
+      assumedDenominator = isProportion ? 100 : 1;
+      subgroupSizes = filled(values.length, assumedDenominator);
       hasDenominator = true;
     }
 
@@ -1004,6 +1006,7 @@
       chartType: chartType,
       requestedChartType: requested,
       detection: detection,
+      assumedDenominator: assumedDenominator,
       values: result.values,
       mean: result.mean,
       ucl: result.ucl || null,

@@ -296,6 +296,18 @@ test('the variation icon agrees with the colour of a falling trend above the mea
   assert.strictEqual(engine.determineVariationType(result, signals, 'low'), 'improvement_low');
 });
 
+test('analyse reports when a p/u denominator is assumed', () => {
+  const values = [0.74, 0.76, 0.73, 0.75, 0.77, 0.72, 0.74, 0.76, 0.75, 0.73,
+    0.74, 0.76, 0.75, 0.74, 0.73, 0.75];
+  assert.strictEqual(engine.analyse(values, { chartType: 'p' }).assumedDenominator, 100);
+  assert.strictEqual(engine.analyse(values, { chartType: 'u' }).assumedDenominator, 1);
+  const sizes = values.map(() => 5000);
+  assert.strictEqual(
+    engine.analyse(values, { chartType: 'p', subgroupSizes: sizes }).assumedDenominator, null
+  );
+  assert.strictEqual(engine.analyse(values, { chartType: 'xmr' }).assumedDenominator, null);
+});
+
 test('variation classification follows the latest special-cause point', () => {
   const values = STABLE.concat([120]);
   const result = engine.calculateControlLimits(values, 'xmr');
